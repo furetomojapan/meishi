@@ -48,15 +48,34 @@
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [error, setError] = useState("");
 
+        const loadNamesData = async () => {
+          try {
+            const res = await fetch('/api/names');
+            const data = await res.json();
+            if (data && data.length > 0) return data;
+          } catch (err) {}
+          
+          try {
+            const ghRes = await fetch('https://api.github.com/repos/furetomojapan/meishi/contents/');
+            if (ghRes.ok) {
+              const files = await ghRes.json();
+              const names = files
+                .map(f => f.name)
+                .filter(name => /^(image1_|image2_|image_1_|image_2_|img1_|img2_)/i.test(name))
+                .map(name => name.replace(/^(image1_|image2_|image_1_|image_2_|img1_|img2_)/i, "").replace(/\.(png|jpg|jpeg|gif|webp)$/i, ""));
+              return Array.from(new Set(names)).filter(n => n.length > 0);
+            }
+          } catch (err) {}
+          return ["ichiro_suzuki", "sanae_takaichi"];
+        };
+
         // ページ読み込み時にリストを取得し、URLをチェック
         useEffect(() => {
-          // サーバーから自動で名前リストを取得
-          fetch('/api/names')
-            .then(res => res.json())
-            .then(data => {
-              setRegisteredNames(data);
-            })
-            .catch(err => console.error("Failed to load names:", err));
+          const init = async () => {
+            const names = await loadNamesData();
+            setRegisteredNames(names);
+          };
+          init();
 
           const urlParams = new URLSearchParams(window.location.search);
           const id = urlParams.get('id');
@@ -164,20 +183,42 @@
                       <div className="w-full max-w-2xl bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
                         <div className="flex justify-between items-center mb-10 px-1">
                           <h2 className="text-sm font-medium text-neutral-800">登録済みファイルを選択</h2>
-                          <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-300 hover:text-red-400 uppercase tracking-widest transition-colors">Logout</button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {registeredNames.map(name => (
+                          <div className="flex gap-4 items-center">
                             <button 
-                              key={name}
-                              onClick={() => selectName(name)}
-                              className={`flex items-center justify-between px-5 py-4 rounded-xl border text-sm transition-all ${variablePart === name ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-neutral-50 border-neutral-100 hover:border-neutral-300'}`}
+                              onClick={async () => {
+                                const names = await loadNamesData();
+                                setRegisteredNames(names);
+                              }}
+                              className="text-[10px] text-neutral-400 hover:text-black uppercase tracking-widest transition-colors flex items-center gap-1.5"
                             >
-                              <span>{name}</span>
-                              <span className="text-[9px] opacity-40">SELECT</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                              Refresh List
                             </button>
-                          ))}
+                            <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-300 hover:text-red-400 uppercase tracking-widest transition-colors">Logout</button>
+                          </div>
                         </div>
+                        
+                        {registeredNames.length === 0 ? (
+                          <div className="py-12 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-200">
+                            <p className="text-xs text-neutral-400 mb-2">画像ファイルが見つかりません</p>
+                            <p className="text-[10px] text-neutral-300 px-10 leading-relaxed">
+                              左側のファイルエディタのツリー（GitHubと同じ階層）に「image1_名前.png」形式の画像をアップロードしてください。
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {registeredNames.map(name => (
+                              <button 
+                                key={name}
+                                onClick={() => selectName(name)}
+                                className={`flex items-center justify-between px-5 py-4 rounded-xl border text-sm transition-all ${variablePart === name ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-neutral-50 border-neutral-100 hover:border-neutral-300'}`}
+                              >
+                                <span>{name}</span>
+                                <span className="text-[9px] opacity-40">SELECT</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <button onClick={() => setIsAdminMode(false)} className="w-full mt-10 py-3 text-[10px] text-neutral-400 uppercase tracking-widest border border-neutral-100 rounded-xl hover:bg-neutral-50">閉じる</button>
                       </div>
                     )}
@@ -221,9 +262,18 @@
                             alt={`Card ${card.label}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              // ファイルが見つからない場合のフォールバック表示
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
+                              // もしローカルで見つからない場合、GitHubのRawサーバーから読み込む
+                              // URL: https://raw.githubusercontent.com/furetomojapan/meishi/main/image1_xxxx.png
+                              const githubFallbackUrl = `https://raw.githubusercontent.com/furetomojapan/meishi/main/${card.src}`;
+                              
+                              if (e.target.src !== githubFallbackUrl) {
+                                console.log("Falling back to GitHub source for:", card.src);
+                                e.target.src = githubFallbackUrl;
+                              } else {
+                                // GitHubにもない場合はエラー表示
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }
                             }}
                           />
                           <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
