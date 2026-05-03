@@ -40,25 +40,24 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect } = React;
 
-      /**
-       * 【管理者設定】
-       *  - パスワード: admin123
-       *  - 登録名リスト: ここに画像がある「名前」を追加してください
-       **/
-      const registeredNames = [
-        "ichiro_suzuki",
-        "sanae_takaichi"
-      ];
-
       function App() {
+        const [registeredNames, setRegisteredNames] = useState([]);
         const [variablePart, setVariablePart] = useState(null);
         const [isAdminMode, setIsAdminMode] = useState(false);
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [error, setError] = useState("");
 
-        // ページ読み込み時にURLをチェック
+        // ページ読み込み時にリストを取得し、URLをチェック
         useEffect(() => {
+          // サーバーから自動で名前リストを取得
+          fetch('/api/names')
+            .then(res => res.json())
+            .then(data => {
+              setRegisteredNames(data);
+            })
+            .catch(err => console.error("Failed to load names:", err));
+
           const urlParams = new URLSearchParams(window.location.search);
           const id = urlParams.get('id');
           if (id) {
