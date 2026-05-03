@@ -23,9 +23,9 @@
       };
     </script>
     <style>
-      /* 基本的なリセットと選択色の設定のみ標準CSSで記述 */
       ::selection { background-color: #000; color: #fff; }
       body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
+      .hide-admin-trigger { cursor: default; user-select: none; }
     </style>
   </head>
   <body>
@@ -35,7 +35,6 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <!-- Babel for Browser-side JSX compilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
@@ -43,34 +42,60 @@
       const { useState, useEffect } = React;
 
       /**
-       * 【設定コーナー】
-       * ここを書き換えるだけで、表示される画像が変わります。
+       * 【管理者設定】
+       * パスワードは「SHA-256」という形式で暗号化（ハッシュ化）して保存しています。
+       * これにより、ソースコードから元のパスワードが直接読まれるのを防いでいます。
        **/
-      const defaultId = "ここを名前に書き換えてください"; // 例: "鈴木" や "田中"
+      // "admin123" をハッシュ化したもの
+      const EXPECTED_HASH = "240be518fabd2724ddb6f04030113c7a039c97100aee3c9f8a006ef6c6f39e9e";
+
+      const registeredNames = [
+        "ichiro_suzuki", 
+        "sanae_takaichi"
+      ];
+
+      // SHA-256ハッシュを計算する関数
+      async function sha256(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+      }
 
       function App() {
-        const [inputValue, setInputValue] = useState("");
         const [variablePart, setVariablePart] = useState(null);
+        const [isAdminMode, setIsAdminMode] = useState(false);
+        const [passwordInput, setPasswordInput] = useState("");
+        const [isLoggedIn, setIsLoggedIn] = useState(false);
+        const [error, setError] = useState("");
 
         useEffect(() => {
-          // 1. URLに ?id=xxx が付いているか確認します
           const urlParams = new URLSearchParams(window.location.search);
           const idFromUrl = urlParams.get('id');
-
           if (idFromUrl) {
-            // URLに名前があればそれを使います
             setVariablePart(idFromUrl);
-          } else if (defaultId !== "ここを名前に書き換えてください") {
-            // URLになくても、上の「設定コーナー」が書き換わっていればそれを使います
-            setVariablePart(defaultId);
           }
         }, []);
 
-        const handleSubmit = (e) => {
+        const handleLogin = async (e) => {
           e.preventDefault();
-          if (inputValue.trim()) {
-            setVariablePart(inputValue.trim());
+          const inputHash = await sha256(passwordInput);
+          if (inputHash === EXPECTED_HASH) {
+            setIsLoggedIn(true);
+            setError("");
+          } else {
+            setError("パスワードが違います");
+            setPasswordInput("");
           }
+        };
+
+        const selectName = (name) => {
+          setVariablePart(name);
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('id', name);
+          window.history.pushState({}, '', newUrl);
+          setIsAdminMode(false);
         };
 
         const cardImages = variablePart ? [
@@ -81,11 +106,14 @@
         return (
           <div className="min-h-screen p-6 md:p-12">
             <div className="max-w-5xl mx-auto">
+              
               {/* Header */}
               <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex flex-col items-center md:items-start tracking-tight">
                   <h1 className="text-2xl font-light text-neutral-800">Digital Card Viewer</h1>
-                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest">Variable Display System</p>
+                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest leading-loose">
+                    {variablePart ? `Displaying: ${variablePart}` : "Twin Card Presentation"}
+                  </p>
                 </div>
                 
                 <div className="flex items-center gap-4">
@@ -103,49 +131,77 @@
                     <span>Portfolio</span>
                   </motion.a>
                   
-                  {variablePart && (
+                  {isLoggedIn && (
                     <button 
-                      onClick={() => setVariablePart(null)}
+                      onClick={() => setIsAdminMode(true)}
                       className="text-[10px] font-mono text-neutral-400 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5"
                     >
-                      Change Name
+                      Console
                     </button>
                   )}
                 </div>
               </header>
 
               <AnimatePresence mode="wait">
-                {!variablePart ? (
+                {isAdminMode ? (
                   <motion.div 
-                    key="input-screen"
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    key="admin-screen"
+                    initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="flex flex-col items-center justify-center py-20"
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    className="flex flex-col items-center justify-center py-10"
                   >
-                    <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
-                      <h2 className="text-sm font-medium mb-6 text-center text-neutral-600">表示する名前を入力してください</h2>
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <input 
-                          type="text" 
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          placeholder="例: 鈴木, 田中 ..."
-                          className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-neutral-400 transition-all text-sm"
-                          autoFocus
-                        />
-                        <button 
-                          type="submit"
-                          className="w-full py-3 bg-neutral-900 text-white rounded-xl text-sm font-medium hover:bg-black transition-colors"
-                        >
-                          カードを表示する
-                        </button>
-                      </form>
-                      <p className="text-[10px] text-neutral-400 mt-6 text-center leading-relaxed">
-                        ※ image1_(入力名).png と image2_(入力名).png<br />
-                        を読み込みます。
-                      </p>
+                    {!isLoggedIn ? (
+                      <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
+                        <h2 className="text-sm font-medium mb-6 text-center text-neutral-600 tracking-wider font-mono">ENTER CODE</h2>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                          <input 
+                            type="password" 
+                            value={passwordInput}
+                            onChange={(e) => setPasswordInput(e.target.value)}
+                            placeholder="••••••"
+                            className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-neutral-400 transition-all text-sm text-center tracking-widest"
+                            autoFocus
+                          />
+                          {error && <p className="text-[10px] text-red-500 text-center font-mono">{error}</p>}
+                          <button type="submit" className="w-full py-3 bg-black text-white rounded-xl text-xs font-semibold uppercase tracking-widest hover:bg-neutral-800 transition-colors">
+                            Authenticate
+                          </button>
+                          <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-300 uppercase tracking-widest mt-4 hover:text-neutral-500 transition-colors">Close</button>
+                        </form>
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-2xl bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
+                        <div className="flex justify-between items-center mb-6 px-1">
+                          <h2 className="text-sm font-medium text-neutral-600">登録済みリスト</h2>
+                          <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-300 hover:text-black uppercase tracking-widest">Logout</button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {registeredNames.map(name => (
+                            <button 
+                              key={name}
+                              onClick={() => selectName(name)}
+                              className={`px-4 py-3 rounded-xl border text-[11px] font-mono transition-all ${variablePart === name ? 'bg-black text-white border-black shadow-md' : 'bg-neutral-50 border-neutral-100 hover:border-neutral-300'}`}
+                            >
+                              {name}
+                            </button>
+                          ))}
+                        </div>
+                        <button onClick={() => setIsAdminMode(false)} className="w-full mt-8 py-2 text-[10px] text-neutral-300 uppercase tracking-widest border border-neutral-100 rounded-lg hover:bg-neutral-50 transition-colors">Close Console</button>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : !variablePart ? (
+                  <motion.div 
+                    key="empty-screen"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center py-32 text-center"
+                  >
+                    <div className="p-10 mb-10 bg-neutral-100/50 rounded-full border border-neutral-200/30">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                     </div>
+                    <h2 className="text-sm font-light text-neutral-400 tracking-widest uppercase">Twin View Standby</h2>
                   </motion.div>
                 ) : (
                   <motion.div 
@@ -162,22 +218,22 @@
                         transition={{ delay: index * 0.1 }}
                         className="group"
                       >
-                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden border border-white transition-all duration-500 group-hover:shadow-[0_25px_50px_rgba(0,0,0,0.08)] group-hover:-translate-y-1">
+                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.02)] overflow-hidden border border-white transition-all duration-700 group-hover:shadow-[0_40px_70px_rgba(0,0,0,0.1)] group-hover:-translate-y-2">
                           <img 
                             src={card.src} 
                             alt={`Card ${card.label}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.target.src = `https://placehold.co/800x500/ffffff/dddddd?text=${card.label}+CARD\n(image${card.id}_${variablePart}.png)`;
+                              e.target.src = `https://placehold.co/800x500/ffffff/f0f0f0?text=${card.label}+NOT+FOUND\n(${card.src})`;
                             }}
                           />
                           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="mt-4 flex justify-between items-center px-1">
-                          <span className="text-[10px] font-mono font-['JetBrains_Mono'] uppercase tracking-widest text-neutral-400 italic">
+                        <div className="mt-5 flex justify-between items-center px-1">
+                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] uppercase tracking-[0.2em] text-neutral-400">
                             {card.label} VIEW
                           </span>
-                          <span className="text-[10px] font-mono font-['JetBrains_Mono'] text-neutral-300">
+                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] text-neutral-300">
                             {card.src}
                           </span>
                         </div>
@@ -188,9 +244,12 @@
               </AnimatePresence>
 
               {/* Footer */}
-              <footer className="mt-20 py-8 border-t border-neutral-200">
-                <p className="text-[10px] text-neutral-400 font-mono font-['JetBrains_Mono'] uppercase tracking-widest text-center">
-                  © 2026 DIGITAL SHOWCASE v2.0
+              <footer className="mt-24 py-10 border-t border-neutral-200/60">
+                <p 
+                  onClick={() => setIsAdminMode(true)}
+                  className="text-[9px] text-neutral-300 font-mono font-['JetBrains_Mono'] uppercase tracking-[0.3em] text-center cursor-default hover:text-neutral-400 transition-colors select-none"
+                >
+                  © 2026 DIGITAL SHOWCASE
                 </p>
               </footer>
             </div>
@@ -203,4 +262,3 @@
     </script>
   </body>
 </html>
-
