@@ -74,8 +74,8 @@
             return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
           });
 
-          // "admin123" を Base64変換したものと比較
-          if (window.btoa(cleanInput) === "YWRtaW4xMjM=") {
+          // シンプルに "admin123" という文字と一致するか確認
+          if (cleanInput === "admin123") {
             setIsLoggedIn(true);
             setError("");
             setPasswordInput("");
