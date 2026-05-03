@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Card Viewer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "ui-sans-serif", "system-ui"],
+              mono: ["JetBrains Mono", "ui-monospace"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* 基本的なリセットと選択色の設定のみ標準CSSで記述 */
+      ::selection { background-color: #000; color: #fff; }
+      body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Core Libraries (CDNs) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <!-- Babel for Browser-side JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { motion, AnimatePresence } = window.Motion;
+      const { useState, useEffect } = React;
+
+      /**
+       * 【設定コーナー】
+       * ここを書き換えるだけで、表示される画像が変わります。
+       **/
+      const defaultId = "ここを名前に書き換えてください"; // 例: "鈴木" や "田中"
+
+      function App() {
+        const [inputValue, setInputValue] = useState("");
+        const [variablePart, setVariablePart] = useState(null);
+
+        useEffect(() => {
+          // 1. URLに ?id=xxx が付いているか確認します
+          const urlParams = new URLSearchParams(window.location.search);
+          const idFromUrl = urlParams.get('id');
+
+          if (idFromUrl) {
+            // URLに名前があればそれを使います
+            setVariablePart(idFromUrl);
+          } else if (defaultId !== "ここを名前に書き換えてください") {
+            // URLになくても、上の「設定コーナー」が書き換わっていればそれを使います
+            setVariablePart(defaultId);
+          }
+        }, []);
+
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          if (inputValue.trim()) {
+            setVariablePart(inputValue.trim());
+          }
+        };
+
+        const cardImages = variablePart ? [
+          { id: 1, src: `image1_${variablePart}.png`, label: "おもて面" },
+          { id: 2, src: `image2_${variablePart}.png`, label: "うら面" },
+        ] : [];
+
+        return (
+          <div className="min-h-screen p-6 md:p-12">
+            <div className="max-w-5xl mx-auto">
+              {/* Header */}
+              <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="flex flex-col items-center md:items-start tracking-tight">
+                  <h1 className="text-2xl font-light text-neutral-800">Digital Card Viewer</h1>
+                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest">Variable Display System</p>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <motion.a 
+                    href="https://laxuz.xyz/portfolio/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-full text-xs font-medium transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>Portfolio</span>
+                  </motion.a>
+                  
+                  {variablePart && (
+                    <button 
+                      onClick={() => setVariablePart(null)}
+                      className="text-[10px] font-mono text-neutral-400 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5"
+                    >
+                      Change Name
+                    </button>
+                  )}
+                </div>
+              </header>
+
+              <AnimatePresence mode="wait">
+                {!variablePart ? (
+                  <motion.div 
+                    key="input-screen"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex flex-col items-center justify-center py-20"
+                  >
+                    <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
+                      <h2 className="text-sm font-medium mb-6 text-center text-neutral-600">表示する名前を入力してください</h2>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <input 
+                          type="text" 
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          placeholder="例: 鈴木, 田中 ..."
+                          className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-neutral-400 transition-all text-sm"
+                          autoFocus
+                        />
+                        <button 
+                          type="submit"
+                          className="w-full py-3 bg-neutral-900 text-white rounded-xl text-sm font-medium hover:bg-black transition-colors"
+                        >
+                          カードを表示する
+                        </button>
+                      </form>
+                      <p className="text-[10px] text-neutral-400 mt-6 text-center leading-relaxed">
+                        ※ image1_(入力名).png と image2_(入力名).png<br />
+                        を読み込みます。
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="display-screen"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12"
+                  >
+                    {cardImages.map((card, index) => (
+                      <motion.div
+                        key={card.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="group"
+                      >
+                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden border border-white transition-all duration-500 group-hover:shadow-[0_25px_50px_rgba(0,0,0,0.08)] group-hover:-translate-y-1">
+                          <img 
+                            src={card.src} 
+                            alt={`Card ${card.label}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = `https://placehold.co/800x500/ffffff/dddddd?text=${card.label}+CARD\n(image${card.id}_${variablePart}.png)`;
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="mt-4 flex justify-between items-center px-1">
+                          <span className="text-[10px] font-mono font-['JetBrains_Mono'] uppercase tracking-widest text-neutral-400 italic">
+                            {card.label} VIEW
+                          </span>
+                          <span className="text-[10px] font-mono font-['JetBrains_Mono'] text-neutral-300">
+                            {card.src}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Footer */}
+              <footer className="mt-20 py-8 border-t border-neutral-200">
+                <p className="text-[10px] text-neutral-400 font-mono font-['JetBrains_Mono'] uppercase tracking-widest text-center">
+                  © 2026 DIGITAL SHOWCASE v2.0
+                </p>
+              </footer>
+            </div>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
+
