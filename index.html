@@ -25,7 +25,6 @@
     <style>
       ::selection { background-color: #000; color: #fff; }
       body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
-      .hide-admin-trigger { cursor: default; user-select: none; }
     </style>
   </head>
   <body>
@@ -43,25 +42,13 @@
 
       /**
        * 【管理者設定】
-       * パスワードは「SHA-256」という形式で暗号化（ハッシュ化）して保存しています。
-       * これにより、ソースコードから元のパスワードが直接読まれるのを防いでいます。
+       *  - パスワード: admin123
+       *  - 登録名リスト: ここに画像がある「名前」を追加してください
        **/
-      // "admin123" をハッシュ化したもの
-      const EXPECTED_HASH = "240be518fabd2724ddb6f04030113c7a039c97100aee3c9f8a006ef6c6f39e9e";
-
       const registeredNames = [
-        "ichiro_suzuki", 
+        "ichiro_suzuki",
         "sanae_takaichi"
       ];
-
-      // SHA-256ハッシュを計算する関数
-      async function sha256(message) {
-        const msgBuffer = new TextEncoder().encode(message);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return hashHex;
-      }
 
       function App() {
         const [variablePart, setVariablePart] = useState(null);
@@ -70,28 +57,37 @@
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [error, setError] = useState("");
 
+        // ページ読み込み時にURLをチェック
         useEffect(() => {
           const urlParams = new URLSearchParams(window.location.search);
-          const idFromUrl = urlParams.get('id');
-          if (idFromUrl) {
-            setVariablePart(idFromUrl);
+          const id = urlParams.get('id');
+          if (id) {
+            setVariablePart(id);
           }
         }, []);
 
-        const handleLogin = async (e) => {
+        const handleLogin = (e) => {
           e.preventDefault();
-          const inputHash = await sha256(passwordInput);
-          if (inputHash === EXPECTED_HASH) {
+          
+          // 前後のスペースを消し、全角があれば半角に変換
+          const cleanInput = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => {
+            return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+          });
+
+          // "admin123" を Base64変換したものと比較
+          if (window.btoa(cleanInput) === "YWRtaW4xMjM=") {
             setIsLoggedIn(true);
             setError("");
+            setPasswordInput("");
           } else {
-            setError("パスワードが違います");
+            setError("正しいコードを入力してください");
             setPasswordInput("");
           }
         };
 
         const selectName = (name) => {
           setVariablePart(name);
+          // URLを更新 (?id=名前)
           const newUrl = new URL(window.location.href);
           newUrl.searchParams.set('id', name);
           window.history.pushState({}, '', newUrl);
@@ -109,10 +105,10 @@
               
               {/* Header */}
               <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex flex-col items-center md:items-start tracking-tight">
+                <div className="flex flex-col items-center md:items-start tracking-tight text-center md:text-left">
                   <h1 className="text-2xl font-light text-neutral-800">Digital Card Viewer</h1>
-                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest leading-loose">
-                    {variablePart ? `Displaying: ${variablePart}` : "Twin Card Presentation"}
+                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest">
+                    {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
                 </div>
                 
@@ -125,20 +121,15 @@
                     whileTap={{ scale: 0.95 }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-full text-xs font-medium transition-all shadow-lg hover:shadow-xl"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
                     <span>Portfolio</span>
                   </motion.a>
                   
-                  {isLoggedIn && (
-                    <button 
-                      onClick={() => setIsAdminMode(true)}
-                      className="text-[10px] font-mono text-neutral-400 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5"
-                    >
-                      Console
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => setIsAdminMode(true)}
+                    className="text-[10px] font-mono text-neutral-300 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5"
+                  >
+                    {isLoggedIn ? "Admin Console" : "Admin Login"}
+                  </button>
                 </div>
               </header>
 
@@ -146,48 +137,49 @@
                 {isAdminMode ? (
                   <motion.div 
                     key="admin-screen"
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col items-center justify-center py-10"
                   >
                     {!isLoggedIn ? (
                       <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
-                        <h2 className="text-sm font-medium mb-6 text-center text-neutral-600 tracking-wider font-mono">ENTER CODE</h2>
+                        <h2 className="text-xs font-semibold mb-6 text-center text-neutral-400 tracking-widest uppercase">Admin Verification</h2>
                         <form onSubmit={handleLogin} className="space-y-4">
                           <input 
                             type="password" 
                             value={passwordInput}
                             onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="••••••"
-                            className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-neutral-400 transition-all text-sm text-center tracking-widest"
+                            placeholder="管理者パスワード"
+                            className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-400 transition-all text-sm text-center tracking-widest"
                             autoFocus
                           />
-                          {error && <p className="text-[10px] text-red-500 text-center font-mono">{error}</p>}
-                          <button type="submit" className="w-full py-3 bg-black text-white rounded-xl text-xs font-semibold uppercase tracking-widest hover:bg-neutral-800 transition-colors">
-                            Authenticate
+                          {error && <p className="text-[10px] text-red-500 text-center">{error}</p>}
+                          <button type="submit" className="w-full py-3 bg-black text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all">
+                            Login
                           </button>
-                          <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-300 uppercase tracking-widest mt-4 hover:text-neutral-500 transition-colors">Close</button>
+                          <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-300 uppercase tracking-widest mt-4">Cancel</button>
                         </form>
                       </div>
                     ) : (
                       <div className="w-full max-w-2xl bg-white p-8 rounded-3xl shadow-sm border border-neutral-100">
-                        <div className="flex justify-between items-center mb-6 px-1">
-                          <h2 className="text-sm font-medium text-neutral-600">登録済みリスト</h2>
-                          <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-300 hover:text-black uppercase tracking-widest">Logout</button>
+                        <div className="flex justify-between items-center mb-10 px-1">
+                          <h2 className="text-sm font-medium text-neutral-800">登録済みファイルを選択</h2>
+                          <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-300 hover:text-red-400 uppercase tracking-widest transition-colors">Logout</button>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {registeredNames.map(name => (
                             <button 
                               key={name}
                               onClick={() => selectName(name)}
-                              className={`px-4 py-3 rounded-xl border text-[11px] font-mono transition-all ${variablePart === name ? 'bg-black text-white border-black shadow-md' : 'bg-neutral-50 border-neutral-100 hover:border-neutral-300'}`}
+                              className={`flex items-center justify-between px-5 py-4 rounded-xl border text-sm transition-all ${variablePart === name ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-neutral-50 border-neutral-100 hover:border-neutral-300'}`}
                             >
-                              {name}
+                              <span>{name}</span>
+                              <span className="text-[9px] opacity-40">SELECT</span>
                             </button>
                           ))}
                         </div>
-                        <button onClick={() => setIsAdminMode(false)} className="w-full mt-8 py-2 text-[10px] text-neutral-300 uppercase tracking-widest border border-neutral-100 rounded-lg hover:bg-neutral-50 transition-colors">Close Console</button>
+                        <button onClick={() => setIsAdminMode(false)} className="w-full mt-10 py-3 text-[10px] text-neutral-400 uppercase tracking-widest border border-neutral-100 rounded-xl hover:bg-neutral-50">閉じる</button>
                       </div>
                     )}
                   </motion.div>
@@ -198,17 +190,23 @@
                     animate={{ opacity: 1 }}
                     className="flex flex-col items-center justify-center py-32 text-center"
                   >
-                    <div className="p-10 mb-10 bg-neutral-100/50 rounded-full border border-neutral-200/30">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                    <div className="p-10 mb-8 bg-neutral-100/30 rounded-full">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                     </div>
-                    <h2 className="text-sm font-light text-neutral-400 tracking-widest uppercase">Twin View Standby</h2>
+                    <h2 className="text-sm text-neutral-300 tracking-[0.2em] uppercase mb-8">Card Viewer Standby</h2>
+                    <button 
+                      onClick={() => setIsAdminMode(true)}
+                      className="px-8 py-3 bg-neutral-100 text-neutral-500 rounded-full text-xs hover:bg-black hover:text-white transition-all active:scale-95"
+                    >
+                      管理者として選択する
+                    </button>
                   </motion.div>
                 ) : (
                   <motion.div 
                     key="display-screen"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14"
                   >
                     {cardImages.map((card, index) => (
                       <motion.div
@@ -218,20 +216,26 @@
                         transition={{ delay: index * 0.1 }}
                         className="group"
                       >
-                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.02)] overflow-hidden border border-white transition-all duration-700 group-hover:shadow-[0_40px_70px_rgba(0,0,0,0.1)] group-hover:-translate-y-2">
+                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-sm overflow-hidden border border-white transition-all duration-700 group-hover:shadow-2xl group-hover:-translate-y-2">
                           <img 
                             src={card.src} 
                             alt={`Card ${card.label}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.target.src = `https://placehold.co/800x500/ffffff/f0f0f0?text=${card.label}+NOT+FOUND\n(${card.src})`;
+                              // ファイルが見つからない場合のフォールバック表示
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
                             }}
                           />
-                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
+                            <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase tracking-tighter">File not found</p>
+                            <p className="text-[11px] text-neutral-400 font-mono break-all">{card.src}</p>
+                          </div>
+                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         </div>
                         <div className="mt-5 flex justify-between items-center px-1">
-                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] uppercase tracking-[0.2em] text-neutral-400">
-                            {card.label} VIEW
+                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] uppercase tracking-[0.3em] text-neutral-400">
+                            {card.label}
                           </span>
                           <span className="text-[9px] font-mono font-['JetBrains_Mono'] text-neutral-300">
                             {card.src}
@@ -244,11 +248,8 @@
               </AnimatePresence>
 
               {/* Footer */}
-              <footer className="mt-24 py-10 border-t border-neutral-200/60">
-                <p 
-                  onClick={() => setIsAdminMode(true)}
-                  className="text-[9px] text-neutral-300 font-mono font-['JetBrains_Mono'] uppercase tracking-[0.3em] text-center cursor-default hover:text-neutral-400 transition-colors select-none"
-                >
+              <footer className="mt-24 py-10 border-t border-neutral-100">
+                <p className="text-[9px] text-neutral-300 font-mono font-['JetBrains_Mono'] uppercase tracking-[0.4em] text-center">
                   © 2026 DIGITAL SHOWCASE
                 </p>
               </footer>
