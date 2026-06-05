@@ -466,10 +466,19 @@
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) setVariablePart(hash || qid);
           window.addEventListener('hashchange', () => { const h = window.location.hash.slice(1); if (h) setVariablePart(h); });
-          // GitHub から取得してlocalStorageも更新
+          // GitHub から取得してマージ（localStorageを優先・上書きしない）
           fetch(`${GH_RAW}?t=${Date.now()}`)
             .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data) { setUrlsData(data); localStorage.setItem('meisi_urls_data', JSON.stringify(data)); } })
+            .then(ghData => {
+              if (!ghData) return;
+              // localStorageの現在値を取得
+              let local = {};
+              try { const s = localStorage.getItem('meisi_urls_data'); local = s ? JSON.parse(s) : {}; } catch {}
+              // マージ: localStorageにないキーだけGitHubから補完（localStorageを上書きしない）
+              const merged = { ...ghData, ...local };
+              setUrlsData(merged);
+              localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
+            })
             .catch(() => {});
         }, []);
 
