@@ -490,17 +490,22 @@
                                         <SNSLabelPicker
                                           value={editingUrls[i]?.label || ""}
                                           onChange={v => {
-                                            const n = [...editingUrls];
-                                            n[i] = { ...n[i], label: v };
-                                            setEditingUrls(n);
+                                            setEditingUrls(prev => {
+                                              const n = prev.map(x => ({...x}));
+                                              n[i] = { ...n[i], label: v };
+                                              return n;
+                                            });
                                           }}
                                         />
                                         <input type="url"
                                           value={editingUrls[i]?.url || ""}
                                           onChange={e => {
-                                            const n = [...editingUrls];
-                                            n[i] = { ...n[i], url: e.target.value };
-                                            setEditingUrls(n);
+                                            const val = e.target.value;
+                                            setEditingUrls(prev => {
+                                              const n = prev.map(x => ({...x}));
+                                              n[i] = { ...n[i], url: val };
+                                              return n;
+                                            });
                                           }}
                                           placeholder="https://..."
                                           className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono"
