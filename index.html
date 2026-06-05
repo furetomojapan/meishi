@@ -4,11 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digital Card Viewer</title>
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -25,12 +23,30 @@
     <style>
       ::selection { background-color: #000; color: #fff; }
       body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
+
+      /* Card flip */
+      .flip-container { perspective: 1200px; }
+      .flip-card {
+        position: relative;
+        width: 100%;
+        transform-style: preserve-3d;
+        transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .flip-card.flipped { transform: rotateY(180deg); }
+      .flip-face, .flip-face-back {
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      .flip-face-back {
+        position: absolute;
+        inset: 0;
+        transform: rotateY(180deg);
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
 
-    <!-- Core Libraries (CDNs) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
@@ -40,11 +56,190 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect } = React;
 
-      const GH_REPO  = "furetomojapan/meishi";
-      const GH_FILE  = "urls.json";
-      const GH_RAW   = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
-      const GH_API   = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
+      const GH_REPO = "furetomojapan/meishi";
+      const GH_FILE = "urls.json";
+      const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
+      const GH_API  = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
 
+      const getSiteBase = () => window.location.origin + window.location.pathname;
+
+      const normalizeEntry = (e) =>
+        typeof e === "string" ? { url: e, label: "" } : (e || { url: "", label: "" });
+
+      const copyText = async (text) => {
+        try { await navigator.clipboard.writeText(text); return true; }
+        catch { return false; }
+      };
+
+      /* ── QR ポップオーバー ── */
+      function QRButton({ url }) {
+        const [show, setShow] = useState(false);
+        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+        return (
+          <div className="relative">
+            <button
+              onClick={() => setShow(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-black hover:text-white rounded-full text-[9px] font-mono uppercase tracking-widest transition-all text-neutral-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/><path d="M17 14v3"/></svg>
+              QR
+            </button>
+            {show && (
+              <div className="absolute right-0 bottom-12 bg-white rounded-2xl shadow-2xl p-4 z-50 border border-neutral-100">
+                <button onClick={() => setShow(false)} className="absolute top-2 right-3 text-neutral-300 hover:text-black text-sm leading-none">✕</button>
+                <img src={qr} alt="QR Code" className="w-36 h-36 mt-1" />
+                <p className="text-[8px] text-neutral-400 text-center mt-2 font-mono tracking-wider">Scan to open</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* ── URLコピーボタン ── */
+      function CopyBtn({ url, label }) {
+        const [copied, setCopied] = useState(false);
+        const handle = async () => {
+          await copyText(url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        };
+        return (
+          <button
+            onClick={handle}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[9px] font-mono uppercase tracking-widest transition-all ${copied ? 'bg-black text-white' : 'bg-neutral-100 hover:bg-black hover:text-white text-neutral-500'}`}
+          >
+            {copied ? '✓ Copied' : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                {label || 'Copy URL'}
+              </>
+            )}
+          </button>
+        );
+      }
+
+      /* ── URLリンク行（コピーボタン付き） ── */
+      function URLRow({ entry }) {
+        const [copied, setCopied] = useState(false);
+        const handleCopy = async (e) => {
+          e.preventDefault();
+          await copyText(entry.url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        };
+        return (
+          <div className="flex items-center gap-2 group">
+            <a
+              href={entry.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center gap-2 text-[11px] text-neutral-500 hover:text-black transition-colors font-mono min-w-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              {entry.label && <span className="font-semibold text-neutral-700 shrink-0">{entry.label}</span>}
+              {entry.label && <span className="text-neutral-300 shrink-0">—</span>}
+              <span className="truncate hover:underline">{entry.url}</span>
+            </a>
+            <button
+              onClick={handleCopy}
+              className={`opacity-0 group-hover:opacity-100 shrink-0 text-[8px] font-mono px-2 py-1 rounded-full transition-all ${copied ? 'bg-black text-white opacity-100' : 'bg-neutral-200 text-neutral-500 hover:bg-black hover:text-white'}`}
+            >
+              {copied ? '✓' : 'copy'}
+            </button>
+          </div>
+        );
+      }
+
+      /* ── フリップカード ── */
+      function FlipCard({ variablePart, urls }) {
+        const [flipped, setFlipped] = useState(false);
+        const siteUrl = `${getSiteBase()}#${variablePart}`;
+        const frontSrc = `image1_${variablePart}.png`;
+        const backSrc  = `image2_${variablePart}.png`;
+        const ghFallback = (src) => `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
+
+        const onImgError = (e) => {
+          const fb = ghFallback(e.target.dataset.src);
+          if (e.target.src !== fb) {
+            e.target.src = fb;
+          } else {
+            e.target.style.display = 'none';
+            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+          }
+        };
+
+        const CardFace = ({ src }) => (
+          <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-sm">
+            <img
+              src={src}
+              data-src={src}
+              alt={src}
+              className="w-full h-full object-cover"
+              onError={onImgError}
+            />
+            <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
+              <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase tracking-tight">File not found</p>
+              <p className="text-[11px] text-neutral-400 font-mono break-all">{src}</p>
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="w-full">
+            {/* カード本体 */}
+            <div className="flip-container w-full">
+              <div className={`flip-card aspect-[1.75/1] ${flipped ? 'flipped' : ''}`} style={{height: 'auto'}}>
+                <div className="flip-face w-full h-full"><CardFace src={frontSrc} /></div>
+                <div className="flip-face-back w-full h-full"><CardFace src={backSrc} /></div>
+              </div>
+            </div>
+
+            {/* コントロールバー */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 px-1">
+              {/* A面 / B面 トグル */}
+              <div className="flex items-center gap-1 bg-neutral-100 rounded-full p-1">
+                <button
+                  onClick={() => setFlipped(false)}
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest transition-all ${!flipped ? 'bg-black text-white shadow' : 'text-neutral-400 hover:text-black'}`}
+                >
+                  A面
+                </button>
+                <button
+                  onClick={() => setFlipped(true)}
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest transition-all ${flipped ? 'bg-black text-white shadow' : 'text-neutral-400 hover:text-black'}`}
+                >
+                  B面
+                </button>
+              </div>
+
+              {/* QR・コピー */}
+              <div className="flex items-center gap-2">
+                <QRButton url={siteUrl} />
+                <CopyBtn url={siteUrl} />
+              </div>
+            </div>
+
+            {/* アクセスカウンター */}
+            <div className="mt-4 px-1">
+              <img
+                src={`https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=${encodeURIComponent(siteUrl)}&count_bg=%23000000&title_bg=%23888888&title=views&edge_flat=true`}
+                alt="view count"
+                className="h-4 opacity-40"
+              />
+            </div>
+
+            {/* URLリンク */}
+            {urls.length > 0 && (
+              <div className="mt-6 px-1 space-y-3">
+                <p className="text-[8px] font-mono text-neutral-300 uppercase tracking-widest">Links</p>
+                {urls.map((entry, i) => <URLRow key={i} entry={entry} />)}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* ── メインアプリ ── */
       function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
         const [variablePart, setVariablePart] = useState(null);
@@ -54,47 +249,47 @@
         const [error, setError] = useState("");
         const [urlsData, setUrlsData] = useState({});
         const [editingUrlsName, setEditingUrlsName] = useState(null);
-        const [editingUrls, setEditingUrls] = useState(["", "", ""]);
+        const [editingUrls, setEditingUrls] = useState([
+          { url: "", label: "" }, { url: "", label: "" }, { url: "", label: "" }
+        ]);
         const [githubToken, setGithubToken] = useState(() => localStorage.getItem('meisi_gh_token') || "");
         const [tokenInput, setTokenInput] = useState("");
-        const [urlSaveStatus, setUrlSaveStatus] = useState(""); // "saving" | "saved" | "error"
+        const [urlSaveStatus, setUrlSaveStatus] = useState("");
 
         const loadNamesData = async () => {
           try {
             const res = await fetch('/api/names');
             const data = await res.json();
             if (data && data.length > 0) return data;
-          } catch (err) {}
-          
+          } catch {}
           try {
-            const ghRes = await fetch('https://api.github.com/repos/furetomojapan/meishi/contents/');
+            const ghRes = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/`);
             if (ghRes.ok) {
               const files = await ghRes.json();
               const names = files
                 .map(f => f.name)
-                .filter(name => /^(image1_|image2_|image_1_|image_2_|img1_|img2_)/i.test(name))
-                .map(name => name.replace(/^(image1_|image2_|image_1_|image_2_|img1_|img2_)/i, "").replace(/\.(png|jpg|jpeg|gif|webp)$/i, ""));
+                .filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
+                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i, "").replace(/\.(png|jpg|jpeg|gif|webp)$/i, ""));
               return Array.from(new Set(names)).filter(n => n.length > 0);
             }
-          } catch (err) {}
+          } catch {}
           return ["ichiro_suzuki", "sanae_takaichi"];
         };
 
-        // ページ読み込み時にリストを取得し、URLをチェック
         useEffect(() => {
-          const init = async () => {
-            const names = await loadNamesData();
-            setRegisteredNames(names);
-          };
-          init();
+          loadNamesData().then(names => setRegisteredNames(names));
 
-          const urlParams = new URLSearchParams(window.location.search);
-          const id = urlParams.get('id');
-          if (id) {
-            setVariablePart(id);
-          }
+          // ハッシュ or クエリパラメータからID取得
+          const hash = window.location.hash.slice(1);
+          const qid  = new URLSearchParams(window.location.search).get('id');
+          if (hash || qid) setVariablePart(hash || qid);
 
-          // GitHubのurls.jsonを読み込む
+          window.addEventListener('hashchange', () => {
+            const h = window.location.hash.slice(1);
+            if (h) setVariablePart(h);
+          });
+
+          // GitHubからurls.jsonを読み込む
           fetch(`${GH_RAW}?t=${Date.now()}`)
             .then(r => r.ok ? r.json() : {})
             .then(data => setUrlsData(data))
@@ -103,29 +298,19 @@
 
         const handleLogin = (e) => {
           e.preventDefault();
-          
-          // 前後のスペースを消し、全角があれば半角に変換
-          const cleanInput = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => {
-            return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
-          });
-
-          // シンプルに "admin123" という文字と一致するか確認
-          if (cleanInput === "admin123") {
-            setIsLoggedIn(true);
-            setError("");
-            setPasswordInput("");
+          const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s =>
+            String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+          );
+          if (clean === "admin123") {
+            setIsLoggedIn(true); setError(""); setPasswordInput("");
           } else {
-            setError("正しいコードを入力してください");
-            setPasswordInput("");
+            setError("正しいコードを入力してください"); setPasswordInput("");
           }
         };
 
         const selectName = (name) => {
           setVariablePart(name);
-          // URLを更新 (?id=名前)
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.set('id', name);
-          window.history.pushState({}, '', newUrl);
+          window.location.hash = name;
           setIsAdminMode(false);
         };
 
@@ -136,20 +321,18 @@
         };
 
         const saveUrls = async (name, urls) => {
-          const newData = { ...urlsData, [name]: urls.filter(u => u) };
+          const normalized = urls.map(normalizeEntry).filter(u => u.url);
+          const newData = { ...urlsData, [name]: normalized };
           setUrlsData(newData);
           setEditingUrlsName(null);
-          setEditingUrls(["", "", ""]);
+          setEditingUrls([{ url: "", label: "" }, { url: "", label: "" }, { url: "", label: "" }]);
 
           if (!githubToken) { setUrlSaveStatus("error_no_token"); return; }
           setUrlSaveStatus("saving");
           try {
-            // 既存ファイルのSHAを取得
             let sha = null;
-            const getRes = await fetch(GH_API, {
-              headers: { Authorization: `token ${githubToken}` }
-            });
-            if (getRes.ok) { sha = (await getRes.json()).sha; }
+            const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
+            if (getRes.ok) sha = (await getRes.json()).sha;
 
             const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
             const body = { message: `URLデータを更新: ${name}`, content };
@@ -161,175 +344,146 @@
               body: JSON.stringify(body)
             });
             setUrlSaveStatus(putRes.ok ? "saved" : "error");
-          } catch(e) {
+          } catch {
             setUrlSaveStatus("error");
           }
           setTimeout(() => setUrlSaveStatus(""), 3000);
         };
 
-        const cardImages = variablePart ? [
-          { id: 1, src: `image1_${variablePart}.png`, label: "A面" },
-          { id: 2, src: `image2_${variablePart}.png`, label: "B面" },
-        ] : [];
+        const getCardUrls = (name) =>
+          (urlsData[name] || []).map(normalizeEntry).filter(e => e.url);
 
         return (
-          <div className="min-h-screen p-6 md:p-12">
-            <div className="max-w-5xl mx-auto">
-              
-              {/* Header */}
-              <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex flex-col items-center md:items-start tracking-tight text-center md:text-left">
-                  <h1 className="text-2xl font-light text-neutral-800">Digital Card Viewer</h1>
-                  <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase tracking-widest">
+          <div className="min-h-screen p-4 sm:p-8 md:p-12">
+            <div className="max-w-xl mx-auto">
+
+              {/* ヘッダー */}
+              <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h1 className="text-xl font-light text-neutral-800">Digital Card Viewer</h1>
+                  <p className="text-[10px] font-mono text-neutral-400 mt-0.5 uppercase tracking-widest">
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-end gap-2">
-                    <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
-                    <div className="flex gap-2">
-                      <motion.a
-                        href="https://laxuz.xyz/portfolio/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-full text-xs font-medium transition-all shadow-lg hover:shadow-xl"
-                      >
-                        <span>私も名刺を作りたい！</span>
-                      </motion.a>
-                      <motion.a
-                        href="https://laxuz.xyz/furetomo/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-neutral-200 text-black rounded-full text-xs font-medium transition-all shadow-lg hover:shadow-xl hover:bg-neutral-300"
-                      >
-                        <span>デジタルカードを作りたい</span>
-                      </motion.a>
-                    </div>
+
+                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+                  <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
+                  <div className="flex flex-wrap gap-2">
+                    <motion.a href="https://laxuz.xyz/portfolio/" target="_blank" rel="noopener noreferrer"
+                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      className="px-4 py-2 bg-black text-white rounded-full text-xs font-medium shadow-lg hover:shadow-xl transition-all">
+                      私も名刺を作りたい！
+                    </motion.a>
+                    <motion.a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
+                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      className="px-4 py-2 bg-neutral-200 text-black rounded-full text-xs font-medium shadow-lg hover:shadow-xl hover:bg-neutral-300 transition-all">
+                      デジタルカードを作りたい
+                    </motion.a>
                   </div>
-                  
-                  <button 
-                    onClick={() => setIsAdminMode(true)}
-                    className="text-[10px] font-mono text-neutral-300 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5"
-                  >
+                  <button onClick={() => setIsAdminMode(true)}
+                    className="text-[10px] font-mono text-neutral-300 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5 self-start sm:self-end">
                     {isLoggedIn ? "Admin Console" : "Admin Login"}
                   </button>
                 </div>
               </header>
 
               <AnimatePresence mode="wait">
+                {/* ── 管理画面 ── */}
                 {isAdminMode ? (
-                  <motion.div 
-                    key="admin-screen"
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    className="flex flex-col items-center justify-center py-10 min-h-[500px] bg-neutral-950 rounded-[40px] shadow-2xl border border-neutral-800"
+                  <motion.div key="admin"
+                    initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+                    className="py-10 bg-neutral-950 rounded-[40px] shadow-2xl border border-neutral-800"
                   >
                     {!isLoggedIn ? (
-                      <div className="w-full max-w-sm p-8">
+                      <div className="w-full max-w-sm mx-auto p-8">
                         <h2 className="text-[10px] font-semibold mb-8 text-center text-neutral-500 tracking-[0.2em] uppercase">Security Access</h2>
                         <form onSubmit={handleLogin} className="space-y-4">
-                          <input 
-                            type="password" 
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="管理者パスワード"
-                            className="w-full px-4 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl focus:outline-none focus:border-neutral-600 transition-all text-sm text-center tracking-widest text-white placeholder:text-neutral-700"
-                            autoFocus
-                          />
+                          <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)}
+                            placeholder="管理者パスワード" autoFocus
+                            className="w-full px-4 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl focus:outline-none focus:border-neutral-600 transition-all text-sm text-center tracking-widest text-white placeholder:text-neutral-700" />
                           {error && <p className="text-[10px] text-red-400 text-center">{error}</p>}
-                          <button type="submit" className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 active:scale-[0.98] transition-all">
-                            Verify
-                          </button>
-                          <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest mt-6 transition-colors">Cancel</button>
+                          <button type="submit" className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 active:scale-[0.98] transition-all">Verify</button>
+                          <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
                         </form>
                       </div>
                     ) : (
-                      <div className="w-full max-w-2xl p-8">
-                        <div className="flex justify-between items-center mb-12 px-2">
+                      <div className="w-full px-6 md:px-8">
+                        <div className="flex justify-between items-center mb-8 px-2">
                           <h2 className="text-xs font-semibold text-white uppercase tracking-widest">Library</h2>
                           <div className="flex gap-6 items-center">
-                            <button 
-                              onClick={async () => {
-                                const names = await loadNamesData();
-                                setRegisteredNames(names);
-                              }}
-                              className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                            <button onClick={async () => setRegisteredNames(await loadNamesData())}
+                              className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                               Sync
                             </button>
                             <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-600 hover:text-red-400 uppercase tracking-widest transition-colors">Logout</button>
                           </div>
                         </div>
-                        
+
                         {registeredNames.length === 0 ? (
                           <div className="py-20 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
                             <p className="text-xs text-neutral-400 mb-3">画像ファイルが見つかりません</p>
-                            <p className="text-[10px] text-neutral-600 px-12 leading-relaxed tracking-wide">
-                              GitHub (furetomojapan/meishi) に画像を保存してください。
-                            </p>
+                            <p className="text-[10px] text-neutral-600 px-12 leading-relaxed">GitHub ({GH_REPO}) に画像を保存してください。</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
                             {registeredNames.map(name => (
                               <div key={name} className="space-y-2">
                                 <div className="flex gap-2">
-                                  <button
-                                    onClick={() => selectName(name)}
-                                    className={`flex-1 flex items-center justify-between px-6 py-5 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl shadow-white/5' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}
-                                  >
+                                  <button onClick={() => selectName(name)}
+                                    className={`flex-1 flex items-center justify-between px-6 py-4 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}>
                                     <span className="font-medium tracking-wide">{name}</span>
                                     <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                   </button>
                                   <button
                                     onClick={() => {
-                                      if (editingUrlsName === name) {
-                                        setEditingUrlsName(null);
-                                      } else {
-                                        setEditingUrlsName(name);
-                                        setEditingUrls(urlsData[name] ? [...urlsData[name]] : ["", "", ""]);
-                                      }
+                                      if (editingUrlsName === name) { setEditingUrlsName(null); return; }
+                                      setEditingUrlsName(name);
+                                      const existing = (urlsData[name] || []).map(normalizeEntry);
+                                      const padded = [...existing, ...Array(3).fill(null)].slice(0, 3).map(e => e || { url: "", label: "" });
+                                      setEditingUrls(padded);
                                     }}
-                                    className={`px-4 rounded-2xl border text-xs transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}
+                                    className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}
                                     title="URLを編集"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                   </button>
                                 </div>
+
                                 {editingUrlsName === name && (
-                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-2">
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-3">B面に表示するURL（最大3件）</p>
+                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-3">
+                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest">B面に表示するリンク（最大3件）</p>
                                     {[0, 1, 2].map(i => (
-                                      <input
-                                        key={i}
-                                        type="url"
-                                        value={editingUrls[i] || ""}
-                                        onChange={(e) => {
-                                          const newUrls = [...editingUrls];
-                                          newUrls[i] = e.target.value;
-                                          setEditingUrls(newUrls);
-                                        }}
-                                        placeholder={`URL ${i + 1}`}
-                                        className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 transition-all text-xs text-white placeholder:text-neutral-600 font-mono"
-                                      />
+                                      <div key={i} className="flex gap-2">
+                                        <input type="text"
+                                          value={editingUrls[i]?.label || ""}
+                                          onChange={e => {
+                                            const n = [...editingUrls];
+                                            n[i] = { ...n[i], label: e.target.value };
+                                            setEditingUrls(n);
+                                          }}
+                                          placeholder="ラベル"
+                                          className="w-24 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600"
+                                        />
+                                        <input type="url"
+                                          value={editingUrls[i]?.url || ""}
+                                          onChange={e => {
+                                            const n = [...editingUrls];
+                                            n[i] = { ...n[i], url: e.target.value };
+                                            setEditingUrls(n);
+                                          }}
+                                          placeholder="https://..."
+                                          className="flex-1 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono"
+                                        />
+                                      </div>
                                     ))}
-                                    <div className="flex gap-2 pt-2">
-                                      <button
-                                        onClick={() => saveUrls(name, editingUrls)}
-                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all"
-                                      >
+                                    <div className="flex gap-2 pt-1">
+                                      <button onClick={() => saveUrls(name, editingUrls)}
+                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">
                                         Save
                                       </button>
-                                      <button
-                                        onClick={() => setEditingUrlsName(null)}
-                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors"
-                                      >
+                                      <button onClick={() => setEditingUrlsName(null)}
+                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">
                                         Cancel
                                       </button>
                                     </div>
@@ -339,127 +493,60 @@
                             ))}
                           </div>
                         )}
-                        {/* GitHub Token 設定 */}
-                        <div className="mt-10 border-t border-neutral-800 pt-8">
+
+                        {/* GitHub Token */}
+                        <div className="mt-8 border-t border-neutral-800 pt-6">
                           <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token（URLをGitHubに保存するために必要）</p>
                           <div className="flex gap-2">
-                            <input
-                              type="password"
-                              value={tokenInput}
-                              onChange={(e) => setTokenInput(e.target.value)}
+                            <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)}
                               placeholder={githubToken ? "●●●●●●●●（設定済み）" : "ghp_xxxxxxxxxxxx"}
-                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 transition-all text-xs text-white placeholder:text-neutral-600 font-mono"
-                            />
-                            <button
-                              onClick={saveToken}
-                              disabled={!tokenInput}
-                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30"
-                            >
+                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 transition-all text-xs text-white placeholder:text-neutral-600 font-mono" />
+                            <button onClick={saveToken} disabled={!tokenInput}
+                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">
                               Save
                             </button>
                           </div>
-                          {urlSaveStatus === "saving" && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
-                          {urlSaveStatus === "saved"  && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
-                          {urlSaveStatus === "error"  && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました。Tokenを確認してください</p>}
-                          {urlSaveStatus === "error_no_token" && <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
+                          {urlSaveStatus === "saving"        && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
+                          {urlSaveStatus === "saved"         && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
+                          {urlSaveStatus === "error"         && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました。Tokenを確認してください</p>}
+                          {urlSaveStatus === "error_no_token"&& <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
                         </div>
 
-                        <button onClick={() => setIsAdminMode(false)} className="w-full mt-8 py-4 text-[10px] text-neutral-600 hover:text-neutral-300 uppercase tracking-widest border border-neutral-800 rounded-2xl hover:bg-neutral-900 transition-all">Close Panel</button>
+                        <button onClick={() => setIsAdminMode(false)}
+                          className="w-full mt-6 py-4 text-[10px] text-neutral-600 hover:text-neutral-300 uppercase tracking-widest border border-neutral-800 rounded-2xl hover:bg-neutral-900 transition-all">
+                          Close Panel
+                        </button>
                       </div>
                     )}
                   </motion.div>
+
                 ) : !variablePart ? (
-                  <motion.div 
-                    key="empty-screen"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col items-center justify-center py-32 text-center"
-                  >
+                  /* ── スタンバイ画面 ── */
+                  <motion.div key="standby" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center py-32 text-center">
                     <div className="p-10 mb-8 bg-neutral-100/30 rounded-full">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" strokeWidth="1"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                     </div>
                     <h2 className="text-sm text-neutral-300 tracking-[0.2em] uppercase mb-8">Card Viewer Standby</h2>
-                    <button 
-                      onClick={() => setIsAdminMode(true)}
-                      className="px-8 py-3 bg-neutral-100 text-neutral-500 rounded-full text-xs hover:bg-black hover:text-white transition-all active:scale-95"
-                    >
+                    <button onClick={() => setIsAdminMode(true)}
+                      className="px-8 py-3 bg-neutral-100 text-neutral-500 rounded-full text-xs hover:bg-black hover:text-white transition-all active:scale-95">
                       管理者として選択する
                     </button>
                   </motion.div>
+
                 ) : (
-                  <motion.div 
-                    key="display-screen"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14"
-                  >
-                    {cardImages.map((card, index) => (
-                      <motion.div
-                        key={card.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="group"
-                      >
-                        <div className="relative aspect-[1.6/1] w-full bg-white rounded-2xl shadow-sm overflow-hidden border border-white transition-all duration-700 group-hover:shadow-2xl group-hover:-translate-y-2">
-                          <img 
-                            src={card.src} 
-                            alt={`Card ${card.label}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              // もしローカルで見つからない場合、GitHubのRawサーバーから読み込む
-                              // URL: https://raw.githubusercontent.com/furetomojapan/meishi/main/image1_xxxx.png
-                              const githubFallbackUrl = `https://raw.githubusercontent.com/furetomojapan/meishi/main/${card.src}`;
-                              
-                              if (e.target.src !== githubFallbackUrl) {
-                                console.log("Falling back to GitHub source for:", card.src);
-                                e.target.src = githubFallbackUrl;
-                              } else {
-                                // GitHubにもない場合はエラー表示
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                          <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
-                            <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase tracking-tighter">File not found</p>
-                            <p className="text-[11px] text-neutral-400 font-mono break-all">{card.src}</p>
-                          </div>
-                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        </div>
-                        <div className="mt-5 flex justify-between items-center px-1">
-                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] uppercase tracking-[0.3em] text-neutral-400">
-                            {card.label}
-                          </span>
-                          <span className="text-[9px] font-mono font-['JetBrains_Mono'] text-neutral-300">
-                            {card.src}
-                          </span>
-                        </div>
-                        {card.label === "B面" && urlsData[variablePart] && urlsData[variablePart].filter(u => u).length > 0 && (
-                          <div className="mt-4 px-1 space-y-2">
-                            {urlsData[variablePart].filter(u => u).map((url, i) => (
-                              <a
-                                key={i}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 text-[10px] text-neutral-400 hover:text-black transition-colors font-mono group"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                                <span className="truncate group-hover:underline">{url}</span>
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
+                  /* ── カード表示 ── */
+                  <motion.div key="card" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <FlipCard
+                      variablePart={variablePart}
+                      urls={getCardUrls(variablePart)}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Footer */}
               <footer className="mt-24 py-10 border-t border-neutral-100">
-                <p className="text-[9px] text-neutral-300 font-mono font-['JetBrains_Mono'] uppercase tracking-[0.4em] text-center">
+                <p className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center">
                   © 2026 DIGITAL SHOWCASE
                 </p>
               </footer>
