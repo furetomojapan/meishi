@@ -205,13 +205,20 @@
 
       /* ── SNSラベル選択 ── */
       function SNSLabelPicker({ value, onChange }) {
-        const isCustom = value !== "" && !SNS_LIST.find(s => s.value === value && s.value !== "__custom__");
-        const selectValue = isCustom ? "__custom__" : value;
+        // isPredefined: value が既知のSNSキーかどうか
+        const isPredefined = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
+        // カスタムモード: ローカルstateで管理（value=""になっても維持）
+        const [customMode, setCustomMode] = useState(!isPredefined(value) && value !== "");
+        const selectValue = customMode ? "__custom__" : (isPredefined(value) ? value : "");
         return (
           <div className="space-y-2">
             <div className="relative">
               <select value={selectValue}
-                onChange={e => { const v = e.target.value; onChange(v === "__custom__" ? "" : v); }}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "__custom__") { setCustomMode(true); onChange(""); }
+                  else { setCustomMode(false); onChange(v); }
+                }}
                 className="sns-select w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white focus:outline-none focus:border-neutral-500 transition-all pr-8">
                 {SNS_LIST.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -219,8 +226,9 @@
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
             </div>
-            {(selectValue === "__custom__" || isCustom) && (
-              <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder="ラベルを入力"
+            {customMode && (
+              <input type="text" value={value} onChange={e => onChange(e.target.value)}
+                placeholder="ラベルを入力（例：会社サイト）" autoFocus
                 className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500" />
             )}
           </div>
@@ -321,6 +329,25 @@
         );
       }
 
+      /* ── トースト通知 ── */
+      function Toast({ status }) {
+        if (!status) return null;
+        const cfg = {
+          saving:         { bg:"bg-neutral-700",  text:"GitHubに保存中…" },
+          saved:          { bg:"bg-green-600",     text:"✓ 保存しました" },
+          saved_local:    { bg:"bg-blue-600",      text:"✓ 保存しました（ローカル）" },
+          error:          { bg:"bg-red-600",       text:"保存に失敗しました" },
+          error_no_token: { bg:"bg-yellow-600",    text:"GitHub Token未設定 — ローカルに保存しました" },
+        }[status];
+        if (!cfg) return null;
+        return (
+          <div className={`fixed top-4 left-1/2 z-[100] flex items-center gap-2 px-5 py-3 rounded-2xl text-white text-xs font-semibold shadow-2xl ${cfg.bg}`}
+            style={{transform:'translateX(-50%)', whiteSpace:'nowrap'}}>
+            {cfg.text}
+          </div>
+        );
+      }
+
       /* ── メインアプリ ── */
       function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
@@ -329,7 +356,10 @@
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [error, setError] = useState("");
-        const [urlsData, setUrlsData] = useState({});
+        const [urlsData, setUrlsData] = useState(() => {
+          // localStorage からの初期値（GitHub fetch 前の即時表示用）
+          try { const s = localStorage.getItem('meisi_urls_data'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+        });
         const [editingUrlsName, setEditingUrlsName] = useState(null);
         const [editingDisplayName, setEditingDisplayName] = useState("");
         const [editingUrls, setEditingUrls] = useState([
@@ -337,7 +367,12 @@
         ]);
         const [githubToken, setGithubToken] = useState(() => localStorage.getItem('meisi_gh_token') || "");
         const [tokenInput, setTokenInput] = useState("");
-        const [urlSaveStatus, setUrlSaveStatus] = useState("");
+        const [toast, setToast] = useState("");
+
+        const showToast = (status, ms=3000) => {
+          setToast(status);
+          setTimeout(() => setToast(""), ms);
+        };
 
         const loadNamesData = async () => {
           try { const res = await fetch('/api/names'); const data = await res.json(); if (data && data.length > 0) return data; } catch {}
@@ -377,7 +412,11 @@
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) setVariablePart(hash || qid);
           window.addEventListener('hashchange', () => { const h = window.location.hash.slice(1); if (h) setVariablePart(h); });
-          fetch(`${GH_RAW}?t=${Date.now()}`).then(r => r.ok ? r.json() : {}).then(data => setUrlsData(data)).catch(() => {});
+          // GitHub から取得してlocalStorageも更新
+          fetch(`${GH_RAW}?t=${Date.now()}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data) { setUrlsData(data); localStorage.setItem('meisi_urls_data', JSON.stringify(data)); } })
+            .catch(() => {});
         }, []);
 
         useEffect(() => {
@@ -398,12 +437,15 @@
           const links = urls.map(normalizeEntry).filter(u => u.url);
           const personObj = { displayName, links };
           const newData = { ...urlsData, [name]: personObj };
+          // まずローカルに保存（即時反映・オフライン対応）
           setUrlsData(newData);
+          localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setEditingUrlsName(null);
           setEditingDisplayName("");
           setEditingUrls([{ url:"", label:"" }, { url:"", label:"" }, { url:"", label:"" }]);
-          if (!githubToken) { setUrlSaveStatus("error_no_token"); return; }
-          setUrlSaveStatus("saving");
+          // GitHub Token未設定ならローカル保存のみ
+          if (!githubToken) { showToast("error_no_token"); return; }
+          showToast("saving", 30000);
           try {
             let sha = null;
             const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
@@ -412,13 +454,13 @@
             const body = { message: `データを更新: ${name}`, content };
             if (sha) body.sha = sha;
             const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-            setUrlSaveStatus(putRes.ok ? "saved" : "error");
-          } catch { setUrlSaveStatus("error"); }
-          setTimeout(() => setUrlSaveStatus(""), 3000);
+            showToast(putRes.ok ? "saved" : "error");
+          } catch { showToast("error"); }
         };
 
         return (
           <div className="min-h-screen p-4 sm:p-8 md:p-12">
+            <Toast status={toast} />
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -554,10 +596,6 @@
                             <button onClick={saveToken} disabled={!tokenInput}
                               className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
                           </div>
-                          {urlSaveStatus==="saving"         && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
-                          {urlSaveStatus==="saved"          && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
-                          {urlSaveStatus==="error"          && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました</p>}
-                          {urlSaveStatus==="error_no_token" && <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
                         </div>
 
                         <button onClick={() => setIsAdminMode(false)}
