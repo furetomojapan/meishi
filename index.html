@@ -47,6 +47,9 @@
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [error, setError] = useState("");
+        const [urlsData, setUrlsData] = useState({});
+        const [editingUrlsName, setEditingUrlsName] = useState(null);
+        const [editingUrls, setEditingUrls] = useState(["", "", ""]);
 
         const loadNamesData = async () => {
           try {
@@ -84,6 +87,19 @@
           }
         }, []);
 
+        // localStorageからURL情報を読み込む
+        useEffect(() => {
+          if (registeredNames.length === 0) return;
+          const stored = {};
+          registeredNames.forEach(name => {
+            const saved = localStorage.getItem(`meisi_urls_${name}`);
+            if (saved) {
+              try { stored[name] = JSON.parse(saved); } catch(e) {}
+            }
+          });
+          setUrlsData(stored);
+        }, [registeredNames]);
+
         const handleLogin = (e) => {
           e.preventDefault();
           
@@ -110,6 +126,13 @@
           newUrl.searchParams.set('id', name);
           window.history.pushState({}, '', newUrl);
           setIsAdminMode(false);
+        };
+
+        const saveUrls = (name, urls) => {
+          localStorage.setItem(`meisi_urls_${name}`, JSON.stringify(urls));
+          setUrlsData(prev => ({ ...prev, [name]: urls }));
+          setEditingUrlsName(null);
+          setEditingUrls(["", "", ""]);
         };
 
         const cardImages = variablePart ? [
@@ -209,16 +232,66 @@
                             </p>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-3">
                             {registeredNames.map(name => (
-                              <button 
-                                key={name}
-                                onClick={() => selectName(name)}
-                                className={`flex items-center justify-between px-6 py-5 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl shadow-white/5' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}
-                              >
-                                <span className="font-medium tracking-wide">{name}</span>
-                                <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
-                              </button>
+                              <div key={name} className="space-y-2">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => selectName(name)}
+                                    className={`flex-1 flex items-center justify-between px-6 py-5 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl shadow-white/5' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}
+                                  >
+                                    <span className="font-medium tracking-wide">{name}</span>
+                                    <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (editingUrlsName === name) {
+                                        setEditingUrlsName(null);
+                                      } else {
+                                        setEditingUrlsName(name);
+                                        setEditingUrls(urlsData[name] ? [...urlsData[name]] : ["", "", ""]);
+                                      }
+                                    }}
+                                    className={`px-4 rounded-2xl border text-xs transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}
+                                    title="URLを編集"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                  </button>
+                                </div>
+                                {editingUrlsName === name && (
+                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-2">
+                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-3">B面に表示するURL（最大3件）</p>
+                                    {[0, 1, 2].map(i => (
+                                      <input
+                                        key={i}
+                                        type="url"
+                                        value={editingUrls[i] || ""}
+                                        onChange={(e) => {
+                                          const newUrls = [...editingUrls];
+                                          newUrls[i] = e.target.value;
+                                          setEditingUrls(newUrls);
+                                        }}
+                                        placeholder={`URL ${i + 1}`}
+                                        className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 transition-all text-xs text-white placeholder:text-neutral-600 font-mono"
+                                      />
+                                    ))}
+                                    <div className="flex gap-2 pt-2">
+                                      <button
+                                        onClick={() => saveUrls(name, editingUrls)}
+                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingUrlsName(null)}
+                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         )}
@@ -293,6 +366,22 @@
                             {card.src}
                           </span>
                         </div>
+                        {card.label === "B面" && urlsData[variablePart] && urlsData[variablePart].filter(u => u).length > 0 && (
+                          <div className="mt-4 px-1 space-y-2">
+                            {urlsData[variablePart].filter(u => u).map((url, i) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[10px] text-neutral-400 hover:text-black transition-colors font-mono group"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                <span className="truncate group-hover:underline">{url}</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                   </motion.div>
