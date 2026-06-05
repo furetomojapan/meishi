@@ -204,20 +204,19 @@
       }
 
       /* ── SNSラベル選択 ── */
-      function SNSLabelPicker({ value, onChange }) {
-        // isPredefined: value が既知のSNSキーかどうか
-        const isPredefined = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
-        // カスタムモード: ローカルstateで管理（value=""になっても維持）
-        const [customMode, setCustomMode] = useState(!isPredefined(value) && value !== "");
-        const selectValue = customMode ? "__custom__" : (isPredefined(value) ? value : "");
+      // isCustom / onSelect(label, isCustom) を親stateで管理することで
+      // Reactのstate更新バッチタイミング問題を回避
+      function SNSLabelPicker({ value, isCustom, onSelect }) {
+        const isPredefined = SNS_LIST.some(s => s.value === value && s.value !== "" && s.value !== "__custom__");
+        const selectValue = isCustom ? "__custom__" : (isPredefined ? value : "");
         return (
           <div className="space-y-2">
             <div className="relative">
               <select value={selectValue}
                 onChange={e => {
                   const v = e.target.value;
-                  if (v === "__custom__") { setCustomMode(true); onChange(""); }
-                  else { setCustomMode(false); onChange(v); }
+                  if (v === "__custom__") onSelect("", true);
+                  else onSelect(v, false);
                 }}
                 className="sns-select w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white focus:outline-none focus:border-neutral-500 transition-all pr-8">
                 {SNS_LIST.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -226,9 +225,9 @@
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
             </div>
-            {customMode && (
-              <input type="text" value={value} onChange={e => onChange(e.target.value)}
-                placeholder="ラベルを入力（例：会社サイト）" autoFocus
+            {isCustom && (
+              <input type="text" value={value} onChange={e => onSelect(e.target.value, true)}
+                placeholder="ラベルを入力（例：会社サイト）"
                 className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500" />
             )}
           </div>
@@ -362,8 +361,9 @@
         });
         const [editingUrlsName, setEditingUrlsName] = useState(null);
         const [editingDisplayName, setEditingDisplayName] = useState("");
+        // _custom: trueのとき「カスタム入力」モード（SNSLabelPickerのisCustomに渡す）
         const [editingUrls, setEditingUrls] = useState([
-          { url:"", label:"" }, { url:"", label:"" }, { url:"", label:"" }
+          { url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }
         ]);
         const [githubToken, setGithubToken] = useState(() => localStorage.getItem('meisi_gh_token') || "");
         const [tokenInput, setTokenInput] = useState("");
@@ -434,7 +434,9 @@
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
         const saveUrls = async (name, displayName, urls) => {
-          const links = urls.map(normalizeEntry).filter(u => u.url);
+          // _custom フィールドを除去してから保存
+          const links = urls.map(e => ({url: e.url||"", label: e.label||""}))
+            .map(normalizeEntry).filter(u => u.url);
           const personObj = { displayName, links };
           const newData = { ...urlsData, [name]: personObj };
           // まずローカルに保存（即時反映・オフライン対応）
@@ -442,7 +444,7 @@
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setEditingUrlsName(null);
           setEditingDisplayName("");
-          setEditingUrls([{ url:"", label:"" }, { url:"", label:"" }, { url:"", label:"" }]);
+          setEditingUrls([{ url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }]);
           // GitHub Token未設定ならローカル保存のみ
           if (!githubToken) { showToast("error_no_token"); return; }
           showToast("saving", 30000);
@@ -543,7 +545,9 @@
                                         if (editingUrlsName === name) { setEditingUrlsName(null); return; }
                                         setEditingUrlsName(name);
                                         setEditingDisplayName(pd.displayName);
-                                        const padded = [...pd.links, ...Array(3).fill(null)].slice(0,3).map(e => e || {url:"",label:""});
+                                        const knownSNS = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
+                                        const padded = [...pd.links, ...Array(3).fill(null)].slice(0,3)
+                                          .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
                                       }}
                                       className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
@@ -565,8 +569,12 @@
                                       {[0,1,2].map(i => (
                                         <div key={i} className="space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0">
                                           <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i+1}</p>
-                                          <SNSLabelPicker value={editingUrls[i]?.label||""}
-                                            onChange={v => setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],label:v}; return n; })} />
+                                          <SNSLabelPicker
+                                            value={editingUrls[i]?.label||""}
+                                            isCustom={editingUrls[i]?._custom||false}
+                                            onSelect={(label, isCustom) => setEditingUrls(prev => {
+                                              const n=prev.map(x=>({...x})); n[i]={...n[i],label,_custom:isCustom}; return n;
+                                            })} />
                                           <input type="url" value={editingUrls[i]?.url||""}
                                             onChange={e => { const val=e.target.value; setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
                                             placeholder="https://..."
