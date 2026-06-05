@@ -4,35 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digital Card Viewer</title>
+    <!-- OGP (動的に上書きされます) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="デジタル名刺" />
+    <meta property="og:description" content="デジタル名刺をご覧ください。" />
+    <meta property="og:image" content="" />
+    <meta property="og:url" content="" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ["Inter", "ui-sans-serif", "system-ui"],
-              mono: ["JetBrains Mono", "ui-monospace"],
-            },
-          },
-        },
+        theme: { extend: { fontFamily: { sans: ["Inter","ui-sans-serif","system-ui"], mono: ["JetBrains Mono","ui-monospace"] } } }
       };
     </script>
     <style>
-      ::selection { background-color: #000; color: #fff; }
-      body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
-      .flip-container { perspective: 1200px; }
-      .flip-card {
-        position: relative; width: 100%;
-        transform-style: preserve-3d;
-        transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .flip-card.flipped { transform: rotateY(180deg); }
-      .flip-face, .flip-face-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-      .flip-face-back { position: absolute; inset: 0; transform: rotateY(180deg); }
-      .sns-select { appearance: none; -webkit-appearance: none; }
+      ::selection { background-color:#000; color:#fff; }
+      body { background-color:#f5f5f5; color:#1a1a1a; font-family:'Inter',sans-serif; }
+      .flip-container { perspective:1200px; }
+      .flip-card { position:relative; width:100%; transform-style:preserve-3d; transition:transform 0.65s cubic-bezier(0.4,0,0.2,1); }
+      .flip-card.flipped { transform:rotateY(180deg); }
+      .flip-face, .flip-face-back { backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+      .flip-face-back { position:absolute; inset:0; transform:rotateY(180deg); }
+      .sns-select { appearance:none; -webkit-appearance:none; }
+      @keyframes flip-hint { 0%,100%{transform:rotateY(0deg);} 50%{transform:rotateY(-15deg);} }
+      .hint-anim { animation:flip-hint 1.2s ease-in-out 0.5s 2; }
     </style>
   </head>
   <body>
@@ -51,6 +50,25 @@
       const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
       const GH_API  = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
       const getSiteBase = () => window.location.origin + window.location.pathname;
+
+      /* ── データ正規化 ── */
+      // urls.json の形式: { name: { displayName, links:[{url,label}] } } または後方互換で配列
+      const getPersonData = (urlsData, name) => {
+        const raw = urlsData[name];
+        if (!raw) return { displayName: "", links: [] };
+        if (Array.isArray(raw)) return { displayName: "", links: raw.map(normalizeEntry).filter(e => e.url) };
+        return { displayName: raw.displayName || "", links: (raw.links || []).map(normalizeEntry).filter(e => e.url) };
+      };
+
+      const normalizeEntry = (e) => {
+        if (!e) return { url: "", label: "" };
+        if (typeof e === "string") return { url: e, label: "" };
+        return { url: e.url || "", label: e.label || "" };
+      };
+
+      const copyText = async (text) => {
+        try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+      };
 
       /* ── SNS定義 ── */
       const SNS_LIST = [
@@ -74,37 +92,24 @@
         { value: "__custom__", label: "カスタム入力", color: "#888",
           icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
       ];
-
       const getSNS = (label) => SNS_LIST.find(s => s.value === label && s.value !== "" && s.value !== "__custom__");
 
-      const normalizeEntry = (e) => {
-        if (!e) return { url: "", label: "" };
-        if (typeof e === "string") return { url: e, label: "" };
-        return { url: e.url || "", label: e.label || "" };
-      };
-
-      const copyText = async (text) => {
-        try { await navigator.clipboard.writeText(text); return true; }
-        catch { return false; }
-      };
-
-      /* ── QRボタン（大型） ── */
+      /* ── QRボタン ── */
       function QRButton({ url }) {
         const [show, setShow] = useState(false);
         const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
         return (
           <div className="relative">
-            <button
-              onClick={() => setShow(v => !v)}
-              className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${show ? 'bg-black text-white' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}
-            >
+            <button onClick={() => setShow(v => !v)}
+              className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${show ? 'bg-black text-white' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/><path d="M17 14v3"/></svg>
               <span className="text-[10px] font-semibold tracking-wide">QR</span>
             </button>
             {show && (
-              <div className="absolute bottom-20 bg-white rounded-3xl shadow-2xl p-5 z-50 border border-neutral-100" style={{minWidth:'200px', left:'50%', transform:'translateX(-50%)'}}>
-                <button onClick={() => setShow(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base leading-none font-bold">✕</button>
-                <img src={qr} alt="QR Code" style={{width:'160px', height:'160px', display:'block'}} className="mx-auto" />
+              <div className="absolute bottom-20 bg-white rounded-3xl shadow-2xl p-5 z-50 border border-neutral-100"
+                style={{minWidth:'200px', left:'50%', transform:'translateX(-50%)'}}>
+                <button onClick={() => setShow(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base font-bold">✕</button>
+                <img src={qr} alt="QR Code" style={{width:'160px',height:'160px',display:'block'}} className="mx-auto" />
                 <p className="text-[9px] text-neutral-400 text-center mt-3 font-mono tracking-wider">Scan to open</p>
               </div>
             )}
@@ -112,54 +117,68 @@
         );
       }
 
-      /* ── URLコピーボタン（大型） ── */
-      function CopyBtn({ url }) {
+      /* ── シェアボタン ── */
+      function ShareBtn({ url, title }) {
         const [copied, setCopied] = useState(false);
         const handle = async () => {
+          if (navigator.share) {
+            try { await navigator.share({ title, url }); return; } catch(e) {}
+          }
           await copyText(url);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         };
         return (
-          <button
-            onClick={handle}
-            className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${copied ? 'bg-black text-white shadow-lg' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}
-          >
+          <button onClick={handle}
+            className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${copied ? 'bg-black text-white' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}>
             {copied ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span className="text-[10px] font-semibold tracking-wide">Copied!</span>
-              </>
+              <><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span className="text-[10px] font-semibold">Copied!</span></>
             ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                <span className="text-[10px] font-semibold tracking-wide">Copy URL</span>
-              </>
+              <><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              <span className="text-[10px] font-semibold tracking-wide">シェア</span></>
             )}
           </button>
         );
       }
 
-      /* ── URLリンク行（SNSアイコン付き） ── */
+      /* ── ダウンロードボタン ── */
+      function DownloadBtn({ src, filename }) {
+        const [loading, setLoading] = useState(false);
+        const handle = async () => {
+          setLoading(true);
+          try {
+            const url = `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl; a.download = filename; a.click();
+            URL.revokeObjectURL(blobUrl);
+          } catch { window.open(`https://raw.githubusercontent.com/${GH_REPO}/main/${src}`, '_blank'); }
+          setLoading(false);
+        };
+        return (
+          <button onClick={handle} disabled={loading}
+            className="flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg disabled:opacity-50">
+            {loading ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 11-9-9"/></svg>
+              : <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+            <span className="text-[10px] font-semibold tracking-wide">{loading ? '...' : '保存'}</span>
+          </button>
+        );
+      }
+
+      /* ── URLリンク行 ── */
       function URLRow({ entry }) {
         const [copied, setCopied] = useState(false);
         const sns = getSNS(entry.label);
-        const handleCopy = async (e) => {
-          e.preventDefault();
-          await copyText(entry.url);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        };
+        const handleCopy = async (e) => { e.preventDefault(); await copyText(entry.url); setCopied(true); setTimeout(() => setCopied(false), 2000); };
         return (
           <div className="flex items-center gap-3 group">
-            {/* SNSアイコン or リンクアイコン */}
             <a href={entry.url} target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center gap-3 py-2.5 px-3 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-100 transition-all group-hover:border-neutral-200 min-w-0"
-            >
+              className="flex-1 flex items-center gap-3 py-2.5 px-3 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-100 transition-all group-hover:border-neutral-200 min-w-0">
               {sns ? (
-                <span className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{background: sns.color}}>
-                  {sns.icon}
-                </span>
+                <span className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{background:sns.color}}>{sns.icon}</span>
               ) : (
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-400">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -172,66 +191,56 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-neutral-300"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
             <button onClick={handleCopy}
-              className={`shrink-0 w-8 h-8 rounded-lg text-[9px] font-mono transition-all ${copied ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-black hover:text-white'}`}>
-              {copied ? '✓' : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mx-auto"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>}
+              className={`shrink-0 w-8 h-8 rounded-lg text-[9px] font-mono transition-all flex items-center justify-center ${copied ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-black hover:text-white'}`}>
+              {copied ? '✓' : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>}
             </button>
           </div>
         );
       }
 
-      /* ── SNSラベル選択コンポーネント（管理画面用） ── */
+      /* ── SNSラベル選択 ── */
       function SNSLabelPicker({ value, onChange }) {
         const isCustom = value !== "" && !SNS_LIST.find(s => s.value === value && s.value !== "__custom__");
         const selectValue = isCustom ? "__custom__" : value;
-
         return (
           <div className="space-y-2">
             <div className="relative">
-              <select
-                value={selectValue}
-                onChange={e => {
-                  const v = e.target.value;
-                  if (v === "__custom__") onChange("");
-                  else onChange(v);
-                }}
-                className="sns-select w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white focus:outline-none focus:border-neutral-500 transition-all pr-8"
-              >
-                {SNS_LIST.map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
+              <select value={selectValue}
+                onChange={e => { const v = e.target.value; onChange(v === "__custom__" ? "" : v); }}
+                className="sns-select w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white focus:outline-none focus:border-neutral-500 transition-all pr-8">
+                {SNS_LIST.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
               <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
             </div>
             {(selectValue === "__custom__" || isCustom) && (
-              <input
-                type="text"
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                placeholder="ラベルを入力"
-                className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 transition-all"
-              />
+              <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder="ラベルを入力"
+                className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500" />
             )}
           </div>
         );
       }
 
       /* ── フリップカード ── */
-      function FlipCard({ variablePart, urls }) {
+      function FlipCard({ variablePart, personData }) {
         const [flipped, setFlipped] = useState(false);
+        const [showHint, setShowHint] = useState(true);
         const siteUrl = `${getSiteBase()}#${variablePart}`;
         const frontSrc = `image1_${variablePart}.png`;
         const backSrc  = `image2_${variablePart}.png`;
+        const currentSrc = flipped ? backSrc : frontSrc;
         const ghFallback = src => `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
+
+        useEffect(() => {
+          const t = setTimeout(() => setShowHint(false), 4000);
+          return () => clearTimeout(t);
+        }, []);
 
         const onImgError = (e) => {
           const fb = ghFallback(e.target.dataset.src);
           if (e.target.src !== fb) e.target.src = fb;
-          else {
-            e.target.style.display = 'none';
-            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-          }
+          else { e.target.style.display='none'; if(e.target.nextSibling) e.target.nextSibling.style.display='flex'; }
         };
 
         const CardFace = ({ src }) => (
@@ -239,43 +248,48 @@
             <img src={src} data-src={src} alt={src} className="w-full h-full object-cover" onError={onImgError} />
             <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
               <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase">File not found</p>
-              <p className="text-[11px] text-neutral-400 font-mono break-all">{src}</p>
             </div>
           </div>
         );
 
         return (
           <div className="w-full">
-            {/* カード */}
-            <div className="flip-container w-full">
-              <div className={`flip-card aspect-[1.75/1] ${flipped ? 'flipped' : ''}`} style={{height:'auto'}}>
+            {/* 表示名 */}
+            {personData.displayName && (
+              <h2 className="text-xl font-semibold text-neutral-800 mb-4 text-center tracking-wide">{personData.displayName}</h2>
+            )}
+
+            {/* カード本体（タップでフリップ） */}
+            <div className="flip-container w-full relative">
+              <div className={`flip-card aspect-[1.75/1] cursor-pointer ${flipped ? 'flipped' : ''} ${showHint ? 'hint-anim' : ''}`}
+                style={{height:'auto'}} onClick={() => { setFlipped(f => !f); setShowHint(false); }}>
                 <div className="flip-face w-full h-full"><CardFace src={frontSrc} /></div>
                 <div className="flip-face-back w-full h-full"><CardFace src={backSrc} /></div>
               </div>
+              {/* タップヒント */}
+              <AnimatePresence>
+                {showHint && (
+                  <motion.div initial={{opacity:0, y:4}} animate={{opacity:1, y:0}} exit={{opacity:0}}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-[10px] px-3 py-1.5 rounded-full pointer-events-none backdrop-blur-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+                    タップして裏返す
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* A面/B面 大ボタン */}
+            {/* A面/B面 ボタン */}
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setFlipped(false)}
-                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${!flipped
-                  ? 'bg-black text-white shadow-2xl scale-[1.02]'
-                  : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'
-                }`}
-              >
+              <button onClick={() => setFlipped(false)}
+                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${!flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
                 <span className="flex flex-col items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={!flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
                   <span className="text-[10px] font-normal opacity-60">おもて面</span>
                   <span className="text-2xl font-bold">A面</span>
                 </span>
               </button>
-              <button
-                onClick={() => setFlipped(true)}
-                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${flipped
-                  ? 'bg-black text-white shadow-2xl scale-[1.02]'
-                  : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'
-                }`}
-              >
+              <button onClick={() => setFlipped(true)}
+                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
                 <span className="flex flex-col items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
                   <span className="text-[10px] font-normal opacity-60">うら面</span>
@@ -284,17 +298,18 @@
               </button>
             </div>
 
-            {/* QR・コピー */}
+            {/* アクションボタン */}
             <div className="mt-4 flex items-center justify-center gap-4">
               <QRButton url={siteUrl} />
-              <CopyBtn url={siteUrl} />
+              <ShareBtn url={siteUrl} title={`${personData.displayName || variablePart} のデジタル名刺`} />
+              <DownloadBtn src={currentSrc} filename={`${personData.displayName || variablePart}_${flipped ? 'B' : 'A'}面.png`} />
             </div>
 
             {/* URLリンク */}
-            {urls.length > 0 && (
+            {personData.links.length > 0 && (
               <div className="mt-6 space-y-2">
                 <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest px-1 mb-3">Links</p>
-                {urls.map((entry, i) => <URLRow key={i} entry={entry} />)}
+                {personData.links.map((entry, i) => <URLRow key={i} entry={entry} />)}
               </div>
             )}
           </div>
@@ -311,31 +326,44 @@
         const [error, setError] = useState("");
         const [urlsData, setUrlsData] = useState({});
         const [editingUrlsName, setEditingUrlsName] = useState(null);
+        const [editingDisplayName, setEditingDisplayName] = useState("");
         const [editingUrls, setEditingUrls] = useState([
-          { url: "", label: "" }, { url: "", label: "" }, { url: "", label: "" }
+          { url:"", label:"" }, { url:"", label:"" }, { url:"", label:"" }
         ]);
         const [githubToken, setGithubToken] = useState(() => localStorage.getItem('meisi_gh_token') || "");
         const [tokenInput, setTokenInput] = useState("");
         const [urlSaveStatus, setUrlSaveStatus] = useState("");
 
         const loadNamesData = async () => {
-          try {
-            const res = await fetch('/api/names');
-            const data = await res.json();
-            if (data && data.length > 0) return data;
-          } catch {}
+          try { const res = await fetch('/api/names'); const data = await res.json(); if (data && data.length > 0) return data; } catch {}
           try {
             const ghRes = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/`);
             if (ghRes.ok) {
               const files = await ghRes.json();
-              const names = files
-                .map(f => f.name)
-                .filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
-                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i, "").replace(/\.(png|jpg|jpeg|gif|webp)$/i, ""));
+              const names = files.map(f => f.name).filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
+                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i,"").replace(/\.(png|jpg|jpeg|gif|webp)$/i,""));
               return Array.from(new Set(names)).filter(n => n.length > 0);
             }
           } catch {}
-          return ["ichiro_suzuki", "sanae_takaichi"];
+          return ["ichiro_suzuki","sanae_takaichi"];
+        };
+
+        // OGPメタタグを動的に更新
+        const updateOGP = (name, data) => {
+          if (!name) return;
+          const displayName = data.displayName || name;
+          const imgUrl = `https://raw.githubusercontent.com/${GH_REPO}/main/image1_${name}.png`;
+          const pageUrl = `${getSiteBase()}#${name}`;
+          const setMeta = (sel, attr, content) => {
+            const el = document.querySelector(sel);
+            if (el) el.setAttribute('content', content);
+          };
+          document.title = `${displayName} - デジタル名刺`;
+          setMeta('meta[property="og:title"]', 'content', `${displayName} のデジタル名刺`);
+          setMeta('meta[property="og:description"]', 'content', `${displayName} さんのデジタル名刺です`);
+          setMeta('meta[property="og:image"]', 'content', imgUrl);
+          setMeta('meta[property="og:url"]', 'content', pageUrl);
+          setMeta('meta[name="twitter:image"]', 'content', imgUrl);
         };
 
         useEffect(() => {
@@ -343,15 +371,13 @@
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) setVariablePart(hash || qid);
-          window.addEventListener('hashchange', () => {
-            const h = window.location.hash.slice(1);
-            if (h) setVariablePart(h);
-          });
-          fetch(`${GH_RAW}?t=${Date.now()}`)
-            .then(r => r.ok ? r.json() : {})
-            .then(data => setUrlsData(data))
-            .catch(() => {});
+          window.addEventListener('hashchange', () => { const h = window.location.hash.slice(1); if (h) setVariablePart(h); });
+          fetch(`${GH_RAW}?t=${Date.now()}`).then(r => r.ok ? r.json() : {}).then(data => setUrlsData(data)).catch(() => {});
         }, []);
+
+        useEffect(() => {
+          if (variablePart) { const pd = getPersonData(urlsData, variablePart); updateOGP(variablePart, pd); }
+        }, [variablePart, urlsData]);
 
         const handleLogin = (e) => {
           e.preventDefault();
@@ -363,12 +389,14 @@
         const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
-        const saveUrls = async (name, urls) => {
-          const normalized = urls.map(normalizeEntry).filter(u => u.url);
-          const newData = { ...urlsData, [name]: normalized };
+        const saveUrls = async (name, displayName, urls) => {
+          const links = urls.map(normalizeEntry).filter(u => u.url);
+          const personObj = { displayName, links };
+          const newData = { ...urlsData, [name]: personObj };
           setUrlsData(newData);
           setEditingUrlsName(null);
-          setEditingUrls([{ url: "", label: "" }, { url: "", label: "" }, { url: "", label: "" }]);
+          setEditingDisplayName("");
+          setEditingUrls([{ url:"", label:"" }, { url:"", label:"" }, { url:"", label:"" }]);
           if (!githubToken) { setUrlSaveStatus("error_no_token"); return; }
           setUrlSaveStatus("saving");
           try {
@@ -376,25 +404,17 @@
             const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
             if (getRes.ok) sha = (await getRes.json()).sha;
             const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
-            const body = { message: `URLデータを更新: ${name}`, content };
+            const body = { message: `データを更新: ${name}`, content };
             if (sha) body.sha = sha;
-            const putRes = await fetch(GH_API, {
-              method: "PUT",
-              headers: { Authorization: `token ${githubToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify(body)
-            });
+            const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
             setUrlSaveStatus(putRes.ok ? "saved" : "error");
           } catch { setUrlSaveStatus("error"); }
           setTimeout(() => setUrlSaveStatus(""), 3000);
         };
 
-        const getCardUrls = (name) => (urlsData[name] || []).map(normalizeEntry).filter(e => e.url);
-
         return (
           <div className="min-h-screen p-4 sm:p-8 md:p-12">
             <div className="max-w-xl mx-auto">
-
-              {/* ヘッダー */}
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-xl font-light text-neutral-800">Digital Card Viewer</h1>
@@ -406,12 +426,12 @@
                   <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
                   <div className="flex flex-wrap gap-2">
                     <motion.a href="https://laxuz.xyz/portfolio/" target="_blank" rel="noopener noreferrer"
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      whileHover={{scale:1.05}} whileTap={{scale:0.95}}
                       className="px-4 py-2 bg-black text-white rounded-full text-xs font-medium shadow-lg hover:shadow-xl transition-all">
                       私も名刺を作りたい！
                     </motion.a>
                     <motion.a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      whileHover={{scale:1.05}} whileTap={{scale:0.95}}
                       className="px-4 py-2 bg-neutral-200 text-black rounded-full text-xs font-medium shadow-lg hover:shadow-xl hover:bg-neutral-300 transition-all">
                       デジタルカードを作りたい
                     </motion.a>
@@ -425,8 +445,7 @@
 
               <AnimatePresence mode="wait">
                 {isAdminMode ? (
-                  <motion.div key="admin"
-                    initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+                  <motion.div key="admin" initial={{opacity:0,scale:0.98}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.98}}
                     className="py-10 bg-neutral-950 rounded-[40px] shadow-2xl border border-neutral-800">
                     {!isLoggedIn ? (
                       <div className="w-full max-w-sm mx-auto p-8">
@@ -434,9 +453,9 @@
                         <form onSubmit={handleLogin} className="space-y-4">
                           <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)}
                             placeholder="管理者パスワード" autoFocus
-                            className="w-full px-4 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl focus:outline-none focus:border-neutral-600 transition-all text-sm text-center tracking-widest text-white placeholder:text-neutral-700" />
+                            className="w-full px-4 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl focus:outline-none focus:border-neutral-600 text-sm text-center tracking-widest text-white placeholder:text-neutral-700" />
                           {error && <p className="text-[10px] text-red-400 text-center">{error}</p>}
-                          <button type="submit" className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 active:scale-[0.98] transition-all">Verify</button>
+                          <button type="submit" className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 transition-all">Verify</button>
                           <button type="button" onClick={() => setIsAdminMode(false)} className="w-full text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
                         </form>
                       </div>
@@ -459,73 +478,68 @@
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {registeredNames.map(name => (
-                              <div key={name} className="space-y-2">
-                                <div className="flex gap-2">
-                                  <button onClick={() => selectName(name)}
-                                    className={`flex-1 flex items-center justify-between px-6 py-4 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}>
-                                    <span className="font-medium tracking-wide">{name}</span>
-                                    <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (editingUrlsName === name) { setEditingUrlsName(null); return; }
-                                      setEditingUrlsName(name);
-                                      const existing = (urlsData[name] || []).map(normalizeEntry);
-                                      const padded = [...existing, ...Array(3).fill(null)].slice(0, 3).map(e => e || { url: "", label: "" });
-                                      setEditingUrls(padded);
-                                    }}
-                                    className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}
-                                    title="URLを編集">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                                  </button>
-                                </div>
-
-                                {editingUrlsName === name && (
-                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-4">
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest">B面に表示するリンク（最大3件）</p>
-                                    {[0, 1, 2].map(i => (
-                                      <div key={i} className="space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0">
-                                        <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i + 1}</p>
-                                        <SNSLabelPicker
-                                          value={editingUrls[i]?.label || ""}
-                                          onChange={v => {
-                                            setEditingUrls(prev => {
-                                              const n = prev.map(x => ({...x}));
-                                              n[i] = { ...n[i], label: v };
-                                              return n;
-                                            });
-                                          }}
-                                        />
-                                        <input type="url"
-                                          value={editingUrls[i]?.url || ""}
-                                          onChange={e => {
-                                            const val = e.target.value;
-                                            setEditingUrls(prev => {
-                                              const n = prev.map(x => ({...x}));
-                                              n[i] = { ...n[i], url: val };
-                                              return n;
-                                            });
-                                          }}
-                                          placeholder="https://..."
-                                          className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono"
-                                        />
+                            {registeredNames.map(name => {
+                              const pd = getPersonData(urlsData, name);
+                              return (
+                                <div key={name} className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <button onClick={() => selectName(name)}
+                                      className={`flex-1 flex items-center justify-between px-6 py-4 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}>
+                                      <div className="text-left">
+                                        <p className="font-medium tracking-wide">{pd.displayName || name}</p>
+                                        {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
                                       </div>
-                                    ))}
-                                    <div className="flex gap-2 pt-1">
-                                      <button onClick={() => saveUrls(name, editingUrls)}
-                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
-                                      <button onClick={() => setEditingUrlsName(null)}
-                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
-                                    </div>
+                                      <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (editingUrlsName === name) { setEditingUrlsName(null); return; }
+                                        setEditingUrlsName(name);
+                                        setEditingDisplayName(pd.displayName);
+                                        const padded = [...pd.links, ...Array(3).fill(null)].slice(0,3).map(e => e || {url:"",label:""});
+                                        setEditingUrls(padded);
+                                      }}
+                                      className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
                                   </div>
-                                )}
-                              </div>
-                            ))}
+
+                                  {editingUrlsName === name && (
+                                    <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-4">
+                                      {/* 表示名 */}
+                                      <div className="space-y-2 pb-3 border-b border-neutral-800">
+                                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">表示名（日本語名など）</p>
+                                        <input type="text" value={editingDisplayName} onChange={e => setEditingDisplayName(e.target.value)}
+                                          placeholder="例：鈴木 一郎"
+                                          className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                      </div>
+                                      {/* リンク */}
+                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest">B面に表示するリンク（最大3件）</p>
+                                      {[0,1,2].map(i => (
+                                        <div key={i} className="space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0">
+                                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i+1}</p>
+                                          <SNSLabelPicker value={editingUrls[i]?.label||""}
+                                            onChange={v => setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],label:v}; return n; })} />
+                                          <input type="url" value={editingUrls[i]?.url||""}
+                                            onChange={e => { const val=e.target.value; setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
+                                            placeholder="https://..."
+                                            className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono" />
+                                        </div>
+                                      ))}
+                                      <div className="flex gap-2 pt-1">
+                                        <button onClick={() => saveUrls(name, editingDisplayName, editingUrls)}
+                                          className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
+                                        <button onClick={() => setEditingUrlsName(null)}
+                                          className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
-                        {/* GitHub Token */}
                         <div className="mt-8 border-t border-neutral-800 pt-6">
                           <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token</p>
                           <div className="flex gap-2">
@@ -535,10 +549,10 @@
                             <button onClick={saveToken} disabled={!tokenInput}
                               className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
                           </div>
-                          {urlSaveStatus === "saving"         && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
-                          {urlSaveStatus === "saved"          && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
-                          {urlSaveStatus === "error"          && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました。Tokenを確認してください</p>}
-                          {urlSaveStatus === "error_no_token" && <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
+                          {urlSaveStatus==="saving"         && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
+                          {urlSaveStatus==="saved"          && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
+                          {urlSaveStatus==="error"          && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました</p>}
+                          {urlSaveStatus==="error_no_token" && <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
                         </div>
 
                         <button onClick={() => setIsAdminMode(false)}
@@ -550,7 +564,7 @@
                   </motion.div>
 
                 ) : !variablePart ? (
-                  <motion.div key="standby" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  <motion.div key="standby" initial={{opacity:0}} animate={{opacity:1}}
                     className="flex flex-col items-center justify-center py-32 text-center">
                     <div className="p-10 mb-8 bg-neutral-100/30 rounded-full">
                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" strokeWidth="1"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
@@ -563,8 +577,8 @@
                   </motion.div>
 
                 ) : (
-                  <motion.div key="card" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <FlipCard variablePart={variablePart} urls={getCardUrls(variablePart)} />
+                  <motion.div key="card" initial={{opacity:0}} animate={{opacity:1}}>
+                    <FlipCard variablePart={variablePart} personData={getPersonData(urlsData, variablePart)} />
                   </motion.div>
                 )}
               </AnimatePresence>
