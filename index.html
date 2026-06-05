@@ -85,9 +85,9 @@
               QR
             </button>
             {show && (
-              <div className="absolute right-0 bottom-12 bg-white rounded-2xl shadow-2xl p-4 z-50 border border-neutral-100">
+              <div className="absolute right-0 bottom-12 bg-white rounded-2xl shadow-2xl p-4 z-50 border border-neutral-100" style={{minWidth: '168px'}}>
                 <button onClick={() => setShow(false)} className="absolute top-2 right-3 text-neutral-300 hover:text-black text-sm leading-none">✕</button>
-                <img src={qr} alt="QR Code" className="w-36 h-36 mt-1" />
+                <img src={qr} alt="QR Code" style={{width: '144px', height: '144px', display: 'block'}} className="mt-1" />
                 <p className="text-[8px] text-neutral-400 text-center mt-2 font-mono tracking-wider">Scan to open</p>
               </div>
             )}
@@ -219,14 +219,6 @@
               </div>
             </div>
 
-            {/* アクセスカウンター */}
-            <div className="mt-4 px-1">
-              <img
-                src={`https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=${encodeURIComponent(siteUrl)}&count_bg=%23000000&title_bg=%23888888&title=views&edge_flat=true`}
-                alt="view count"
-                className="h-4 opacity-40"
-              />
-            </div>
 
             {/* URLリンク */}
             {urls.length > 0 && (
