@@ -23,30 +23,20 @@
     <style>
       ::selection { background-color: #000; color: #fff; }
       body { background-color: #f5f5f5; color: #1a1a1a; font-family: 'Inter', sans-serif; }
-
-      /* Card flip */
       .flip-container { perspective: 1200px; }
       .flip-card {
-        position: relative;
-        width: 100%;
+        position: relative; width: 100%;
         transform-style: preserve-3d;
         transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .flip-card.flipped { transform: rotateY(180deg); }
-      .flip-face, .flip-face-back {
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-      }
-      .flip-face-back {
-        position: absolute;
-        inset: 0;
-        transform: rotateY(180deg);
-      }
+      .flip-face, .flip-face-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+      .flip-face-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+      .sns-select { appearance: none; -webkit-appearance: none; }
     </style>
   </head>
   <body>
     <div id="root"></div>
-
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
@@ -54,14 +44,38 @@
 
     <script type="text/babel">
       const { motion, AnimatePresence } = window.Motion;
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useRef } = React;
 
       const GH_REPO = "furetomojapan/meishi";
       const GH_FILE = "urls.json";
       const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
       const GH_API  = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
-
       const getSiteBase = () => window.location.origin + window.location.pathname;
+
+      /* ── SNS定義 ── */
+      const SNS_LIST = [
+        { value: "", label: "── 選択してください ──", color: "#888", icon: null },
+        { value: "Instagram", label: "Instagram", color: "#E1306C",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg> },
+        { value: "X", label: "X (Twitter)", color: "#000",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> },
+        { value: "Facebook", label: "Facebook", color: "#1877F2",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> },
+        { value: "LINE", label: "LINE", color: "#00B900",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg> },
+        { value: "YouTube", label: "YouTube", color: "#FF0000",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> },
+        { value: "TikTok", label: "TikTok", color: "#000",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg> },
+        { value: "LinkedIn", label: "LinkedIn", color: "#0A66C2",
+          icon: <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> },
+        { value: "Website", label: "Webサイト", color: "#555",
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> },
+        { value: "__custom__", label: "カスタム入力", color: "#888",
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+      ];
+
+      const getSNS = (label) => SNS_LIST.find(s => s.value === label && s.value !== "" && s.value !== "__custom__");
 
       const normalizeEntry = (e) => {
         if (!e) return { url: "", label: "" };
@@ -74,32 +88,32 @@
         catch { return false; }
       };
 
-      /* ── QR ポップオーバー ── */
+      /* ── QRボタン（大型） ── */
       function QRButton({ url }) {
         const [show, setShow] = useState(false);
-        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
         return (
           <div className="relative">
             <button
               onClick={() => setShow(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-black hover:text-white rounded-full text-[9px] font-mono uppercase tracking-widest transition-all text-neutral-500"
+              className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${show ? 'bg-black text-white' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/><path d="M17 14v3"/></svg>
-              QR
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/><path d="M17 14v3"/></svg>
+              <span className="text-[10px] font-semibold tracking-wide">QR</span>
             </button>
             {show && (
-              <div className="absolute right-0 bottom-12 bg-white rounded-2xl shadow-2xl p-4 z-50 border border-neutral-100" style={{minWidth: '168px'}}>
-                <button onClick={() => setShow(false)} className="absolute top-2 right-3 text-neutral-300 hover:text-black text-sm leading-none">✕</button>
-                <img src={qr} alt="QR Code" style={{width: '144px', height: '144px', display: 'block'}} className="mt-1" />
-                <p className="text-[8px] text-neutral-400 text-center mt-2 font-mono tracking-wider">Scan to open</p>
+              <div className="absolute right-0 bottom-20 bg-white rounded-3xl shadow-2xl p-5 z-50 border border-neutral-100" style={{minWidth:'200px'}}>
+                <button onClick={() => setShow(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base leading-none font-bold">✕</button>
+                <img src={qr} alt="QR Code" style={{width:'160px', height:'160px', display:'block'}} className="mx-auto" />
+                <p className="text-[9px] text-neutral-400 text-center mt-3 font-mono tracking-wider">Scan to open</p>
               </div>
             )}
           </div>
         );
       }
 
-      /* ── URLコピーボタン ── */
-      function CopyBtn({ url, label }) {
+      /* ── URLコピーボタン（大型） ── */
+      function CopyBtn({ url }) {
         const [copied, setCopied] = useState(false);
         const handle = async () => {
           await copyText(url);
@@ -109,21 +123,27 @@
         return (
           <button
             onClick={handle}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[9px] font-mono uppercase tracking-widest transition-all ${copied ? 'bg-black text-white' : 'bg-neutral-100 hover:bg-black hover:text-white text-neutral-500'}`}
+            className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${copied ? 'bg-black text-white shadow-lg' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'}`}
           >
-            {copied ? '✓ Copied' : (
+            {copied ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                {label || 'Copy URL'}
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span className="text-[10px] font-semibold tracking-wide">Copied!</span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span className="text-[10px] font-semibold tracking-wide">Copy URL</span>
               </>
             )}
           </button>
         );
       }
 
-      /* ── URLリンク行（コピーボタン付き） ── */
+      /* ── URLリンク行（SNSアイコン付き） ── */
       function URLRow({ entry }) {
         const [copied, setCopied] = useState(false);
+        const sns = getSNS(entry.label);
         const handleCopy = async (e) => {
           e.preventDefault();
           await copyText(entry.url);
@@ -131,24 +151,68 @@
           setTimeout(() => setCopied(false), 2000);
         };
         return (
-          <div className="flex items-center gap-2 group">
-            <a
-              href={entry.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center gap-2 text-[11px] text-neutral-500 hover:text-black transition-colors font-mono min-w-0"
+          <div className="flex items-center gap-3 group">
+            {/* SNSアイコン or リンクアイコン */}
+            <a href={entry.url} target="_blank" rel="noopener noreferrer"
+              className="flex-1 flex items-center gap-3 py-2.5 px-3 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-100 transition-all group-hover:border-neutral-200 min-w-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              {entry.label && <span className="font-semibold text-neutral-700 shrink-0">{entry.label}</span>}
-              {entry.label && <span className="text-neutral-300 shrink-0">—</span>}
-              <span className="truncate hover:underline">{entry.url}</span>
+              {sns ? (
+                <span className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{background: sns.color}}>
+                  {sns.icon}
+                </span>
+              ) : (
+                <span className="shrink-0 w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                {entry.label && <p className="text-xs font-semibold text-neutral-700 truncate">{entry.label}</p>}
+                <p className="text-[10px] text-neutral-400 truncate font-mono">{entry.url}</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-neutral-300"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
-            <button
-              onClick={handleCopy}
-              className={`opacity-0 group-hover:opacity-100 shrink-0 text-[8px] font-mono px-2 py-1 rounded-full transition-all ${copied ? 'bg-black text-white opacity-100' : 'bg-neutral-200 text-neutral-500 hover:bg-black hover:text-white'}`}
-            >
-              {copied ? '✓' : 'copy'}
+            <button onClick={handleCopy}
+              className={`shrink-0 w-8 h-8 rounded-lg text-[9px] font-mono transition-all ${copied ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-black hover:text-white'}`}>
+              {copied ? '✓' : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mx-auto"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>}
             </button>
+          </div>
+        );
+      }
+
+      /* ── SNSラベル選択コンポーネント（管理画面用） ── */
+      function SNSLabelPicker({ value, onChange }) {
+        const isCustom = value !== "" && !SNS_LIST.find(s => s.value === value && s.value !== "__custom__");
+        const selectValue = isCustom ? "__custom__" : value;
+
+        return (
+          <div className="space-y-2">
+            <div className="relative">
+              <select
+                value={selectValue}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "__custom__") onChange("");
+                  else onChange(v);
+                }}
+                className="sns-select w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white focus:outline-none focus:border-neutral-500 transition-all pr-8"
+              >
+                {SNS_LIST.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+            {(selectValue === "__custom__" || isCustom) && (
+              <input
+                type="text"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder="ラベルを入力"
+                className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 transition-all"
+              />
+            )}
           </div>
         );
       }
@@ -159,29 +223,22 @@
         const siteUrl = `${getSiteBase()}#${variablePart}`;
         const frontSrc = `image1_${variablePart}.png`;
         const backSrc  = `image2_${variablePart}.png`;
-        const ghFallback = (src) => `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
+        const ghFallback = src => `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
 
         const onImgError = (e) => {
           const fb = ghFallback(e.target.dataset.src);
-          if (e.target.src !== fb) {
-            e.target.src = fb;
-          } else {
+          if (e.target.src !== fb) e.target.src = fb;
+          else {
             e.target.style.display = 'none';
             if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
           }
         };
 
         const CardFace = ({ src }) => (
-          <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-sm">
-            <img
-              src={src}
-              data-src={src}
-              alt={src}
-              className="w-full h-full object-cover"
-              onError={onImgError}
-            />
+          <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-lg">
+            <img src={src} data-src={src} alt={src} className="w-full h-full object-cover" onError={onImgError} />
             <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
-              <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase tracking-tight">File not found</p>
+              <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase">File not found</p>
               <p className="text-[11px] text-neutral-400 font-mono break-all">{src}</p>
             </div>
           </div>
@@ -189,47 +246,54 @@
 
         return (
           <div className="w-full">
-            {/* カード本体 */}
+            {/* カード */}
             <div className="flip-container w-full">
-              <div className={`flip-card aspect-[1.75/1] ${flipped ? 'flipped' : ''}`} style={{height: 'auto'}}>
+              <div className={`flip-card aspect-[1.75/1] ${flipped ? 'flipped' : ''}`} style={{height:'auto'}}>
                 <div className="flip-face w-full h-full"><CardFace src={frontSrc} /></div>
                 <div className="flip-face-back w-full h-full"><CardFace src={backSrc} /></div>
               </div>
             </div>
 
-            {/* A面 / B面 大ボタン */}
+            {/* A面/B面 大ボタン */}
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 onClick={() => setFlipped(false)}
-                className={`group relative py-5 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-300 overflow-hidden ${!flipped ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-black'}`}
+                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${!flipped
+                  ? 'bg-black text-white shadow-2xl scale-[1.02]'
+                  : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'
+                }`}
               >
-                <span className="relative z-10 flex flex-col items-center gap-1">
-                  <span className="text-xs opacity-60 font-normal">おもて</span>
-                  <span className="text-xl">A面</span>
+                <span className="flex flex-col items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={!flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
+                  <span className="text-[10px] font-normal opacity-60">おもて面</span>
+                  <span className="text-2xl font-bold">A面</span>
                 </span>
               </button>
               <button
                 onClick={() => setFlipped(true)}
-                className={`group relative py-5 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-300 overflow-hidden ${flipped ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-black'}`}
+                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${flipped
+                  ? 'bg-black text-white shadow-2xl scale-[1.02]'
+                  : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'
+                }`}
               >
-                <span className="relative z-10 flex flex-col items-center gap-1">
-                  <span className="text-xs opacity-60 font-normal">うら</span>
-                  <span className="text-xl">B面</span>
+                <span className="flex flex-col items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+                  <span className="text-[10px] font-normal opacity-60">うら面</span>
+                  <span className="text-2xl font-bold">B面</span>
                 </span>
               </button>
             </div>
 
             {/* QR・コピー */}
-            <div className="mt-3 flex items-center justify-end gap-2">
+            <div className="mt-4 flex items-center justify-center gap-4">
               <QRButton url={siteUrl} />
               <CopyBtn url={siteUrl} />
             </div>
 
-
             {/* URLリンク */}
             {urls.length > 0 && (
-              <div className="mt-6 px-1 space-y-3">
-                <p className="text-[8px] font-mono text-neutral-300 uppercase tracking-widest">Links</p>
+              <div className="mt-6 space-y-2">
+                <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest px-1 mb-3">Links</p>
                 {urls.map((entry, i) => <URLRow key={i} entry={entry} />)}
               </div>
             )}
@@ -276,18 +340,13 @@
 
         useEffect(() => {
           loadNamesData().then(names => setRegisteredNames(names));
-
-          // ハッシュ or クエリパラメータからID取得
           const hash = window.location.hash.slice(1);
-          const qid  = new URLSearchParams(window.location.search).get('id');
+          const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) setVariablePart(hash || qid);
-
           window.addEventListener('hashchange', () => {
             const h = window.location.hash.slice(1);
             if (h) setVariablePart(h);
           });
-
-          // GitHubからurls.jsonを読み込む
           fetch(`${GH_RAW}?t=${Date.now()}`)
             .then(r => r.ok ? r.json() : {})
             .then(data => setUrlsData(data))
@@ -296,27 +355,13 @@
 
         const handleLogin = (e) => {
           e.preventDefault();
-          const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s =>
-            String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
-          );
-          if (clean === "admin123") {
-            setIsLoggedIn(true); setError(""); setPasswordInput("");
-          } else {
-            setError("正しいコードを入力してください"); setPasswordInput("");
-          }
+          const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+          if (clean === "admin123") { setIsLoggedIn(true); setError(""); setPasswordInput(""); }
+          else { setError("正しいコードを入力してください"); setPasswordInput(""); }
         };
 
-        const selectName = (name) => {
-          setVariablePart(name);
-          window.location.hash = name;
-          setIsAdminMode(false);
-        };
-
-        const saveToken = () => {
-          localStorage.setItem('meisi_gh_token', tokenInput);
-          setGithubToken(tokenInput);
-          setTokenInput("");
-        };
+        const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
+        const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
         const saveUrls = async (name, urls) => {
           const normalized = urls.map(normalizeEntry).filter(u => u.url);
@@ -324,32 +369,26 @@
           setUrlsData(newData);
           setEditingUrlsName(null);
           setEditingUrls([{ url: "", label: "" }, { url: "", label: "" }, { url: "", label: "" }]);
-
           if (!githubToken) { setUrlSaveStatus("error_no_token"); return; }
           setUrlSaveStatus("saving");
           try {
             let sha = null;
             const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
             if (getRes.ok) sha = (await getRes.json()).sha;
-
             const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
             const body = { message: `URLデータを更新: ${name}`, content };
             if (sha) body.sha = sha;
-
             const putRes = await fetch(GH_API, {
               method: "PUT",
               headers: { Authorization: `token ${githubToken}`, "Content-Type": "application/json" },
               body: JSON.stringify(body)
             });
             setUrlSaveStatus(putRes.ok ? "saved" : "error");
-          } catch {
-            setUrlSaveStatus("error");
-          }
+          } catch { setUrlSaveStatus("error"); }
           setTimeout(() => setUrlSaveStatus(""), 3000);
         };
 
-        const getCardUrls = (name) =>
-          (urlsData[name] || []).map(normalizeEntry).filter(e => e.url);
+        const getCardUrls = (name) => (urlsData[name] || []).map(normalizeEntry).filter(e => e.url);
 
         return (
           <div className="min-h-screen p-4 sm:p-8 md:p-12">
@@ -363,7 +402,6 @@
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
                 </div>
-
                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                   <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
                   <div className="flex flex-wrap gap-2">
@@ -386,12 +424,10 @@
               </header>
 
               <AnimatePresence mode="wait">
-                {/* ── 管理画面 ── */}
                 {isAdminMode ? (
                   <motion.div key="admin"
                     initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                    className="py-10 bg-neutral-950 rounded-[40px] shadow-2xl border border-neutral-800"
-                  >
+                    className="py-10 bg-neutral-950 rounded-[40px] shadow-2xl border border-neutral-800">
                     {!isLoggedIn ? (
                       <div className="w-full max-w-sm mx-auto p-8">
                         <h2 className="text-[10px] font-semibold mb-8 text-center text-neutral-500 tracking-[0.2em] uppercase">Security Access</h2>
@@ -411,8 +447,7 @@
                           <div className="flex gap-6 items-center">
                             <button onClick={async () => setRegisteredNames(await loadNamesData())}
                               className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                              Sync
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Sync
                             </button>
                             <button onClick={() => setIsLoggedIn(false)} className="text-[10px] text-neutral-600 hover:text-red-400 uppercase tracking-widest transition-colors">Logout</button>
                           </div>
@@ -421,7 +456,6 @@
                         {registeredNames.length === 0 ? (
                           <div className="py-20 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
                             <p className="text-xs text-neutral-400 mb-3">画像ファイルが見つかりません</p>
-                            <p className="text-[10px] text-neutral-600 px-12 leading-relaxed">GitHub ({GH_REPO}) に画像を保存してください。</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -442,26 +476,24 @@
                                       setEditingUrls(padded);
                                     }}
                                     className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}
-                                    title="URLを編集"
-                                  >
+                                    title="URLを編集">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                   </button>
                                 </div>
 
                                 {editingUrlsName === name && (
-                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-3">
+                                  <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-4">
                                     <p className="text-[9px] text-neutral-500 uppercase tracking-widest">B面に表示するリンク（最大3件）</p>
                                     {[0, 1, 2].map(i => (
-                                      <div key={i} className="flex gap-2">
-                                        <input type="text"
+                                      <div key={i} className="space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0">
+                                        <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i + 1}</p>
+                                        <SNSLabelPicker
                                           value={editingUrls[i]?.label || ""}
-                                          onChange={e => {
+                                          onChange={v => {
                                             const n = [...editingUrls];
-                                            n[i] = { ...n[i], label: e.target.value };
+                                            n[i] = { ...n[i], label: v };
                                             setEditingUrls(n);
                                           }}
-                                          placeholder="ラベル"
-                                          className="w-24 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600"
                                         />
                                         <input type="url"
                                           value={editingUrls[i]?.url || ""}
@@ -471,19 +503,15 @@
                                             setEditingUrls(n);
                                           }}
                                           placeholder="https://..."
-                                          className="flex-1 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono"
+                                          className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono"
                                         />
                                       </div>
                                     ))}
                                     <div className="flex gap-2 pt-1">
                                       <button onClick={() => saveUrls(name, editingUrls)}
-                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">
-                                        Save
-                                      </button>
+                                        className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
                                       <button onClick={() => setEditingUrlsName(null)}
-                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">
-                                        Cancel
-                                      </button>
+                                        className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
                                     </div>
                                   </div>
                                 )}
@@ -494,20 +522,18 @@
 
                         {/* GitHub Token */}
                         <div className="mt-8 border-t border-neutral-800 pt-6">
-                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token（URLをGitHubに保存するために必要）</p>
+                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token</p>
                           <div className="flex gap-2">
                             <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)}
                               placeholder={githubToken ? "●●●●●●●●（設定済み）" : "ghp_xxxxxxxxxxxx"}
-                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 transition-all text-xs text-white placeholder:text-neutral-600 font-mono" />
+                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-600 font-mono" />
                             <button onClick={saveToken} disabled={!tokenInput}
-                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">
-                              Save
-                            </button>
+                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
                           </div>
-                          {urlSaveStatus === "saving"        && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
-                          {urlSaveStatus === "saved"         && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
-                          {urlSaveStatus === "error"         && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました。Tokenを確認してください</p>}
-                          {urlSaveStatus === "error_no_token"&& <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
+                          {urlSaveStatus === "saving"         && <p className="text-[9px] text-neutral-500 mt-2">GitHubに保存中...</p>}
+                          {urlSaveStatus === "saved"          && <p className="text-[9px] text-green-400 mt-2">✓ GitHubに保存しました</p>}
+                          {urlSaveStatus === "error"          && <p className="text-[9px] text-red-400 mt-2">保存に失敗しました。Tokenを確認してください</p>}
+                          {urlSaveStatus === "error_no_token" && <p className="text-[9px] text-yellow-400 mt-2">GitHub Tokenが未設定です</p>}
                         </div>
 
                         <button onClick={() => setIsAdminMode(false)}
@@ -519,7 +545,6 @@
                   </motion.div>
 
                 ) : !variablePart ? (
-                  /* ── スタンバイ画面 ── */
                   <motion.div key="standby" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     className="flex flex-col items-center justify-center py-32 text-center">
                     <div className="p-10 mb-8 bg-neutral-100/30 rounded-full">
@@ -533,20 +558,14 @@
                   </motion.div>
 
                 ) : (
-                  /* ── カード表示 ── */
                   <motion.div key="card" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <FlipCard
-                      variablePart={variablePart}
-                      urls={getCardUrls(variablePart)}
-                    />
+                    <FlipCard variablePart={variablePart} urls={getCardUrls(variablePart)} />
                   </motion.div>
                 )}
               </AnimatePresence>
 
               <footer className="mt-24 py-10 border-t border-neutral-100">
-                <p className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center">
-                  © 2026 DIGITAL SHOWCASE
-                </p>
+                <p className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center">© 2026 DIGITAL SHOWCASE</p>
               </footer>
             </div>
           </div>
