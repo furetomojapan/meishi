@@ -63,8 +63,11 @@
 
       const getSiteBase = () => window.location.origin + window.location.pathname;
 
-      const normalizeEntry = (e) =>
-        typeof e === "string" ? { url: e, label: "" } : (e || { url: "", label: "" });
+      const normalizeEntry = (e) => {
+        if (!e) return { url: "", label: "" };
+        if (typeof e === "string") return { url: e, label: "" };
+        return { url: e.url || "", label: e.label || "" };
+      };
 
       const copyText = async (text) => {
         try { await navigator.clipboard.writeText(text); return true; }
@@ -194,29 +197,32 @@
               </div>
             </div>
 
-            {/* コントロールバー */}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 px-1">
-              {/* A面 / B面 トグル */}
-              <div className="flex items-center gap-1 bg-neutral-100 rounded-full p-1">
-                <button
-                  onClick={() => setFlipped(false)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest transition-all ${!flipped ? 'bg-black text-white shadow' : 'text-neutral-400 hover:text-black'}`}
-                >
-                  A面
-                </button>
-                <button
-                  onClick={() => setFlipped(true)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest transition-all ${flipped ? 'bg-black text-white shadow' : 'text-neutral-400 hover:text-black'}`}
-                >
-                  B面
-                </button>
-              </div>
+            {/* A面 / B面 大ボタン */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setFlipped(false)}
+                className={`group relative py-5 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-300 overflow-hidden ${!flipped ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-black'}`}
+              >
+                <span className="relative z-10 flex flex-col items-center gap-1">
+                  <span className="text-xs opacity-60 font-normal">おもて</span>
+                  <span className="text-xl">A面</span>
+                </span>
+              </button>
+              <button
+                onClick={() => setFlipped(true)}
+                className={`group relative py-5 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-300 overflow-hidden ${flipped ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-black'}`}
+              >
+                <span className="relative z-10 flex flex-col items-center gap-1">
+                  <span className="text-xs opacity-60 font-normal">うら</span>
+                  <span className="text-xl">B面</span>
+                </span>
+              </button>
+            </div>
 
-              {/* QR・コピー */}
-              <div className="flex items-center gap-2">
-                <QRButton url={siteUrl} />
-                <CopyBtn url={siteUrl} />
-              </div>
+            {/* QR・コピー */}
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <QRButton url={siteUrl} />
+              <CopyBtn url={siteUrl} />
             </div>
 
 
