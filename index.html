@@ -102,7 +102,7 @@
               <span className="text-[10px] font-semibold tracking-wide">QR</span>
             </button>
             {show && (
-              <div className="absolute right-0 bottom-20 bg-white rounded-3xl shadow-2xl p-5 z-50 border border-neutral-100" style={{minWidth:'200px'}}>
+              <div className="absolute bottom-20 bg-white rounded-3xl shadow-2xl p-5 z-50 border border-neutral-100" style={{minWidth:'200px', left:'50%', transform:'translateX(-50%)'}}>
                 <button onClick={() => setShow(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base leading-none font-bold">✕</button>
                 <img src={qr} alt="QR Code" style={{width:'160px', height:'160px', display:'block'}} className="mx-auto" />
                 <p className="text-[9px] text-neutral-400 text-center mt-3 font-mono tracking-wider">Scan to open</p>
