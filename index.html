@@ -258,36 +258,45 @@
 
       function SNSLabelPicker({ value, isCustom, onSelect, dark = true }) {
         const isNone = !isCustom && value === "";
+        const selectedSNS = SNS_BUTTONS.find(s => s.value === value && !isCustom);
         return (
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button"
-                onClick={() => onSelect("", false)}
-                className={`px-2 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider transition-all ${dark
-                  ? (isNone ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-400 hover:bg-neutral-600 hover:text-white')
-                  : (isNone ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200')}`}>
-                なし
+            {/* アイコングリッド（1行に収まるコンパクトレイアウト） */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* なし */}
+              <button type="button" onClick={() => onSelect("", false)}
+                className={`w-8 h-8 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center ${dark
+                  ? (isNone ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-500 hover:bg-neutral-600 hover:text-white')
+                  : (isNone ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200')}`}>
+                ✕
               </button>
+              {/* SNSアイコン */}
               {SNS_BUTTONS.map(s => {
                 const active = !isCustom && value === s.value;
                 return (
-                  <button type="button" key={s.value}
-                    onClick={() => onSelect(s.value, false)}
-                    title={s.value}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-semibold transition-all ${active ? 'text-white' : dark ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+                  <button type="button" key={s.value} onClick={() => onSelect(s.value, false)} title={s.value}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${active ? 'text-white shadow-md' : dark ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
                     style={active ? {background: s.color} : {}}>
-                    {s.icon}{s.value}
+                    {React.cloneElement(s.icon, {width:16, height:16})}
                   </button>
                 );
               })}
-              <button type="button"
-                onClick={() => onSelect("", true)}
-                className={`px-2 py-1 rounded-lg text-[9px] font-mono uppercase tracking-wider transition-all ${dark
-                  ? (isCustom ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-400 hover:bg-neutral-600 hover:text-white')
-                  : (isCustom ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200')}`}>
-                カスタム
+              {/* カスタム */}
+              <button type="button" onClick={() => onSelect("", true)}
+                className={`w-8 h-8 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center ${dark
+                  ? (isCustom ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-500 hover:bg-neutral-600 hover:text-white')
+                  : (isCustom ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200')}`}
+                title="カスタム入力">
+                ✎
               </button>
             </div>
+            {/* 選択中ラベル表示 */}
+            {(selectedSNS || isNone) && (
+              <p className={`text-[9px] ${dark ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                {isNone ? 'ラベルなし' : `選択中: ${selectedSNS.value}`}
+              </p>
+            )}
+            {/* カスタム入力欄 */}
             {isCustom && (
               <input type="text" value={value}
                 onChange={e => onSelect(e.target.value, true)}
@@ -1008,16 +1017,20 @@
                           )}
                         </div>
 
-                        {/* ユーザーリンク編集モーダル */}
+                        {/* ユーザーリンク編集モーダル（ボトムシート） */}
                         {showUserEdit && (
                           <>
-                            <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowUserEdit(false)} />
-                            <div className="fixed z-50 bg-white rounded-3xl shadow-2xl overflow-y-auto"
-                              style={{left:'50%',top:'50%',transform:'translate(-50%,-50%)',width:'min(420px,95vw)',maxHeight:'85vh'}}>
-                              <div className="p-6 space-y-4">
-                                <div className="flex items-center justify-between">
+                            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setShowUserEdit(false)} />
+                            <div className="fixed z-50 bg-white shadow-2xl overflow-y-auto"
+                              style={{bottom:0,left:0,right:0,borderRadius:'24px 24px 0 0',maxHeight:'88vh',paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
+                              {/* ドラッグハンドル */}
+                              <div className="flex justify-center pt-3 pb-1">
+                                <div className="w-10 h-1 bg-neutral-200 rounded-full" />
+                              </div>
+                              <div className="px-5 pb-6 space-y-4">
+                                <div className="flex items-center justify-between py-1">
                                   <h3 className="text-sm font-semibold text-neutral-800">リンクを編集</h3>
-                                  <button onClick={() => setShowUserEdit(false)} className="text-neutral-300 hover:text-black text-lg">✕</button>
+                                  <button onClick={() => setShowUserEdit(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-sm">✕</button>
                                 </div>
                                 {/* 表示名 */}
                                 <div className="space-y-1.5">
@@ -1027,16 +1040,14 @@
                                     className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                 </div>
                                 {/* リンク */}
-                                <div className="space-y-1.5">
-                                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（最大{PRO_LINK_LIMIT}件）</p>
-                                </div>
+                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（最大{PRO_LINK_LIMIT}件）</p>
                                 {userEditUrls.map((_, i) => {
                                   const locked = !pro && i >= FREE_LINK_LIMIT;
                                   return (
-                                  <div key={i} className={`space-y-2 pb-3 border-b border-neutral-100 last:border-0 ${locked ? 'opacity-40' : ''}`}>
+                                  <div key={i} className={`space-y-2 pb-4 border-b border-neutral-100 last:border-0 ${locked ? 'opacity-40' : ''}`}>
                                     <div className="flex items-center gap-2">
-                                      <p className="text-[9px] text-neutral-400 uppercase tracking-widest">Link {i+1}</p>
-                                      {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PRO限定</span>}
+                                      <p className="text-[9px] text-neutral-400 uppercase tracking-widest font-mono">Link {i+1}</p>
+                                      {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-semibold">PRO限定</span>}
                                     </div>
                                     <div className={locked ? 'pointer-events-none' : ''}>
                                       <SNSLabelPicker
@@ -1054,11 +1065,11 @@
                                     </div>
                                   </div>
                                 );})}
-                                <div className="flex gap-2 pt-1">
+                                <div className="flex gap-3 pt-2">
                                   <button onClick={saveUserLinks}
-                                    className="flex-1 py-3 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all">保存</button>
+                                    className="flex-1 py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all">保存</button>
                                   <button onClick={() => setShowUserEdit(false)}
-                                    className="px-5 text-[10px] text-neutral-400 hover:text-black transition-colors">キャンセル</button>
+                                    className="px-5 py-3.5 text-[10px] text-neutral-400 hover:text-black rounded-2xl border border-neutral-200 transition-colors">キャンセル</button>
                                 </div>
                               </div>
                             </div>
