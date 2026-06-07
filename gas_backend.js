@@ -23,8 +23,8 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name", "displayName", "licenseKey", "links"]);
-    us.getRange(1, 1, 1, 4).setFontWeight("bold");
+    us.appendRow(["name", "displayName", "licenseKey", "links", "plan"]);
+    us.getRange(1, 1, 1, 5).setFontWeight("bold");
   }
 
   // config シート
@@ -77,7 +77,7 @@ function doPost(e) {
   const action = payload.action;
   try {
     if (action === "save_user") {
-      saveUser(payload.name, payload.displayName, payload.licenseKey, payload.links);
+      saveUser(payload.name, payload.displayName, payload.licenseKey, payload.links, payload.plan);
       return jsonResponse({ success: true });
 
     } else if (action === "save_admin_pass") {
@@ -102,27 +102,28 @@ function getAllUsers() {
   const rows = sheet.getDataRange().getValues();
   const result = {};
   for (let i = 1; i < rows.length; i++) {
-    const [name, displayName, licenseKey, linksJson] = rows[i];
+    const [name, displayName, licenseKey, linksJson, plan] = rows[i];
     if (!name) continue;
     let links = [];
     try { links = JSON.parse(linksJson || "[]"); } catch {}
-    result[name] = { displayName: displayName || "", licenseKey: licenseKey || "", links };
+    result[name] = { displayName: displayName || "", plan: plan || "free", licenseKey: licenseKey || "", links };
   }
   return result;
 }
 
-function saveUser(name, displayName, licenseKey, links) {
+function saveUser(name, displayName, licenseKey, links, plan) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
   const rows = sheet.getDataRange().getValues();
   const linksJson = JSON.stringify(links || []);
+  const planVal = plan || "free";
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === name) {
-      sheet.getRange(i + 1, 1, 1, 4).setValues([[name, displayName || "", licenseKey || "", linksJson]]);
+      sheet.getRange(i + 1, 1, 1, 5).setValues([[name, displayName || "", licenseKey || "", linksJson, planVal]]);
       return;
     }
   }
   // 新規追加
-  sheet.appendRow([name, displayName || "", licenseKey || "", linksJson]);
+  sheet.appendRow([name, displayName || "", licenseKey || "", linksJson, planVal]);
 }
 
 // ── コンフィグ ─────────────────────────────────────────────────

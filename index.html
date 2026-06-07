@@ -62,16 +62,18 @@
       // urls.json の形式: { name: { displayName, licenseKey, links:[{url,label}] } } または後方互換で配列
       const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
-        if (!raw) return { displayName: "", licenseKey: "", links: [] };
-        if (Array.isArray(raw)) return { displayName: "", licenseKey: "", links: raw.map(normalizeEntry).filter(e => e.url) };
-        return { displayName: raw.displayName || "", licenseKey: raw.licenseKey || "", links: (raw.links || []).map(normalizeEntry).filter(e => e.url) };
+        if (!raw) return { displayName: "", plan: "free", licenseKey: "", links: [] };
+        if (Array.isArray(raw)) return { displayName: "", plan: "free", licenseKey: "", links: raw.map(normalizeEntry).filter(e => e.url) };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", licenseKey: raw.licenseKey || "", links: (raw.links || []).map(normalizeEntry).filter(e => e.url) };
       };
 
       /* ── プラン判定 ── */
       const isPro = (personData, licensesData) => {
+        // 管理者が直接PRO設定した場合（優先）
+        if (personData?.plan === "pro") return true;
+        // ライセンスキー経由（後方互換）
         if (!personData?.licenseKey) return false;
-        const lic = licensesData[personData.licenseKey];
-        return lic?.plan === "pro";
+        return licensesData[personData.licenseKey]?.plan === "pro";
       };
       const FREE_LINK_LIMIT = 1;
       const PRO_LINK_LIMIT  = 5;
@@ -599,6 +601,32 @@
         };
 
         const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
+
+        /* ── PRO/FREE ワンクリック切り替え ── */
+        const togglePlan = async (name) => {
+          const pd = getPersonData(urlsData, name);
+          const newPlan = pd.plan === "pro" ? "free" : "pro";
+          const personObj = { ...pd, plan: newPlan };
+          const newData = { ...urlsData, [name]: personObj };
+          setUrlsData(newData);
+          localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+          showToast("saving", 10000);
+          try {
+            if (GAS_READY) {
+              const r = await gasPost({ action:"save_user", name, ...personObj });
+              showToast(r.success ? "saved" : "error");
+            } else if (githubToken) {
+              let sha = null;
+              const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
+              if (getRes.ok) sha = (await getRes.json()).sha;
+              const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
+              const body = { message: `プラン変更: ${name} → ${newPlan}`, content };
+              if (sha) body.sha = sha;
+              const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+              showToast(putRes.ok ? "saved" : "error");
+            } else { showToast("error_no_token"); }
+          } catch { showToast("error"); }
+        };
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
         /* ── パスワード変更（GitHub + localStorage に保存） ── */
@@ -860,12 +888,17 @@
                                 <div key={name} className="space-y-2">
                                   <div className="flex gap-2">
                                     <button onClick={() => selectName(name)}
-                                      className={`flex-1 flex items-center justify-between px-6 py-4 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}>
+                                      className={`flex-1 flex items-center justify-between px-4 py-4 rounded-2xl border text-xs transition-all ${variablePart === name ? 'bg-white text-black border-white shadow-xl' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-white'}`}>
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
+                                    </button>
+                                    {/* PRO/FREE トグル */}
+                                    <button onClick={() => togglePlan(name)}
+                                      className={`px-3 rounded-2xl border text-[9px] font-bold uppercase tracking-wider transition-all ${pd.plan === "pro" ? 'bg-amber-400 border-amber-400 text-black hover:bg-amber-300' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-amber-400 hover:text-amber-400'}`}>
+                                      {pd.plan === "pro" ? "PRO" : "FREE"}
                                     </button>
                                     <button
                                       onClick={() => {
@@ -874,7 +907,6 @@
                                         setEditingDisplayName(pd.displayName);
                                         setEditingLicenseKey(pd.licenseKey || "");
                                         const knownSNS = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
-                                        // 常にPRO_LINK_LIMIT分読み込む（データ消失防止）
                                         const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
                                           .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
