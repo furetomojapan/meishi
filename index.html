@@ -258,44 +258,40 @@
 
       function SNSLabelPicker({ value, isCustom, onSelect, dark = true }) {
         const isNone = !isCustom && value === "";
-        const selectedSNS = SNS_BUTTONS.find(s => s.value === value && !isCustom);
+        // なし・SNS一覧・カスタムを1つの配列にまとめて3列グリッドで表示
+        const allButtons = [
+          { key: "__none__", label: "なし", icon: null },
+          ...SNS_BUTTONS.map(s => ({ key: s.value, label: s.value, icon: s.icon, color: s.color })),
+          { key: "__custom__", label: "カスタム", icon: null },
+        ];
         return (
           <div className="space-y-2">
-            {/* アイコングリッド（1行に収まるコンパクトレイアウト） */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {/* なし */}
-              <button type="button" onClick={() => onSelect("", false)}
-                className={`w-8 h-8 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center ${dark
-                  ? (isNone ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-500 hover:bg-neutral-600 hover:text-white')
-                  : (isNone ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200')}`}>
-                ✕
-              </button>
-              {/* SNSアイコン */}
-              {SNS_BUTTONS.map(s => {
-                const active = !isCustom && value === s.value;
+            {/* 3列グリッド：アイコン＋テキスト */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'6px'}}>
+              {allButtons.map(btn => {
+                const isNoneBtn   = btn.key === "__none__";
+                const isCustomBtn = btn.key === "__custom__";
+                const active = isNoneBtn ? isNone : isCustomBtn ? isCustom : (!isCustom && value === btn.key);
+                const handleClick = () => {
+                  if (isNoneBtn)   onSelect("", false);
+                  else if (isCustomBtn) onSelect("", true);
+                  else              onSelect(btn.key, false);
+                };
                 return (
-                  <button type="button" key={s.value} onClick={() => onSelect(s.value, false)} title={s.value}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${active ? 'text-white shadow-md' : dark ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
-                    style={active ? {background: s.color} : {}}>
-                    {React.cloneElement(s.icon, {width:16, height:16})}
+                  <button type="button" key={btn.key} onClick={handleClick}
+                    className={`flex items-center gap-1.5 px-2 py-2 rounded-xl text-[10px] font-semibold transition-all truncate ${active
+                      ? (dark ? 'text-white' : 'text-white')
+                      : (dark ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600 hover:text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200')}`}
+                    style={active ? {background: btn.color || (dark ? '#fff' : '#000'), color: (active && !btn.color) ? (dark ? '#000' : '#fff') : undefined} : {}}>
+                    {btn.icon
+                      ? <span className="shrink-0">{React.cloneElement(btn.icon, {width:13, height:13})}</span>
+                      : <span className="shrink-0 text-[11px]">{isNoneBtn ? '✕' : '✎'}</span>
+                    }
+                    <span className="truncate">{btn.label}</span>
                   </button>
                 );
               })}
-              {/* カスタム */}
-              <button type="button" onClick={() => onSelect("", true)}
-                className={`w-8 h-8 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center ${dark
-                  ? (isCustom ? 'bg-white text-black' : 'bg-neutral-700 text-neutral-500 hover:bg-neutral-600 hover:text-white')
-                  : (isCustom ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200')}`}
-                title="カスタム入力">
-                ✎
-              </button>
             </div>
-            {/* 選択中ラベル表示 */}
-            {(selectedSNS || isNone) && (
-              <p className={`text-[9px] ${dark ? 'text-neutral-500' : 'text-neutral-400'}`}>
-                {isNone ? 'ラベルなし' : `選択中: ${selectedSNS.value}`}
-              </p>
-            )}
             {/* カスタム入力欄 */}
             {isCustom && (
               <input type="text" value={value}
