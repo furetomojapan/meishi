@@ -452,11 +452,11 @@
       function Toast({ status }) {
         if (!status) return null;
         const cfg = {
-          saving:         { bg:"bg-neutral-700",  text:"GitHubに保存中…" },
+          saving:         { bg:"bg-neutral-700",  text:"保存中…" },
           saved:          { bg:"bg-green-600",     text:"✓ 保存しました" },
-          saved_local:    { bg:"bg-blue-600",      text:"✓ 保存しました（ローカル）" },
+          saved_local:    { bg:"bg-blue-600",      text:"✓ 保存しました" },
           error:          { bg:"bg-red-600",       text:"保存に失敗しました" },
-          error_no_token: { bg:"bg-yellow-600",    text:"GitHub Token未設定 — ローカルに保存しました" },
+          error_no_token: { bg:"bg-yellow-600",    text:"保存に失敗しました" },
         }[status];
         if (!cfg) return null;
         return (
