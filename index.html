@@ -468,6 +468,7 @@
         const [isAdminMode, setIsAdminMode] = useState(false);
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
+        const [adminPassGH, setAdminPassGH] = useState("");
         const [error, setError] = useState("");
         const [urlsData, setUrlsData] = useState(() => {
           // localStorage からの初期値（GitHub fetch 前の即時表示用）
@@ -543,6 +544,8 @@
             .then(r => r.ok ? r.json() : null)
             .then(ghData => {
               if (!ghData) return;
+              // GitHubに保存された管理者パスワードを取得
+              if (ghData._adminPass) setAdminPassGH(ghData._adminPass);
               // localStorageの現在値を取得
               let local = {};
               try { const s = localStorage.getItem('meisi_urls_data'); local = s ? JSON.parse(s) : {}; } catch {}
@@ -566,7 +569,8 @@
         const handleLogin = (e) => {
           e.preventDefault();
           const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-          const storedPass = localStorage.getItem('meisi_admin_pass') || 'admin123';
+          // 優先順位: GitHub保存パス > localStorage > デフォルト
+          const storedPass = adminPassGH || localStorage.getItem('meisi_admin_pass') || 'admin123';
           if (clean === storedPass) { setIsLoggedIn(true); setError(""); setPasswordInput(""); }
           else { setError("正しいコードを入力してください"); setPasswordInput(""); }
         };
@@ -574,11 +578,28 @@
         const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
-        /* ── パスワード変更 ── */
-        const changePassword = () => {
-          if (!newPassInput.trim()) return;
-          localStorage.setItem('meisi_admin_pass', newPassInput.trim());
-          setPassMsg("✓ 変更しました");
+        /* ── パスワード変更（GitHub + localStorage に保存） ── */
+        const changePassword = async () => {
+          const newPass = newPassInput.trim();
+          if (!newPass) return;
+          // localStorageにも保存（フォールバック）
+          localStorage.setItem('meisi_admin_pass', newPass);
+          setAdminPassGH(newPass);
+          // urls.json の _adminPass を更新
+          if (githubToken) {
+            try {
+              const newData = { ...urlsData, _adminPass: newPass };
+              let sha = null;
+              const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
+              if (getRes.ok) { const j = await getRes.json(); sha = j.sha; }
+              await fetch(GH_API, {
+                method: 'PUT',
+                headers: { Authorization: `token ${githubToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'update admin password', content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha })
+              });
+            } catch {}
+          }
+          setPassMsg("✓ 変更しました（全デバイスに反映）");
           setNewPassInput("");
           setTimeout(() => setPassMsg(""), 3000);
         };
@@ -749,10 +770,6 @@
                       デジタルカードを作りたい
                     </motion.a>
                   </div>
-                  <button onClick={() => setIsAdminMode(true)}
-                    className="text-[10px] font-mono text-neutral-300 hover:text-black transition-colors uppercase tracking-widest border-b border-transparent hover:border-black pb-0.5 self-start sm:self-end">
-                    {isLoggedIn ? "Admin Console" : "Admin Login"}
-                  </button>
                 </div>
               </header>
 
@@ -1105,7 +1122,10 @@
               </AnimatePresence>
 
               <footer className="mt-24 py-10 border-t border-neutral-100">
-                <p className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center">© 2026 DIGITAL SHOWCASE</p>
+                <button onClick={() => setIsAdminMode(true)}
+                  className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center w-full hover:text-neutral-500 transition-colors">
+                  © 2026 XYZ furetomo
+                </button>
               </footer>
             </div>
           </div>
