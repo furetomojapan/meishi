@@ -69,7 +69,9 @@
 
       /* ── プラン判定 ── */
       const isPro = (personData, licensesData) => {
-        // 管理者が直接PRO設定した場合（優先）
+        // 管理者が明示的にFREEにした場合は最優先でfalse
+        if (personData?.plan === "free") return false;
+        // 管理者が直接PRO設定した場合
         if (personData?.plan === "pro") return true;
         // ライセンスキー経由（後方互換）
         if (!personData?.licenseKey) return false;
@@ -727,7 +729,7 @@
           const links = pro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
-          const personObj = { displayName: userEditDisplayName, licenseKey: pd.licenseKey || "", links };
+          const personObj = { displayName: userEditDisplayName, plan: pd.plan || "free", licenseKey: pd.licenseKey || "", links };
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
