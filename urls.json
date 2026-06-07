@@ -19,11 +19,19 @@
   },
   "ichiro_suzuki": {
     "displayName": "鈴木⭐️一郎",
-    "licenseKey": "",
+    "licenseKey": "MEISI-DEMO-PRO1-2026",
     "links": [
       {
         "url": "https://x.com/?lang=ja",
         "label": "X"
+      },
+      {
+        "url": "https://www.youtube.com/?app=desktop&hl=ja",
+        "label": "YouTube"
+      },
+      {
+        "url": "https://www.line.me/ja/",
+        "label": "LINE"
       }
     ]
   }
