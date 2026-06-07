@@ -46,6 +46,10 @@
       const { useState, useEffect, useRef } = React;
 
       const GH_REPO = "furetomojapan/meishi";
+      // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
+      const GAS_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+      const GAS_READY = !GAS_URL.includes("YOUR_SCRIPT_ID");
+      // GAS未設定時のフォールバック（旧GitHub方式）
       const GH_FILE = "urls.json";
       const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
       const GH_API  = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
@@ -540,26 +544,45 @@
           if (hash || qid) setVariablePart(hash || qid);
           window.addEventListener('hashchange', () => { const h = window.location.hash.slice(1); if (h) setVariablePart(h); });
           // GitHub から取得してマージ（localStorageを優先・上書きしない）
-          fetch(`${GH_RAW}?t=${Date.now()}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(ghData => {
-              if (!ghData) return;
-              // GitHubに保存された管理者パスワードを取得
-              if (ghData._adminPass) setAdminPassGH(ghData._adminPass);
-              // localStorageの現在値を取得
-              let local = {};
-              try { const s = localStorage.getItem('meisi_urls_data'); local = s ? JSON.parse(s) : {}; } catch {}
-              // マージ: localStorageにないキーだけGitHubから補完（localStorageを上書きしない）
-              const merged = { ...ghData, ...local };
-              setUrlsData(merged);
-              localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
-            })
-            .catch(() => {});
-          // ライセンス情報を取得
-          fetch(`${GH_LICENSES_RAW}?t=${Date.now()}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data) setLicensesData(data); })
-            .catch(() => {});
+          if (GAS_READY) {
+            // ── GASバックエンドから全データ取得 ──
+            fetch(`${GAS_URL}?action=get_all&t=${Date.now()}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(res => {
+                if (!res) return;
+                // ユーザーデータ
+                if (res.users) {
+                  setUrlsData(res.users);
+                  localStorage.setItem('meisi_urls_data', JSON.stringify(res.users));
+                }
+                // 管理者パスワード
+                if (res.config?.adminPass) setAdminPassGH(res.config.adminPass);
+                // ライセンス
+                if (res.licenses) setLicensesData(res.licenses);
+              })
+              .catch(() => {
+                // GAS失敗時はlocalStorageから復元
+                try { const s = localStorage.getItem('meisi_urls_data'); if (s) setUrlsData(JSON.parse(s)); } catch {}
+              });
+          } else {
+            // ── フォールバック: 旧GitHub方式 ──
+            fetch(`${GH_RAW}?t=${Date.now()}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(ghData => {
+                if (!ghData) return;
+                if (ghData._adminPass) setAdminPassGH(ghData._adminPass);
+                let local = {};
+                try { const s = localStorage.getItem('meisi_urls_data'); local = s ? JSON.parse(s) : {}; } catch {}
+                const merged = { ...ghData, ...local };
+                setUrlsData(merged);
+                localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
+              })
+              .catch(() => {});
+            fetch(`${GH_LICENSES_RAW}?t=${Date.now()}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(data => { if (data) setLicensesData(data); })
+              .catch(() => {});
+          }
         }, []);
 
         useEffect(() => {
@@ -582,12 +605,12 @@
         const changePassword = async () => {
           const newPass = newPassInput.trim();
           if (!newPass) return;
-          // localStorageにも保存（フォールバック）
           localStorage.setItem('meisi_admin_pass', newPass);
           setAdminPassGH(newPass);
-          // urls.json の _adminPass を更新
-          if (githubToken) {
-            try {
+          try {
+            if (GAS_READY) {
+              await gasPost({ action:"save_admin_pass", password: newPass });
+            } else if (githubToken) {
               const newData = { ...urlsData, _adminPass: newPass };
               let sha = null;
               const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
@@ -597,8 +620,8 @@
                 headers: { Authorization: `token ${githubToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: 'update admin password', content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha })
               });
-            } catch {}
-          }
+            }
+          } catch {}
           setPassMsg("✓ 変更しました（全デバイスに反映）");
           setNewPassInput("");
           setTimeout(() => setPassMsg(""), 3000);
@@ -613,17 +636,23 @@
 
         const saveLicenses = async (newLicenses) => {
           setLicensesData(newLicenses);
-          if (!githubToken) { showToast("error_no_token"); return; }
           showToast("saving", 15000);
           try {
-            let sha = null;
-            const getRes = await fetch(GH_LICENSES_API, { headers: { Authorization: `token ${githubToken}` } });
-            if (getRes.ok) sha = (await getRes.json()).sha;
-            const content = btoa(unescape(encodeURIComponent(JSON.stringify(newLicenses, null, 2))));
-            const body = { message: "ライセンス更新", content };
-            if (sha) body.sha = sha;
-            const putRes = await fetch(GH_LICENSES_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-            showToast(putRes.ok ? "saved" : "error");
+            if (GAS_READY) {
+              const r = await gasPost({ action:"save_licenses", licenses: newLicenses });
+              showToast(r.success ? "saved" : "error");
+            } else if (githubToken) {
+              let sha = null;
+              const getRes = await fetch(GH_LICENSES_API, { headers: { Authorization: `token ${githubToken}` } });
+              if (getRes.ok) sha = (await getRes.json()).sha;
+              const content = btoa(unescape(encodeURIComponent(JSON.stringify(newLicenses, null, 2))));
+              const body = { message: "ライセンス更新", content };
+              if (sha) body.sha = sha;
+              const putRes = await fetch(GH_LICENSES_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+              showToast(putRes.ok ? "saved" : "error");
+            } else {
+              showToast("error_no_token");
+            }
           } catch { showToast("error"); }
         };
 
@@ -650,12 +679,20 @@
           setShowUserEdit(true);
         };
 
+        // ── GAS POST ヘルパー ──
+        const gasPost = async (payload) => {
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify(payload)
+          });
+          return res.ok ? res.json() : { error: "network error" };
+        };
+
         const saveUserLinks = async () => {
           const pd = getPersonData(urlsData, variablePart);
           const pro = isPro(pd, licensesData);
           const allLinks = userEditUrls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
-          // FREEは編集可能分 + 既存のPRO限定分を保持
           const links = pro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
@@ -664,22 +701,28 @@
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setShowUserEdit(false);
-          if (!githubToken) { showToast("saved_local"); return; }
           showToast("saving", 15000);
           try {
-            let sha = null;
-            const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
-            if (getRes.ok) sha = (await getRes.json()).sha;
-            const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
-            const body = { message: `リンク更新: ${variablePart}`, content };
-            if (sha) body.sha = sha;
-            const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-            showToast(putRes.ok ? "saved" : "error");
+            if (GAS_READY) {
+              const r = await gasPost({ action:"save_user", name:variablePart, ...personObj });
+              showToast(r.success ? "saved" : "error");
+            } else if (githubToken) {
+              let sha = null;
+              const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
+              if (getRes.ok) sha = (await getRes.json()).sha;
+              const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
+              const body = { message: `リンク更新: ${variablePart}`, content };
+              if (sha) body.sha = sha;
+              const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+              showToast(putRes.ok ? "saved" : "error");
+            } else {
+              showToast("saved_local");
+            }
           } catch { showToast("error"); }
         };
 
         /* ── お客様セルフアクティベーション ── */
-        const activateByKey = () => {
+        const activateByKey = async () => {
           const key = activationInput.trim().toUpperCase();
           if (!key) return;
           const lic = licensesData[key];
@@ -687,14 +730,18 @@
             setActivationError("無効なキーです。ご確認ください。");
             return;
           }
-          // localStorageのその人のデータにlicenseKeyを保存
           const pd = getPersonData(urlsData, variablePart);
-          const newData = { ...urlsData, [variablePart]: { ...pd, licenseKey: key } };
+          const personObj = { ...pd, licenseKey: key };
+          const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setShowActivation(false);
           setActivationInput("");
           setActivationError("");
+          // GASに保存
+          if (GAS_READY) {
+            try { await gasPost({ action:"save_user", name:variablePart, ...personObj }); } catch {}
+          }
           showToast("saved");
         };
 
@@ -707,41 +754,40 @@
 
         const saveUrls = async (name, displayName, licenseKey, urls) => {
           const personIsPro = licensesData[licenseKey]?.plan === "pro";
-          // _custom フィールドを除去してから保存
           const allLinks = urls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
-          // FREEプランでもlocked行（PRO限定）の既存データは保持する
           const existingLinks = getPersonData(urlsData, name).links;
           let links;
           if (personIsPro) {
-            links = allLinks; // PRO: 全件保存
+            links = allLinks;
           } else {
-            // FREE: 編集可能なFREE_LINK_LIMIT件 + それを超える既存リンクを保持
-            const editedPart = allLinks.slice(0, FREE_LINK_LIMIT);
-            const preservedPart = existingLinks.slice(FREE_LINK_LIMIT);
-            links = [...editedPart, ...preservedPart];
+            links = [...allLinks.slice(0, FREE_LINK_LIMIT), ...existingLinks.slice(FREE_LINK_LIMIT)];
           }
           const personObj = { displayName, licenseKey, links };
           const newData = { ...urlsData, [name]: personObj };
-          // まずローカルに保存（即時反映・オフライン対応）
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setEditingUrlsName(null);
           setEditingDisplayName("");
           setEditingLicenseKey("");
           setEditingUrls([{ url:"", label:"", _custom:false }]);
-          // GitHub Token未設定ならローカル保存のみ
-          if (!githubToken) { showToast("error_no_token"); return; }
           showToast("saving", 30000);
           try {
-            let sha = null;
-            const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
-            if (getRes.ok) sha = (await getRes.json()).sha;
-            const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
-            const body = { message: `データを更新: ${name}`, content };
-            if (sha) body.sha = sha;
-            const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-            showToast(putRes.ok ? "saved" : "error");
+            if (GAS_READY) {
+              const r = await gasPost({ action:"save_user", name, ...personObj });
+              showToast(r.success ? "saved" : "error");
+            } else if (githubToken) {
+              let sha = null;
+              const getRes = await fetch(GH_API, { headers: { Authorization: `token ${githubToken}` } });
+              if (getRes.ok) sha = (await getRes.json()).sha;
+              const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
+              const body = { message: `データを更新: ${name}`, content };
+              if (sha) body.sha = sha;
+              const putRes = await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+              showToast(putRes.ok ? "saved" : "error");
+            } else {
+              showToast("error_no_token");
+            }
           } catch { showToast("error"); }
         };
 
