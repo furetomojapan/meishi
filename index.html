@@ -451,6 +451,9 @@
         const [passMsg, setPassMsg] = useState("");
         const [licenseNote, setLicenseNote] = useState("");
         const [licenseMsg, setLicenseMsg] = useState("");
+        const [showActivation, setShowActivation] = useState(false);
+        const [activationInput, setActivationInput] = useState("");
+        const [activationError, setActivationError] = useState("");
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -573,6 +576,26 @@
           setLicenseMsg(`発行: ${key}`);
           setLicenseNote("");
           setTimeout(() => setLicenseMsg(""), 10000);
+        };
+
+        /* ── お客様セルフアクティベーション ── */
+        const activateByKey = () => {
+          const key = activationInput.trim().toUpperCase();
+          if (!key) return;
+          const lic = licensesData[key];
+          if (!lic || lic.plan !== "pro") {
+            setActivationError("無効なキーです。ご確認ください。");
+            return;
+          }
+          // localStorageのその人のデータにlicenseKeyを保存
+          const pd = getPersonData(urlsData, variablePart);
+          const newData = { ...urlsData, [variablePart]: { ...pd, licenseKey: key } };
+          setUrlsData(newData);
+          localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+          setShowActivation(false);
+          setActivationInput("");
+          setActivationError("");
+          showToast("saved");
         };
 
         const revokeLicense = async (key) => {
@@ -899,6 +922,43 @@
                 ) : (
                   <motion.div key="card" initial={{opacity:0}} animate={{opacity:1}}>
                     <FlipCard variablePart={variablePart} personData={getPersonData(urlsData, variablePart)} pro={isPro(getPersonData(urlsData, variablePart), licensesData)} />
+
+                    {/* アクティベーションボタン（FREEプランのみ表示） */}
+                    {!isPro(getPersonData(urlsData, variablePart), licensesData) && (
+                      <div className="mt-6 text-center">
+                        <button onClick={() => { setShowActivation(true); setActivationError(""); }}
+                          className="text-[10px] text-neutral-400 hover:text-black transition-colors border-b border-neutral-300 hover:border-black pb-0.5">
+                          ✦ PROキーをお持ちの方はこちら
+                        </button>
+                      </div>
+                    )}
+
+                    {/* アクティベーションモーダル */}
+                    {showActivation && (
+                      <>
+                        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowActivation(false)} />
+                        <div className="fixed z-50 bg-white rounded-3xl shadow-2xl p-6 w-[min(360px,90vw)]"
+                          style={{left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
+                          <h3 className="text-sm font-semibold text-neutral-800 mb-1">PROキーを入力</h3>
+                          <p className="text-[11px] text-neutral-400 mb-4">購入後にお送りしたキーを入力してください</p>
+                          <input
+                            type="text"
+                            value={activationInput}
+                            onChange={e => { setActivationInput(e.target.value.toUpperCase()); setActivationError(""); }}
+                            onKeyDown={e => e.key === 'Enter' && activateByKey()}
+                            placeholder="MEISI-XXXX-XXXX-XXXX"
+                            autoFocus
+                            className="w-full px-4 py-3 border border-neutral-200 rounded-2xl text-sm font-mono tracking-widest text-center focus:outline-none focus:border-black mb-2 uppercase" />
+                          {activationError && <p className="text-[11px] text-red-500 text-center mb-2">{activationError}</p>}
+                          <button onClick={activateByKey}
+                            className="w-full py-3 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all mb-2">
+                            アクティベーション
+                          </button>
+                          <button onClick={() => setShowActivation(false)}
+                            className="w-full py-2 text-[10px] text-neutral-400 hover:text-black transition-colors">キャンセル</button>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
