@@ -1,3 +1,11 @@
 {
-  "MEISI-DEMO-PRO1-2026": { "plan": "pro", "note": "デモ用PROキー" }
+  "MEISI-DEMO-PRO1-2026": {
+    "plan": "pro",
+    "note": "デモ用PROキー"
+  },
+  "MEISI-7QWR-4T9W-7CF8": {
+    "plan": "pro",
+    "note": "",
+    "issuedAt": "2026-06-07"
+  }
 }
