@@ -346,7 +346,7 @@
               </div>
               {/* 無料プランのウォーターマーク */}
               {!pro && (
-                <div style={{position:'absolute',bottom:'8px',right:'8px',zIndex:10,background:'rgba(0,0,0,0.65)',color:'white',fontSize:'8px',padding:'3px 10px',borderRadius:'999px',backdropFilter:'blur(4px)',pointerEvents:'none',fontFamily:'monospace',letterSpacing:'0.12em'}}>
+                <div style={{position:'absolute',bottom:'10px',right:'10px',zIndex:10,background:'rgba(0,0,0,0.72)',color:'white',fontSize:'11px',fontWeight:'600',padding:'5px 14px',borderRadius:'999px',backdropFilter:'blur(6px)',pointerEvents:'none',fontFamily:'Inter,sans-serif',letterSpacing:'0.08em',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}}>
                   ✦ Free Plan
                 </div>
               )}
@@ -525,9 +525,21 @@
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
 
         const saveUrls = async (name, displayName, licenseKey, urls) => {
+          const personIsPro = licensesData[licenseKey]?.plan === "pro";
           // _custom フィールドを除去してから保存
-          const links = urls.map(e => ({url: e.url||"", label: e.label||""}))
+          const allLinks = urls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
+          // FREEプランでもlocked行（PRO限定）の既存データは保持する
+          const existingLinks = getPersonData(urlsData, name).links;
+          let links;
+          if (personIsPro) {
+            links = allLinks; // PRO: 全件保存
+          } else {
+            // FREE: 編集可能なFREE_LINK_LIMIT件 + それを超える既存リンクを保持
+            const editedPart = allLinks.slice(0, FREE_LINK_LIMIT);
+            const preservedPart = existingLinks.slice(FREE_LINK_LIMIT);
+            links = [...editedPart, ...preservedPart];
+          }
           const personObj = { displayName, licenseKey, links };
           const newData = { ...urlsData, [name]: personObj };
           // まずローカルに保存（即時反映・オフライン対応）
@@ -639,9 +651,8 @@
                                         setEditingDisplayName(pd.displayName);
                                         setEditingLicenseKey(pd.licenseKey || "");
                                         const knownSNS = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
-                                        const personIsPro = isPro(pd, licensesData);
-                                        const maxLinks = personIsPro ? PRO_LINK_LIMIT : FREE_LINK_LIMIT;
-                                        const padded = [...pd.links, ...Array(maxLinks).fill(null)].slice(0, maxLinks)
+                                        // 常にPRO_LINK_LIMIT分読み込む（データ消失防止）
+                                        const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
                                           .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
                                       }}
@@ -651,7 +662,8 @@
                                   </div>
 
                                   {editingUrlsName === name && (() => {
-                                    const personIsPro = isPro(pd, licensesData);
+                                    // 入力中のキーも含めてPRO判定（リアルタイム反映）
+                                    const personIsPro = licensesData[editingLicenseKey]?.plan === "pro" || isPro(pd, licensesData);
                                     return (
                                     <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-4 space-y-4">
                                       {/* プランバッジ */}
@@ -668,15 +680,9 @@
                                         <input type="text" value={editingLicenseKey} onChange={e => {
                                           const key = e.target.value.trim().toUpperCase();
                                           setEditingLicenseKey(key);
-                                          // キー変更時にスロット数を動的更新
-                                          const newIsPro = licensesData[key]?.plan === "pro";
-                                          const maxLinks = newIsPro ? PRO_LINK_LIMIT : FREE_LINK_LIMIT;
-                                          setEditingUrls(prev => {
-                                            const knownSNS = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
-                                            const padded = [...prev, ...Array(maxLinks).fill(null)].slice(0, maxLinks)
-                                              .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label||"") && (e.label||"") !== ""} : {url:"",label:"",_custom:false});
-                                            return padded;
-                                          });
+                                          // キー変更時は常にPRO_LINK_LIMITスロットを維持（データ消失防止）
+                                          // スロット数は変えず、ロック状態だけ変わる（isPro の再評価で反映）
+                                          void key; // スロット数固定のため何もしない
                                         }}
                                           placeholder="MEISI-XXXX-XXXX-XXXX"
                                           className={`w-full px-3 py-2.5 bg-neutral-800 border rounded-xl focus:outline-none text-xs text-white placeholder:text-neutral-600 font-mono uppercase tracking-widest ${personIsPro ? 'border-amber-400/50 focus:border-amber-400' : 'border-neutral-700 focus:border-neutral-500'}`} />
@@ -698,23 +704,31 @@
 
                                       {/* リンク */}
                                       <p className="text-[9px] text-neutral-500 uppercase tracking-widest">
-                                        B面に表示するリンク（{personIsPro ? `最大${PRO_LINK_LIMIT}件` : `最大${FREE_LINK_LIMIT}件 / PROで${PRO_LINK_LIMIT}件`}）
+                                        B面に表示するリンク（{personIsPro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件 / PRO: ${PRO_LINK_LIMIT}件`}）
                                       </p>
-                                      {editingUrls.map((_, i) => (
-                                        <div key={i} className="space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0">
-                                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i+1}</p>
-                                          <SNSLabelPicker
-                                            value={editingUrls[i]?.label||""}
-                                            isCustom={editingUrls[i]?._custom||false}
-                                            onSelect={(label, isCustom) => setEditingUrls(prev => {
-                                              const n=prev.map(x=>({...x})); n[i]={...n[i],label,_custom:isCustom}; return n;
-                                            })} />
-                                          <input type="url" value={editingUrls[i]?.url||""}
-                                            onChange={e => { const val=e.target.value; setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
-                                            placeholder="https://..."
-                                            className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono" />
+                                      {editingUrls.map((_, i) => {
+                                        const locked = !personIsPro && i >= FREE_LINK_LIMIT;
+                                        return (
+                                        <div key={i} className={`space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0 ${locked ? 'opacity-40' : ''}`}>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i+1}</p>
+                                            {locked && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO限定</span>}
+                                          </div>
+                                          <div className={locked ? 'pointer-events-none' : ''}>
+                                            <SNSLabelPicker
+                                              value={editingUrls[i]?.label||""}
+                                              isCustom={editingUrls[i]?._custom||false}
+                                              onSelect={(label, isCustom) => { if(locked) return; setEditingUrls(prev => {
+                                                const n=prev.map(x=>({...x})); n[i]={...n[i],label,_custom:isCustom}; return n;
+                                              }); }} />
+                                            <input type="url" value={editingUrls[i]?.url||""}
+                                              onChange={e => { if(locked) return; const val=e.target.value; setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
+                                              placeholder={locked ? "PROプランで利用可能" : "https://..."}
+                                              disabled={locked}
+                                              className="w-full mt-2 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono disabled:cursor-not-allowed" />
+                                          </div>
                                         </div>
-                                      ))}
+                                      );})}
                                       <div className="flex gap-2 pt-1">
                                         <button onClick={() => saveUrls(name, editingDisplayName, editingLicenseKey, editingUrls)}
                                           className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
