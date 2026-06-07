@@ -447,6 +447,10 @@
         const [toast, setToast] = useState("");
         const [licensesData, setLicensesData] = useState({});
         const [editingLicenseKey, setEditingLicenseKey] = useState("");
+        const [newPassInput, setNewPassInput] = useState("");
+        const [passMsg, setPassMsg] = useState("");
+        const [licenseNote, setLicenseNote] = useState("");
+        const [licenseMsg, setLicenseMsg] = useState("");
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -519,12 +523,64 @@
         const handleLogin = (e) => {
           e.preventDefault();
           const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-          if (clean === "admin123") { setIsLoggedIn(true); setError(""); setPasswordInput(""); }
+          const storedPass = localStorage.getItem('meisi_admin_pass') || 'admin123';
+          if (clean === storedPass) { setIsLoggedIn(true); setError(""); setPasswordInput(""); }
           else { setError("正しいコードを入力してください"); setPasswordInput(""); }
         };
 
         const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
         const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
+
+        /* ── パスワード変更 ── */
+        const changePassword = () => {
+          if (!newPassInput.trim()) return;
+          localStorage.setItem('meisi_admin_pass', newPassInput.trim());
+          setPassMsg("✓ 変更しました");
+          setNewPassInput("");
+          setTimeout(() => setPassMsg(""), 3000);
+        };
+
+        /* ── ライセンスキー生成・保存 ── */
+        const generateKey = () => {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          const seg = () => Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+          return `MEISI-${seg()}-${seg()}-${seg()}`;
+        };
+
+        const saveLicenses = async (newLicenses) => {
+          setLicensesData(newLicenses);
+          if (!githubToken) { showToast("error_no_token"); return; }
+          showToast("saving", 15000);
+          try {
+            let sha = null;
+            const getRes = await fetch(GH_LICENSES_API, { headers: { Authorization: `token ${githubToken}` } });
+            if (getRes.ok) sha = (await getRes.json()).sha;
+            const content = btoa(unescape(encodeURIComponent(JSON.stringify(newLicenses, null, 2))));
+            const body = { message: "ライセンス更新", content };
+            if (sha) body.sha = sha;
+            const putRes = await fetch(GH_LICENSES_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+            showToast(putRes.ok ? "saved" : "error");
+          } catch { showToast("error"); }
+        };
+
+        const issueLicense = async () => {
+          const key = generateKey();
+          const newLicenses = {
+            ...licensesData,
+            [key]: { plan: "pro", note: licenseNote.trim() || "", issuedAt: new Date().toISOString().slice(0,10) }
+          };
+          await saveLicenses(newLicenses);
+          setLicenseMsg(`発行: ${key}`);
+          setLicenseNote("");
+          setTimeout(() => setLicenseMsg(""), 10000);
+        };
+
+        const revokeLicense = async (key) => {
+          if (!window.confirm(`キー ${key} を失効しますか？`)) return;
+          const newLicenses = { ...licensesData };
+          delete newLicenses[key];
+          await saveLicenses(newLicenses);
+        };
 
         const saveUrls = async (name, displayName, licenseKey, urls) => {
           const personIsPro = licensesData[licenseKey]?.plan === "pro";
@@ -745,6 +801,7 @@
                           </div>
                         )}
 
+                        {/* GitHub Token */}
                         <div className="mt-8 border-t border-neutral-800 pt-6">
                           <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token</p>
                           <div className="flex gap-2">
@@ -754,6 +811,68 @@
                             <button onClick={saveToken} disabled={!tokenInput}
                               className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
                           </div>
+                        </div>
+
+                        {/* パスワード変更 */}
+                        <div className="mt-6 border-t border-neutral-800 pt-6">
+                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">管理パスワード変更</p>
+                          <div className="flex gap-2">
+                            <input type="password" value={newPassInput} onChange={e => setNewPassInput(e.target.value)}
+                              placeholder="新しいパスワード"
+                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-600" />
+                            <button onClick={changePassword} disabled={!newPassInput.trim()}
+                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">変更</button>
+                          </div>
+                          {passMsg && <p className="text-[10px] text-green-400 mt-2">{passMsg}</p>}
+                          <p className="text-[9px] text-neutral-700 mt-2">※ このデバイスのブラウザに保存されます</p>
+                        </div>
+
+                        {/* ライセンス管理 */}
+                        <div className="mt-6 border-t border-neutral-800 pt-6 space-y-4">
+                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest">ライセンスキー管理</p>
+
+                          {/* 発行フォーム */}
+                          <div className="space-y-2">
+                            <input type="text" value={licenseNote} onChange={e => setLicenseNote(e.target.value)}
+                              placeholder="メモ（例：山田太郎 / STORES注文番号）"
+                              className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-600" />
+                            <button onClick={issueLicense} disabled={!githubToken}
+                              className="w-full py-3 bg-amber-500 text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-amber-400 transition-all disabled:opacity-30">
+                              ✦ 新しいPROキーを発行
+                            </button>
+                            {!githubToken && <p className="text-[9px] text-yellow-600">※ GitHub Token を設定するとキーが自動保存されます</p>}
+                          </div>
+
+                          {/* 発行したキーのコピー */}
+                          {licenseMsg && (
+                            <div className="bg-neutral-800 rounded-xl p-3 space-y-1">
+                              <p className="text-[9px] text-neutral-400 uppercase tracking-widest">発行完了 — お客様に送付してください</p>
+                              <button onClick={() => copyText(licenseMsg.replace('発行: ',''))}
+                                className="w-full text-left font-mono text-xs text-amber-400 hover:text-white transition-colors break-all">
+                                {licenseMsg.replace('発行: ','')}
+                                <span className="ml-2 text-[9px] text-neutral-500">[タップでコピー]</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* 発行済みキー一覧 */}
+                          {Object.keys(licensesData).length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-[9px] text-neutral-600 uppercase tracking-widest">発行済み（{Object.keys(licensesData).length}件）</p>
+                              {Object.entries(licensesData).map(([key, val]) => (
+                                <div key={key} className="flex items-center gap-2 bg-neutral-900 rounded-xl px-3 py-2.5">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-mono text-[10px] text-neutral-300 truncate">{key}</p>
+                                    {val.note && <p className="text-[9px] text-neutral-600 truncate">{val.note}</p>}
+                                    {val.issuedAt && <p className="text-[9px] text-neutral-700">{val.issuedAt}</p>}
+                                  </div>
+                                  <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full shrink-0">PRO</span>
+                                  <button onClick={() => revokeLicense(key)}
+                                    className="text-[9px] text-neutral-600 hover:text-red-400 transition-colors shrink-0">失効</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <button onClick={() => setIsAdminMode(false)}
