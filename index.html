@@ -344,10 +344,12 @@
                 <div className="flip-face w-full h-full"><CardFace src={frontSrc} /></div>
                 <div className="flip-face-back w-full h-full"><CardFace src={backSrc} /></div>
               </div>
-              {/* 無料プランのウォーターマーク（右端縦書き） */}
+              {/* 無料プランのウォーターマーク（右端縦ストリップ） */}
               {!pro && (
-                <div style={{position:'absolute',top:'50%',right:'0px',zIndex:10,transform:'translateY(-50%) rotate(90deg)',transformOrigin:'center center',background:'rgba(0,0,0,0.65)',color:'white',fontSize:'13px',fontWeight:'600',padding:'4px 14px',pointerEvents:'none',fontFamily:'Inter,sans-serif',letterSpacing:'0.12em',whiteSpace:'nowrap'}}>
-                  ✦ Free Plan
+                <div style={{position:'absolute',top:0,right:0,bottom:0,width:'26px',zIndex:10,background:'rgba(0,0,0,0.65)',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none',borderRadius:'0 12px 12px 0'}}>
+                  <span style={{color:'white',fontSize:'13px',fontWeight:'600',fontFamily:'Inter,sans-serif',letterSpacing:'0.12em',whiteSpace:'nowrap',transform:'rotate(90deg)',display:'block'}}>
+                    ✦ Free Plan
+                  </span>
                 </div>
               )}
               {/* タップヒント */}
