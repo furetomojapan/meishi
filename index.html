@@ -408,6 +408,35 @@
         );
       }
 
+      /* ── ライセンスキー行（コピーボタン用に独立コンポーネント） ── */
+      function LicenseRow({ licKey, val, onRevoke }) {
+        const [copied, setCopied] = useState(false);
+        const handleCopy = async () => {
+          await copyText(licKey);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        };
+        return (
+          <div className="bg-neutral-900 rounded-xl px-3 py-2.5 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="font-mono text-[10px] text-neutral-300 flex-1 truncate">{licKey}</p>
+              <button onClick={handleCopy}
+                className={`shrink-0 text-[9px] px-2 py-1 rounded-lg transition-all ${copied ? 'bg-green-600 text-white' : 'bg-neutral-700 text-neutral-400 hover:bg-white hover:text-black'}`}>
+                {copied ? '✓' : 'コピー'}
+              </button>
+              <button onClick={() => onRevoke(licKey)}
+                className="shrink-0 text-[9px] text-neutral-600 hover:text-red-400 transition-colors">失効</button>
+            </div>
+            {(val.note || val.issuedAt) && (
+              <div className="flex items-center gap-2">
+                {val.note && <p className="text-[9px] text-neutral-600 flex-1 truncate">{val.note}</p>}
+                {val.issuedAt && <p className="text-[9px] text-neutral-700">{val.issuedAt}</p>}
+              </div>
+            )}
+          </div>
+        );
+      }
+
       /* ── トースト通知 ── */
       function Toast({ status }) {
         if (!status) return null;
@@ -927,32 +956,9 @@
                           {Object.keys(licensesData).length > 0 && (
                             <div className="space-y-2">
                               <p className="text-[9px] text-neutral-600 uppercase tracking-widest">発行済み（{Object.keys(licensesData).length}件）</p>
-                              {Object.entries(licensesData).map(([key, val]) => {
-                                const [copied, setCopied] = React.useState(false);
-                                const handleCopy = async () => {
-                                  await copyText(key);
-                                  setCopied(true);
-                                  setTimeout(() => setCopied(false), 2000);
-                                };
-                                return (
-                                <div key={key} className="bg-neutral-900 rounded-xl px-3 py-2.5 space-y-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-mono text-[10px] text-neutral-300 flex-1 truncate">{key}</p>
-                                    <button onClick={handleCopy}
-                                      className={`shrink-0 text-[9px] px-2 py-1 rounded-lg transition-all ${copied ? 'bg-green-600 text-white' : 'bg-neutral-700 text-neutral-400 hover:bg-white hover:text-black'}`}>
-                                      {copied ? '✓' : 'コピー'}
-                                    </button>
-                                    <button onClick={() => revokeLicense(key)}
-                                      className="shrink-0 text-[9px] text-neutral-600 hover:text-red-400 transition-colors">失効</button>
-                                  </div>
-                                  {(val.note || val.issuedAt) && (
-                                    <div className="flex items-center gap-2">
-                                      {val.note && <p className="text-[9px] text-neutral-600 flex-1 truncate">{val.note}</p>}
-                                      {val.issuedAt && <p className="text-[9px] text-neutral-700">{val.issuedAt}</p>}
-                                    </div>
-                                  )}
-                                </div>
-                              );})}
+                              {Object.entries(licensesData).map(([key, val]) => (
+                                <LicenseRow key={key} licKey={key} val={val} onRevoke={revokeLicense} />
+                              ))}
                             </div>
                           )}
                         </div>
