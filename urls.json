@@ -1,10 +1,18 @@
 {
   "takashi_yamamoto": {
     "displayName": "山元孝志",
-    "licenseKey": "",
+    "licenseKey": "MEISI-DEMO-PRO1-2026",
     "links": [
       {
         "url": "https://laxuz.net/",
+        "label": "Website"
+      },
+      {
+        "url": "https://lin.ee/y9Bzpss",
+        "label": "LINE"
+      },
+      {
+        "url": "https://laxuz.xyz/",
         "label": "Website"
       }
     ]
