@@ -597,8 +597,13 @@
 
         const saveUserLinks = async () => {
           const pd = getPersonData(urlsData, variablePart);
-          const links = userEditUrls.map(e => ({url: e.url||"", label: e.label||""}))
+          const pro = isPro(pd, licensesData);
+          const allLinks = userEditUrls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
+          // FREEは編集可能分 + 既存のPRO限定分を保持
+          const links = pro
+            ? allLinks
+            : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
           const personObj = { displayName: userEditDisplayName, licenseKey: pd.licenseKey || "", links };
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
@@ -968,18 +973,17 @@
                         <FlipCard variablePart={variablePart} personData={pd} pro={pro}
                           onActivate={() => { setShowActivation(true); setActivationError(""); }} />
 
-                        {/* PRO: リンク編集ボタン / FREE: アクティベーションリンク */}
+                        {/* リンク編集ボタン（FREE/PRO共通） */}
                         <div className="mt-5 flex items-center justify-center gap-4">
-                          {pro ? (
-                            <button onClick={openUserEdit}
-                              className="flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-black transition-colors border border-neutral-200 hover:border-black rounded-full px-4 py-2">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              リンクを編集
-                            </button>
-                          ) : (
+                          <button onClick={openUserEdit}
+                            className="flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-black transition-colors border border-neutral-200 hover:border-black rounded-full px-4 py-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            リンクを編集
+                          </button>
+                          {!pro && (
                             <button onClick={() => { setShowActivation(true); setActivationError(""); }}
                               className="text-[10px] text-neutral-400 hover:text-black transition-colors border-b border-neutral-200 hover:border-black pb-0.5">
-                              ✦ PROキーをお持ちの方はこちら
+                              ✦ PROにアップグレード
                             </button>
                           )}
                         </div>
@@ -1006,22 +1010,30 @@
                                 <div className="space-y-1.5">
                                   <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（最大{PRO_LINK_LIMIT}件）</p>
                                 </div>
-                                {userEditUrls.map((_, i) => (
-                                  <div key={i} className="space-y-2 pb-3 border-b border-neutral-100 last:border-0">
-                                    <p className="text-[9px] text-neutral-400 uppercase tracking-widest">Link {i+1}</p>
-                                    <SNSLabelPicker
-                                      dark={false}
-                                      value={userEditUrls[i]?.label||""}
-                                      isCustom={userEditUrls[i]?._custom||false}
-                                      onSelect={(label, isCustom) => setUserEditUrls(prev => {
-                                        const n=prev.map(x=>({...x})); n[i]={...n[i],label,_custom:isCustom}; return n;
-                                      })} />
-                                    <input type="url" value={userEditUrls[i]?.url||""}
-                                      onChange={e => { const val=e.target.value; setUserEditUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
-                                      placeholder="https://..."
-                                      className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-xs font-mono" />
+                                {userEditUrls.map((_, i) => {
+                                  const locked = !pro && i >= FREE_LINK_LIMIT;
+                                  return (
+                                  <div key={i} className={`space-y-2 pb-3 border-b border-neutral-100 last:border-0 ${locked ? 'opacity-40' : ''}`}>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[9px] text-neutral-400 uppercase tracking-widest">Link {i+1}</p>
+                                      {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PRO限定</span>}
+                                    </div>
+                                    <div className={locked ? 'pointer-events-none' : ''}>
+                                      <SNSLabelPicker
+                                        dark={false}
+                                        value={userEditUrls[i]?.label||""}
+                                        isCustom={userEditUrls[i]?._custom||false}
+                                        onSelect={(label, isCustom) => { if(locked) return; setUserEditUrls(prev => {
+                                          const n=prev.map(x=>({...x})); n[i]={...n[i],label,_custom:isCustom}; return n;
+                                        }); }} />
+                                      <input type="url" value={userEditUrls[i]?.url||""}
+                                        onChange={e => { if(locked) return; const val=e.target.value; setUserEditUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
+                                        placeholder={locked ? "PROプランで利用可能" : "https://..."}
+                                        disabled={locked}
+                                        className="w-full mt-2 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-xs font-mono disabled:bg-neutral-50 disabled:cursor-not-allowed" />
+                                    </div>
                                   </div>
-                                ))}
+                                );})}
                                 <div className="flex gap-2 pt-1">
                                   <button onClick={saveUserLinks}
                                     className="flex-1 py-3 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all">保存</button>
