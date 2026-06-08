@@ -662,6 +662,7 @@
       /* ── メインアプリ ── */
       function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
+        const [newUserInput, setNewUserInput] = useState("");
         const [variablePart, setVariablePart] = useState(null);
         const [isAdminMode, setIsAdminMode] = useState(false);
         const [passwordInput, setPasswordInput] = useState("");
@@ -695,18 +696,22 @@
           setTimeout(() => setToast(""), ms);
         };
 
-        const loadNamesData = async () => {
-          try { const res = await fetch('/api/names'); const data = await res.json(); if (data && data.length > 0) return data; } catch {}
+        const loadNamesData = async (currentUrlsData) => {
+          const nameSet = new Set();
+          // GASユーザーデータのキーを追加（最優先）
+          if (currentUrlsData) Object.keys(currentUrlsData).forEach(k => nameSet.add(k));
+          try { const res = await fetch('/api/names'); const data = await res.json(); if (data?.length > 0) data.forEach(n => nameSet.add(n)); } catch {}
           try {
             const ghRes = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/`);
             if (ghRes.ok) {
               const files = await ghRes.json();
-              const names = files.map(f => f.name).filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
-                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i,"").replace(/\.(png|jpg|jpeg|gif|webp)$/i,""));
-              return Array.from(new Set(names)).filter(n => n.length > 0);
+              files.map(f => f.name).filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
+                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i,"").replace(/\.(png|jpg|jpeg|gif|webp)$/i,""))
+                .filter(n => n.length > 0).forEach(n => nameSet.add(n));
             }
           } catch {}
-          return ["ichiro_suzuki","sanae_takaichi"];
+          const result = Array.from(nameSet).filter(n => n.length > 0);
+          return result.length > 0 ? result : ["ichiro_suzuki","sanae_takaichi"];
         };
 
         // OGPメタタグを動的に更新
@@ -728,7 +733,7 @@
         };
 
         useEffect(() => {
-          loadNamesData().then(names => setRegisteredNames(names));
+          loadNamesData(null).then(names => setRegisteredNames(names));
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) setVariablePart(hash || qid);
@@ -751,6 +756,8 @@
                       }
                     });
                     localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
+                    // GASユーザーリストでregisteredNamesも更新
+                    loadNamesData(merged).then(names => setRegisteredNames(names));
                     return merged;
                   });
                 }
@@ -984,10 +991,10 @@
                       </div>
                     ) : (
                       <div className="w-full px-6 md:px-8">
-                        <div className="flex justify-between items-center mb-8 px-2">
+                        <div className="flex justify-between items-center mb-6 px-2">
                           <h2 className="text-xs font-semibold text-white uppercase tracking-widest">Library</h2>
                           <div className="flex gap-6 items-center">
-                            <button onClick={async () => setRegisteredNames(await loadNamesData())}
+                            <button onClick={async () => setRegisteredNames(await loadNamesData(urlsData))}
                               className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
                               <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Sync
                             </button>
@@ -995,9 +1002,46 @@
                           </div>
                         </div>
 
+                        {/* ── 新規ユーザー追加 ── */}
+                        <div className="mb-6 p-4 bg-neutral-900 border border-neutral-700 rounded-2xl">
+                          <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-2">新規ユーザー追加</p>
+                          <p className="text-[9px] text-neutral-600 mb-3">ID（半角英数・アンダースコア可）を入力してFREEユーザーを作成します。<br/>例: <span className="font-mono text-neutral-500">tanaka_hanako</span></p>
+                          <div className="flex gap-2">
+                            <input type="text" value={newUserInput}
+                              onChange={e => setNewUserInput(e.target.value.replace(/[^a-zA-Z0-9_]/g,""))}
+                              placeholder="user_id"
+                              className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white font-mono placeholder:text-neutral-600" />
+                            <button
+                              disabled={!newUserInput.trim() || registeredNames.includes(newUserInput.trim())}
+                              onClick={async () => {
+                                const id = newUserInput.trim();
+                                if (!id || registeredNames.includes(id)) return;
+                                const personObj = { displayName:"", plan:"free", licenseKey:"", links:[], profile: normalizeProfile(null) };
+                                const newData = { ...urlsData, [id]: personObj };
+                                setUrlsData(newData);
+                                localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                setRegisteredNames(prev => [...prev, id]);
+                                setNewUserInput("");
+                                showToast("saving", 10000);
+                                try {
+                                  if (GAS_READY) {
+                                    const r = await gasPost({ action:"save_user", name:id, ...personObj });
+                                    showToast(r.success ? "saved" : "error");
+                                  } else { showToast("saved_local"); }
+                                } catch { showToast("error"); }
+                              }}
+                              className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                              追加
+                            </button>
+                          </div>
+                          {newUserInput && registeredNames.includes(newUserInput) && (
+                            <p className="text-[9px] text-red-400 mt-1">このIDはすでに存在します</p>
+                          )}
+                        </div>
+
                         {registeredNames.length === 0 ? (
                           <div className="py-20 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
-                            <p className="text-xs text-neutral-400 mb-3">画像ファイルが見つかりません</p>
+                            <p className="text-xs text-neutral-400 mb-3">ユーザーがいません。上から追加してください。</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
