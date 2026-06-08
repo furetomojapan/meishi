@@ -740,10 +740,19 @@
               .then(r => r.ok ? r.json() : null)
               .then(res => {
                 if (!res) return;
-                // ユーザーデータ
+                // ユーザーデータ — ローカル変更（plan等）を優先してマージ
                 if (res.users) {
-                  setUrlsData(res.users);
-                  localStorage.setItem('meisi_urls_data', JSON.stringify(res.users));
+                  setUrlsData(prev => {
+                    // prevのplanが既にproなら、GASの古いデータで上書きしない
+                    const merged = { ...res.users };
+                    Object.keys(prev).forEach(k => {
+                      if (prev[k]?.plan === "pro" && res.users[k]?.plan !== "pro") {
+                        merged[k] = { ...res.users[k], plan: prev[k].plan };
+                      }
+                    });
+                    localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
+                    return merged;
+                  });
                 }
                 // 管理者パスワード
                 if (res.config?.adminPass) setAdminPassGH(res.config.adminPass);
@@ -1284,7 +1293,12 @@
                               </div>
                               <div className="px-5 pb-6 space-y-4">
                                 <div className="flex items-center justify-between py-1">
-                                  <h3 className="text-sm font-semibold text-neutral-800">名刺を編集</h3>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-neutral-800">名刺を編集</h3>
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${pro ? 'bg-amber-400 text-black' : 'bg-neutral-200 text-neutral-500'}`}>
+                                      {pro ? "✦ PRO" : "FREE"}
+                                    </span>
+                                  </div>
                                   <button onClick={() => setShowUserEdit(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-sm">✕</button>
                                 </div>
                                 <p className="text-[10px] text-neutral-400 -mt-1">空白文字（スペース・改行）も認識します</p>
