@@ -88,6 +88,10 @@ function doPost(e) {
       saveLicenses(payload.licenses);
       return jsonResponse({ success: true });
 
+    } else if (action === "delete_user") {
+      deleteUser(payload.name);
+      return jsonResponse({ success: true });
+
     } else {
       return jsonResponse({ error: "unknown action" });
     }
@@ -127,6 +131,17 @@ function saveUser(name, displayName, licenseKey, links, plan, profile) {
   }
   // 新規追加
   sheet.appendRow([name, displayName || "", licenseKey || "", linksJson, planVal, profileJson]);
+}
+
+function deleteUser(name) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === name) {
+      sheet.deleteRow(i + 1);
+      return;
+    }
+  }
 }
 
 // ── コンフィグ ─────────────────────────────────────────────────
