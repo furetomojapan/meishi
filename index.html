@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.2";
+      const APP_VERSION = "v2.3";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -61,7 +61,7 @@
 
       /* ── データ正規化 ── */
       const normalizeProfile = (p) => {
-        const d = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
+        const d = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"", textColor:"#ffffff", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
         if (!p) return d;
         const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
         const appealFonts = Array.isArray(p.appealFonts) ? [...p.appealFonts, 0,0,0,0].slice(0,4) : d.appealFonts;
@@ -253,7 +253,13 @@
         const bgSrc = `hai${bgNum}.png`;
         const tint = profile?.tint || "";
         const appeals = profile?.appeals || ["","","",""];
-        const ts = { color:"white", textShadow:"0 1px 4px rgba(0,0,0,0.8)" };
+        const textColor = profile?.textColor || "#ffffff";
+        // 文字色の明度に応じてテキストシャドウを自動切替
+        const hex = textColor.replace("#","");
+        const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+        const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+        const shadow = lum > 0.55 ? "0 1px 4px rgba(0,0,0,0.85)" : "0 1px 3px rgba(255,255,255,0.35)";
+        const ts = { color: textColor, textShadow: shadow };
         return (
           <div style={{position:"relative",width:"100%",height:"100%",borderRadius:"inherit",overflow:"hidden",
                        ...(!transparent && {backgroundImage:`url(${bgSrc})`,backgroundSize:"cover",backgroundPosition:"center",backgroundColor:"#2a2a3a"})}}>
@@ -363,6 +369,40 @@
                 </button>
               );
             })}
+          </div>
+        );
+      }
+
+      /* ── 文字色ピッカー ── */
+      const TEXT_COLOR_PRESETS = [
+        "#ffffff","#f0f0f0","#000000","#1a1a1a",
+        "#ffd700","#ffa500","#ff6b6b","#ff69b4",
+        "#87ceeb","#00bcd4","#90ee90","#c8a2c8",
+      ];
+      function TextColorPicker({ selected, onSelect, disabled }) {
+        const cur = selected || "#ffffff";
+        const isPreset = TEXT_COLOR_PRESETS.includes(cur);
+        return (
+          <div className="flex gap-1.5 flex-wrap items-center" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
+            {TEXT_COLOR_PRESETS.map(v => {
+              const active = cur === v;
+              const isLight = v === "#ffffff" || v === "#f0f0f0" || v === "#ffd700" || v === "#ffa500" || v === "#ff69b4" || v === "#87ceeb" || v === "#90ee90" || v === "#c8a2c8";
+              return (
+                <button key={v} type="button" onClick={() => onSelect(v)} title={v}
+                  style={{width:"24px",height:"24px",borderRadius:"50%",background:v,cursor:"pointer",flexShrink:0,
+                          border: active ? "2.5px solid #000" : isLight ? "1.5px solid rgba(0,0,0,0.15)" : "1.5px solid transparent",
+                          boxShadow: active ? "0 0 0 2px white,0 0 0 3.5px #000" : "0 1px 3px rgba(0,0,0,0.2)"}} />
+              );
+            })}
+            {/* カスタムカラー（コンパクトなinput[type=color]） */}
+            <label title="カスタム色" style={{position:"relative",width:"24px",height:"24px",cursor:"pointer",flexShrink:0,
+                    borderRadius:"50%",overflow:"hidden",
+                    border: !isPreset ? "2.5px solid #000" : "1.5px solid rgba(0,0,0,0.2)",
+                    boxShadow: !isPreset ? "0 0 0 2px white,0 0 0 3.5px #000" : "0 1px 3px rgba(0,0,0,0.2)",
+                    background:"conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"}}>
+              <input type="color" value={cur} onChange={e => onSelect(e.target.value)}
+                style={{position:"absolute",opacity:0,inset:0,width:"100%",height:"100%",cursor:"pointer"}} />
+            </label>
           </div>
         );
       }
@@ -715,7 +755,7 @@
         const [showUserEdit, setShowUserEdit] = useState(false);
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
-        const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"" };
+        const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"", textColor:"#ffffff" };
         const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
         const [editingProfile, setEditingProfile] = useState(defaultProfile);
 
@@ -1510,8 +1550,12 @@
                                     <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
                                   </div>
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-2">カラー</p>
+                                    <p className="text-[9px] text-neutral-400 mb-2">カラー（オーバーレイ）</p>
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] text-neutral-400 mb-2">文字色</p>
+                                    <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
                                   </div>
                                   {/* PROのみ：画像アップロード */}
                                   {pro && (() => {
