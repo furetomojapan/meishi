@@ -364,14 +364,14 @@
       }
 
       /* ── 位置揃えピッカー（左/中/右） ── */
-      function AlignPicker({ selected, onSelect, dark = false }) {
+      function AlignPicker({ selected, onSelect, dark = false, disabled = false }) {
         const opts = [
           { value:"left",   text:"左" },
           { value:"center", text:"中" },
           { value:"right",  text:"右" },
         ];
         return (
-          <div className="flex gap-1">
+          <div className="flex gap-1" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
             {opts.map(opt => {
               const active = (selected || "left") === opt.value;
               return (
@@ -390,9 +390,9 @@
       }
 
       /* ── サイズピッカー（S/M/L/XL） ── */
-      function SizePicker({ selected, onSelect, dark = false }) {
+      function SizePicker({ selected, onSelect, dark = false, disabled = false }) {
         return (
-          <div className="flex gap-1">
+          <div className="flex gap-1" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
             {["S","M","L","XL"].map(s => {
               const active = (selected || "M") === s;
               return (
@@ -411,9 +411,9 @@
       }
 
       /* ── フォントピッカー ── */
-      function FontPicker({ selected, onSelect, dark = false }) {
+      function FontPicker({ selected, onSelect, dark = false, disabled = false }) {
         return (
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1 flex-wrap" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
             {FONT_OPTIONS.map((opt, i) => {
               const active = (selected ?? 0) === i;
               return (
@@ -1055,55 +1055,49 @@
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
                                             <p className="text-[8px] text-neutral-600">会社名</p>
-                                            {personIsPro && <AlignPicker dark selected={editingProfile.companyAlign} onSelect={v => setEditingProfile(p => ({...p,companyAlign:v}))} />}
+                                            <AlignPicker dark disabled={!personIsPro} selected={editingProfile.companyAlign} onSelect={v => setEditingProfile(p => ({...p,companyAlign:v}))} />
                                           </div>
                                           <input type="text" value={editingProfile.company||""}
                                             onChange={e => setEditingProfile(p => ({...p,company:e.target.value}))}
                                             placeholder="例：株式会社〇〇"
                                             style={{fontFamily:FONT_OPTIONS[editingProfile.companyFont??0]?.value}}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          {personIsPro && (
-                                            <div className="mt-1 flex items-center gap-3">
-                                              <FontPicker dark selected={editingProfile.companyFont??0} onSelect={v => setEditingProfile(p => ({...p,companyFont:v}))} />
-                                              <SizePicker dark selected={editingProfile.companyFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,companyFontSize:v}))} />
-                                            </div>
-                                          )}
+                                          <div className="mt-1 flex items-center gap-3">
+                                            <FontPicker dark disabled={!personIsPro} selected={editingProfile.companyFont??0} onSelect={v => setEditingProfile(p => ({...p,companyFont:v}))} />
+                                            <SizePicker dark disabled={!personIsPro} selected={editingProfile.companyFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,companyFontSize:v}))} />
+                                          </div>
                                         </div>
                                         {/* 肩書き */}
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
                                             <p className="text-[8px] text-neutral-600">肩書き</p>
-                                            {personIsPro && <AlignPicker dark selected={editingProfile.titleAlign} onSelect={v => setEditingProfile(p => ({...p,titleAlign:v}))} />}
+                                            <AlignPicker dark disabled={!personIsPro} selected={editingProfile.titleAlign} onSelect={v => setEditingProfile(p => ({...p,titleAlign:v}))} />
                                           </div>
                                           <input type="text" value={editingProfile.title||""}
                                             onChange={e => setEditingProfile(p => ({...p,title:e.target.value}))}
                                             placeholder="例：代表取締役 / エンジニア"
                                             style={{fontFamily:FONT_OPTIONS[editingProfile.titleFont??0]?.value}}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          {personIsPro && (
-                                            <div className="mt-1 flex items-center gap-3">
-                                              <FontPicker dark selected={editingProfile.titleFont??0} onSelect={v => setEditingProfile(p => ({...p,titleFont:v}))} />
-                                              <SizePicker dark selected={editingProfile.titleFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,titleFontSize:v}))} />
-                                            </div>
-                                          )}
+                                          <div className="mt-1 flex items-center gap-3">
+                                            <FontPicker dark disabled={!personIsPro} selected={editingProfile.titleFont??0} onSelect={v => setEditingProfile(p => ({...p,titleFont:v}))} />
+                                            <SizePicker dark disabled={!personIsPro} selected={editingProfile.titleFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,titleFontSize:v}))} />
+                                          </div>
                                         </div>
                                         {/* 名前 */}
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
                                             <p className="text-[8px] text-neutral-600">名前</p>
-                                            {personIsPro && <AlignPicker dark selected={editingProfile.nameAlign} onSelect={v => setEditingProfile(p => ({...p,nameAlign:v}))} />}
+                                            <AlignPicker dark disabled={!personIsPro} selected={editingProfile.nameAlign} onSelect={v => setEditingProfile(p => ({...p,nameAlign:v}))} />
                                           </div>
                                           <textarea rows={3} value={editingProfile.name||""}
                                             onChange={e => setEditingProfile(p => ({...p,name:e.target.value}))}
                                             placeholder="例：鈴木 一郎"
                                             style={{resize:"none", fontFamily:FONT_OPTIONS[editingProfile.nameFont??0]?.value}}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          {personIsPro && (
-                                            <div className="mt-1.5 flex items-center gap-3">
-                                              <FontPicker dark selected={editingProfile.nameFont??0} onSelect={v => setEditingProfile(p => ({...p,nameFont:v}))} />
-                                              <SizePicker dark selected={editingProfile.nameFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,nameFontSize:v}))} />
-                                            </div>
-                                          )}
+                                          <div className="mt-1.5 flex items-center gap-3">
+                                            <FontPicker dark disabled={!personIsPro} selected={editingProfile.nameFont??0} onSelect={v => setEditingProfile(p => ({...p,nameFont:v}))} />
+                                            <SizePicker dark disabled={!personIsPro} selected={editingProfile.nameFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,nameFontSize:v}))} />
+                                          </div>
                                         </div>
                                         {/* 住所 */}
                                         <div>
@@ -1113,12 +1107,10 @@
                                             placeholder="東京都渋谷区〇〇"
                                             style={{fontFamily:FONT_OPTIONS[editingProfile.addressFont??0]?.value}}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          {personIsPro && (
-                                            <div className="mt-1 flex items-center gap-3">
-                                              <FontPicker dark selected={editingProfile.addressFont??0} onSelect={v => setEditingProfile(p => ({...p,addressFont:v}))} />
-                                              <SizePicker dark selected={editingProfile.addressFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,addressFontSize:v}))} />
-                                            </div>
-                                          )}
+                                          <div className="mt-1 flex items-center gap-3">
+                                            <FontPicker dark disabled={!personIsPro} selected={editingProfile.addressFont??0} onSelect={v => setEditingProfile(p => ({...p,addressFont:v}))} />
+                                            <SizePicker dark disabled={!personIsPro} selected={editingProfile.addressFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,addressFontSize:v}))} />
+                                          </div>
                                         </div>
                                         {/* 電話番号 */}
                                         <div>
@@ -1128,18 +1120,16 @@
                                             placeholder="090-1234-5678"
                                             style={{fontFamily:FONT_OPTIONS[editingProfile.phoneFont??0]?.value}}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          {personIsPro && (
-                                            <div className="mt-1 flex items-center gap-3">
-                                              <FontPicker dark selected={editingProfile.phoneFont??0} onSelect={v => setEditingProfile(p => ({...p,phoneFont:v}))} />
-                                              <SizePicker dark selected={editingProfile.phoneFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,phoneFontSize:v}))} />
-                                            </div>
-                                          )}
+                                          <div className="mt-1 flex items-center gap-3">
+                                            <FontPicker dark disabled={!personIsPro} selected={editingProfile.phoneFont??0} onSelect={v => setEditingProfile(p => ({...p,phoneFont:v}))} />
+                                            <SizePicker dark disabled={!personIsPro} selected={editingProfile.phoneFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,phoneFontSize:v}))} />
+                                          </div>
                                         </div>
                                         {/* アピール項目 */}
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
                                             <p className="text-[8px] text-neutral-600">アピール項目</p>
-                                            {personIsPro && <AlignPicker dark selected={editingProfile.appealsAlign} onSelect={v => setEditingProfile(p => ({...p,appealsAlign:v}))} />}
+                                            <AlignPicker dark disabled={!personIsPro} selected={editingProfile.appealsAlign} onSelect={v => setEditingProfile(p => ({...p,appealsAlign:v}))} />
                                           </div>
                                           {[0,1,2,3].map(i => (
                                             <div key={i} className="mb-2">
@@ -1148,12 +1138,10 @@
                                                 placeholder={`アピール${i+1}`}
                                                 style={{fontFamily:FONT_OPTIONS[editingProfile.appealFonts?.[i]??0]?.value}}
                                                 className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                              {personIsPro && (
-                                                <div className="mt-1">
-                                                  <FontPicker dark selected={editingProfile.appealFonts?.[i]??0}
-                                                    onSelect={v => setEditingProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
-                                                </div>
-                                              )}
+                                              <div className="mt-1">
+                                                <FontPicker dark disabled={!personIsPro} selected={editingProfile.appealFonts?.[i]??0}
+                                                  onSelect={v => setEditingProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
+                                              </div>
                                             </div>
                                           ))}
                                         </div>
@@ -1310,55 +1298,49 @@
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-[9px] text-neutral-400">会社名</p>
-                                      {pro && <AlignPicker selected={userEditProfile.companyAlign} onSelect={v => setUserEditProfile(p => ({...p,companyAlign:v}))} />}
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.companyAlign} onSelect={v => setUserEditProfile(p => ({...p,companyAlign:v}))} />
                                     </div>
                                     <input type="text" value={userEditProfile.company||""}
                                       onChange={e => setUserEditProfile(p => ({...p,company:e.target.value}))}
                                       placeholder="例：株式会社〇〇"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.companyFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    {pro && (
-                                      <div className="mt-1 flex items-center gap-3">
-                                        <FontPicker selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} />
-                                        <SizePicker selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} />
-                                      </div>
-                                    )}
+                                    <div className="mt-1 flex items-center gap-3">
+                                      <FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} />
+                                      <SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} />
+                                    </div>
                                   </div>
                                   {/* 肩書き */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-[9px] text-neutral-400">肩書き</p>
-                                      {pro && <AlignPicker selected={userEditProfile.titleAlign} onSelect={v => setUserEditProfile(p => ({...p,titleAlign:v}))} />}
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.titleAlign} onSelect={v => setUserEditProfile(p => ({...p,titleAlign:v}))} />
                                     </div>
                                     <input type="text" value={userEditProfile.title||""}
                                       onChange={e => setUserEditProfile(p => ({...p,title:e.target.value}))}
                                       placeholder="例：代表取締役 / エンジニア"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.titleFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    {pro && (
-                                      <div className="mt-1 flex items-center gap-3">
-                                        <FontPicker selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} />
-                                        <SizePicker selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} />
-                                      </div>
-                                    )}
+                                    <div className="mt-1 flex items-center gap-3">
+                                      <FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} />
+                                      <SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} />
+                                    </div>
                                   </div>
                                   {/* 名前 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-[9px] text-neutral-400">名前</p>
-                                      {pro && <AlignPicker selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />}
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />
                                     </div>
                                     <textarea rows={3} value={userEditProfile.name||""}
                                       onChange={e => setUserEditProfile(p => ({...p,name:e.target.value}))}
                                       placeholder="例：鈴木 一郎"
                                       style={{resize:"none", fontFamily:FONT_OPTIONS[userEditProfile.nameFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    {pro && (
-                                      <div className="mt-1.5 flex items-center gap-3">
-                                        <FontPicker selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} />
-                                        <SizePicker selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} />
-                                      </div>
-                                    )}
+                                    <div className="mt-1.5 flex items-center gap-3">
+                                      <FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} />
+                                      <SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} />
+                                    </div>
                                   </div>
                                   {/* 住所 */}
                                   <div>
@@ -1368,12 +1350,10 @@
                                       placeholder="例：東京都渋谷区〇〇1-2-3"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.addressFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    {pro && (
-                                      <div className="mt-1 flex items-center gap-3">
-                                        <FontPicker selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} />
-                                        <SizePicker selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} />
-                                      </div>
-                                    )}
+                                    <div className="mt-1 flex items-center gap-3">
+                                      <FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} />
+                                      <SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} />
+                                    </div>
                                   </div>
                                   {/* 電話番号 */}
                                   <div>
@@ -1383,18 +1363,16 @@
                                       placeholder="例：090-1234-5678"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    {pro && (
-                                      <div className="mt-1 flex items-center gap-3">
-                                        <FontPicker selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} />
-                                        <SizePicker selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} />
-                                      </div>
-                                    )}
+                                    <div className="mt-1 flex items-center gap-3">
+                                      <FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} />
+                                      <SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} />
+                                    </div>
                                   </div>
                                   {/* アピール項目 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-2">
                                       <p className="text-[9px] text-neutral-400">裏面アピール項目（4つ）</p>
-                                      {pro && <AlignPicker selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />}
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
                                     </div>
                                     {[0,1,2,3].map(i => (
                                       <div key={i} className="mb-2">
@@ -1403,12 +1381,10 @@
                                           placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
                                           style={{fontFamily:FONT_OPTIONS[userEditProfile.appealFonts?.[i]??0]?.value}}
                                           className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                        {pro && (
-                                          <div className="mt-1">
-                                            <FontPicker selected={userEditProfile.appealFonts?.[i]??0}
-                                              onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
-                                          </div>
-                                        )}
+                                        <div className="mt-1">
+                                          <FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
+                                            onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
