@@ -45,7 +45,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v1.6";
+      const APP_VERSION = "v1.7";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -323,7 +323,7 @@
       function BgPicker({ selected, onSelect }) {
         return (
           <div className="flex gap-2 flex-wrap">
-            {[1,2,3,4,5].map(n => {
+            {[1,2,3,4,5,6].map(n => {
               const active = selected === String(n);
               return (
                 <button key={n} type="button" onClick={() => onSelect(String(n))}
