@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v3.7";
+      const APP_VERSION = "v3.8";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1587,7 +1587,7 @@
                                   onChange={e => { setPinInput(e.target.value.replace(/\D/g,"")); setPinError(""); }}
                                   onKeyDown={e => e.key === "Enter" && handlePinVerify()}
                                   placeholder="● ● ● ● ● ●"
-                                  className="w-full text-center text-2xl font-mono tracking-[0.5em] px-4 py-4 bg-yellow-50 border-2 border-neutral-200 rounded-2xl focus:outline-none focus:border-black mb-2" />
+                                  className="w-full text-center text-2xl font-mono tracking-[0.5em] px-4 py-4 bg-yellow-200 border-2 border-neutral-200 rounded-2xl focus:outline-none focus:border-black mb-2" />
                                 {pinError && <p className="text-[11px] text-red-500 text-center mb-2">{pinError}</p>}
                                 <button onClick={handlePinVerify} disabled={pinInput.length !== 6}
                                   className="w-full py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all disabled:opacity-30 mt-1">
@@ -1656,7 +1656,7 @@
                                     value={pinChangeInput}
                                     onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
                                     placeholder="新しい6桁PIN"
-                                    className="flex-1 px-3 py-2 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
+                                    className="flex-1 px-3 py-2 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
                                   <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
                                     className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
                                     変更
@@ -1690,7 +1690,7 @@
                                       onChange={e => setUserEditProfile(p => ({...p,company:e.target.value}))}
                                       placeholder="例：株式会社〇〇"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.companyFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                     <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} /></PRow>
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.companyColor||""} onSelect={v => setColor("companyColor",v)} /></PRow>
@@ -1705,7 +1705,7 @@
                                       onChange={e => setUserEditProfile(p => ({...p,title:e.target.value}))}
                                       placeholder="例：代表取締役 / エンジニア"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.titleFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                     <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} /></PRow>
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
@@ -1720,7 +1720,7 @@
                                       onChange={e => setUserEditProfile(p => ({...p,name:e.target.value}))}
                                       placeholder="例：鈴木 一郎"
                                       style={{resize:"none", fontFamily:FONT_OPTIONS[userEditProfile.nameFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                     <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} /></PRow>
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.nameColor||""} onSelect={v => setColor("nameColor",v)} /></PRow>
@@ -1734,7 +1734,7 @@
                                       onChange={e => setUserEditProfile(p => ({...p,address:e.target.value}))}
                                       placeholder="例：東京都渋谷区〇〇1-2-3"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.addressFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                     <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} /></PRow>
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.addressColor||""} onSelect={v => setColor("addressColor",v)} /></PRow>
@@ -1748,7 +1748,7 @@
                                       onChange={e => setUserEditProfile(p => ({...p,phone:e.target.value}))}
                                       placeholder="例：090-1234-5678"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                     <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} /></PRow>
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.phoneColor||""} onSelect={v => setColor("phoneColor",v)} /></PRow>
@@ -1765,7 +1765,7 @@
                                           onChange={e => { const v=e.target.value; setUserEditProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
                                           placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
                                           style={{fontFamily:FONT_OPTIONS[userEditProfile.appealFonts?.[i]??0]?.value}}
-                                          className="w-full px-3 py-2 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                          className="w-full px-3 py-2 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                         <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
                                           onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} /></PRow>
                                         <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.appealColors?.[i]||""} onSelect={v => setAColor(i,v)} /></PRow>
@@ -1876,7 +1876,7 @@
                                     <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">表示名</p>
                                     <input type="text" value={userEditDisplayName} onChange={e => setUserEditDisplayName(e.target.value)}
                                       placeholder="例：鈴木 一郎"
-                                      className="w-full px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                   </div>
                                 )}
                                 {/* リンク */}
@@ -1901,7 +1901,7 @@
                                         onChange={e => { if(locked) return; const val=e.target.value; setUserEditUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
                                         placeholder={locked ? "PROプランで利用可能" : "https://..."}
                                         disabled={locked}
-                                        className="w-full mt-2 px-3 py-2.5 bg-yellow-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-xs font-mono disabled:bg-neutral-50 disabled:cursor-not-allowed" />
+                                        className="w-full mt-2 px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-xs font-mono disabled:bg-neutral-50 disabled:cursor-not-allowed" />
                                     </div>
                                   </div>
                                 );})}
