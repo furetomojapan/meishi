@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.5";
+      const APP_VERSION = "v2.6";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -77,7 +77,7 @@
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
         if (Array.isArray(raw)) return { displayName: "", plan: "free", links: raw.map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile) };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "" };
       };
 
       /* ── プラン判定 ── */
@@ -1184,31 +1184,7 @@
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[9px] font-mono tracking-widest opacity-60">PIN: {pd.pin || "未設定"}</span>
-                                          <button
-                                            onClick={async e => {
-                                              e.stopPropagation();
-                                              const newPin = generatePin();
-                                              const newData = { ...urlsData, [name]: { ...urlsData[name], pin: newPin } };
-                                              setUrlsData(newData);
-                                              localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
-                                              try {
-                                                if (GAS_READY) { await gasPost({ action:"save_user", name, ...newData[name] }); }
-                                                else if (githubToken) {
-                                                  let sha = null;
-                                                  const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
-                                                  if (getRes.ok) sha = (await getRes.json()).sha;
-                                                  const body = { message:`regen pin: ${name}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
-                                                  if (sha) body.sha = sha;
-                                                  await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-                                                }
-                                              } catch {}
-                                            }}
-                                            className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-400 hover:text-white transition-colors">
-                                            再生成
-                                          </button>
-                                        </div>
+                                        <p className="text-[9px] font-mono tracking-widest opacity-60 mt-1">PIN: {pd.pin || "未設定"}</p>
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                     </button>
@@ -1600,6 +1576,23 @@
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
                                   </div>
+                                  {/* PIN変更 */}
+                                  <div className="pb-1 border-b border-neutral-100">
+                                    <p className="text-[9px] text-neutral-400 mb-1.5">PIN変更（6桁）</p>
+                                    <div className="flex gap-2">
+                                      <input type="tel" inputMode="numeric" maxLength={6}
+                                        value={pinChangeInput}
+                                        onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
+                                        placeholder="新しい6桁PIN"
+                                        className="flex-1 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
+                                      <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
+                                        className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
+                                        変更
+                                      </button>
+                                    </div>
+                                    {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                  </div>
+
                                   {/* 名前 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
@@ -1789,23 +1782,6 @@
                                     </div>
                                   </div>
                                 );})}
-                                {/* PIN変更 */}
-                                <div className="pt-4 border-t border-neutral-100 mt-2">
-                                  <p className="text-[9px] text-neutral-400 mb-2">PIN変更（6桁）</p>
-                                  <div className="flex gap-2">
-                                    <input type="tel" inputMode="numeric" maxLength={6}
-                                      value={pinChangeInput}
-                                      onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
-                                      placeholder="新しい6桁PIN"
-                                      className="flex-1 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
-                                    <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
-                                      className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
-                                      変更
-                                    </button>
-                                  </div>
-                                  {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
-                                </div>
-
                                 <div className="flex gap-3 pt-2">
                                   <button onClick={saveUserLinks}
                                     className="flex-1 py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all">保存</button>
