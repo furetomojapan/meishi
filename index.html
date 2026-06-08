@@ -45,7 +45,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v1.8";
+      const APP_VERSION = "v1.9";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -541,24 +541,25 @@
           return () => clearTimeout(t);
         }, []);
 
-        const onImgError = (e) => {
+        const [imgError, setImgError] = React.useState({front:false, back:false});
+
+        const onImgError = (e, side) => {
           const fb = ghFallback(e.target.dataset.src);
-          if (e.target.src !== fb) e.target.src = fb;
-          else { e.target.style.display='none'; if(e.target.nextSibling) e.target.nextSibling.style.display='flex'; }
+          if (e.target.src !== fb) { e.target.src = fb; }
+          else { setImgError(prev => ({ ...prev, [side]: true })); }
         };
 
         const CardFace = ({ src, side }) => {
-          if (!pro) return (
+          // FREEプラン、または画像読み込みエラー → テキストカード
+          if (!pro || imgError[side]) return (
             <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
               <FreeCardFace profile={personData.profile} side={side} />
             </div>
           );
           return (
             <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-lg">
-              <img src={src} data-src={src} alt={src} className="w-full h-full object-cover" onError={onImgError} />
-              <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
-                <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase">File not found</p>
-              </div>
+              <img src={src} data-src={src} alt={src} className="w-full h-full object-cover"
+                onError={e => onImgError(e, side)} />
             </div>
           );
         };
