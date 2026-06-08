@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v3.3";
+      const APP_VERSION = "v3.4";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1287,7 +1287,12 @@
 
                                       {/* PIN変更（管理者） */}
                                       <div className="space-y-2 pb-3 border-b border-neutral-800">
-                                        <p className="text-[9px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-[9px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
+                                          <span className="text-[9px] font-mono text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
+                                            現在: {getPersonData(urlsData, editingUrlsName)?.pin || "未設定"}
+                                          </span>
+                                        </div>
                                         <div className="flex gap-2">
                                           <input type="tel" inputMode="numeric" maxLength={6}
                                             value={adminPinInput}
@@ -1609,11 +1614,17 @@
                                 </div>
                                 <p className="text-[10px] text-neutral-400 -mt-1">空白文字（スペース・改行）も認識します</p>
                                 {/* PIN変更 */}
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest">PIN変更</p>
+                                  <span className="text-[10px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
+                                    現在: {getPersonData(urlsData, variablePart)?.pin || "未設定"}
+                                  </span>
+                                </div>
                                 <div className="flex gap-2 items-center">
                                   <input type="tel" inputMode="numeric" maxLength={6}
                                     value={pinChangeInput}
                                     onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
-                                    placeholder="PIN変更（6桁）"
+                                    placeholder="新しい6桁PIN"
                                     className="flex-1 px-3 py-2 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
                                   <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
                                     className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
