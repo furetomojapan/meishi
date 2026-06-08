@@ -23,8 +23,8 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name", "displayName", "licenseKey", "links", "plan"]);
-    us.getRange(1, 1, 1, 5).setFontWeight("bold");
+    us.appendRow(["name", "displayName", "licenseKey", "links", "plan", "profile"]);
+    us.getRange(1, 1, 1, 6).setFontWeight("bold");
   }
 
   // config シート
@@ -77,7 +77,7 @@ function doPost(e) {
   const action = payload.action;
   try {
     if (action === "save_user") {
-      saveUser(payload.name, payload.displayName, payload.licenseKey, payload.links, payload.plan);
+      saveUser(payload.name, payload.displayName, payload.licenseKey, payload.links, payload.plan, payload.profile);
       return jsonResponse({ success: true });
 
     } else if (action === "save_admin_pass") {
@@ -102,28 +102,31 @@ function getAllUsers() {
   const rows = sheet.getDataRange().getValues();
   const result = {};
   for (let i = 1; i < rows.length; i++) {
-    const [name, displayName, licenseKey, linksJson, plan] = rows[i];
+    const [name, displayName, licenseKey, linksJson, plan, profileJson] = rows[i];
     if (!name) continue;
     let links = [];
     try { links = JSON.parse(linksJson || "[]"); } catch {}
-    result[name] = { displayName: displayName || "", plan: plan || "free", licenseKey: licenseKey || "", links };
+    let profile = null;
+    try { profile = profileJson ? JSON.parse(profileJson) : null; } catch {}
+    result[name] = { displayName: displayName || "", plan: plan || "free", licenseKey: licenseKey || "", links, profile };
   }
   return result;
 }
 
-function saveUser(name, displayName, licenseKey, links, plan) {
+function saveUser(name, displayName, licenseKey, links, plan, profile) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
   const rows = sheet.getDataRange().getValues();
   const linksJson = JSON.stringify(links || []);
   const planVal = plan || "free";
+  const profileJson = profile ? JSON.stringify(profile) : "";
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === name) {
-      sheet.getRange(i + 1, 1, 1, 5).setValues([[name, displayName || "", licenseKey || "", linksJson, planVal]]);
+      sheet.getRange(i + 1, 1, 1, 6).setValues([[name, displayName || "", licenseKey || "", linksJson, planVal, profileJson]]);
       return;
     }
   }
   // 新規追加
-  sheet.appendRow([name, displayName || "", licenseKey || "", linksJson, planVal]);
+  sheet.appendRow([name, displayName || "", licenseKey || "", linksJson, planVal, profileJson]);
 }
 
 // ── コンフィグ ─────────────────────────────────────────────────

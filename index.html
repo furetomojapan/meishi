@@ -56,11 +56,17 @@
       const getSiteBase = () => window.location.origin + window.location.pathname;
 
       /* ── データ正規化 ── */
+      const normalizeProfile = (p) => {
+        const d = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"" };
+        if (!p) return d;
+        const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
+        return { ...d, ...p, appeals };
+      };
       const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
-        if (!raw) return { displayName: "", plan: "free", links: [] };
-        if (Array.isArray(raw)) return { displayName: "", plan: "free", links: raw.map(normalizeEntry).filter(e => e.url) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", links: (raw.links || []).map(normalizeEntry).filter(e => e.url) };
+        if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
+        if (Array.isArray(raw)) return { displayName: "", plan: "free", links: raw.map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(null) };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile) };
       };
 
       /* ── プラン判定 ── */
@@ -69,6 +75,16 @@
       const PRO_LINK_LIMIT  = 5;
       // ★ STORESの商品公開URL（申し込みボタン用）
       const STORES_URL = "https://w0uojgyhnhslanlhxcdn.stores.jp/items/6a2546bbdb24c4c44d0274ef";
+      const TINT_OPTIONS = [
+        { label:"なし",     bg:"#e0e0e0", value:"",                        textIcon:"✕" },
+        { label:"ピンク",   bg:"#ff69b4", value:"rgba(255,105,180,0.38)"               },
+        { label:"レッド",   bg:"#e03040", value:"rgba(210,50,50,0.38)"                 },
+        { label:"オレンジ", bg:"#f09020", value:"rgba(240,140,30,0.38)"                },
+        { label:"グリーン", bg:"#32a040", value:"rgba(50,160,70,0.38)"                 },
+        { label:"ブルー",   bg:"#2878d0", value:"rgba(40,120,210,0.38)"                },
+        { label:"パープル", bg:"#8c3cbe", value:"rgba(140,60,190,0.38)"                },
+        { label:"ブラック", bg:"#222222", value:"rgba(0,0,0,0.48)"                     },
+      ];
 
       const normalizeEntry = (e) => {
         if (!e) return { url: "", label: "" };
@@ -211,6 +227,98 @@
         );
       }
 
+      /* ── フリーカード（テキスト名刺）── */
+      function FreeCardFace({ profile, side }) {
+        const bgSrc = `hai${profile?.bg || "1"}.png`;
+        const tint = profile?.tint || "";
+        const appeals = profile?.appeals || ["","","",""];
+        const ts = { color:"white", textShadow:"0 1px 4px rgba(0,0,0,0.6)" };
+        return (
+          <div style={{position:"relative",width:"100%",height:"100%",borderRadius:"inherit",overflow:"hidden",
+                       backgroundImage:`url(${bgSrc})`,backgroundSize:"cover",backgroundPosition:"center",
+                       backgroundColor:"#2a2a3a"}}>
+            {tint && <div style={{position:"absolute",inset:0,background:tint,zIndex:1,pointerEvents:"none"}} />}
+            <div style={{position:"relative",zIndex:2,width:"100%",height:"100%",display:"flex",
+                         flexDirection:"column",justifyContent:"center",padding:"10% 9%"}}>
+              {side === "front" ? (<>
+                <div style={{...ts,fontSize:"clamp(14px,4vw,22px)",fontWeight:700,marginBottom:"7%",letterSpacing:"0.02em"}}>
+                  {profile?.name || <span style={{opacity:0.3}}>（名前を入力してください）</span>}
+                </div>
+                {profile?.phone && (
+                  <div style={{...ts,fontSize:"clamp(9px,2.4vw,12px)",opacity:0.9,marginBottom:"5px",display:"flex",alignItems:"center",gap:"5px"}}>
+                    <span>☎</span><span style={{fontFamily:"monospace"}}>{profile.phone}</span>
+                  </div>
+                )}
+                {profile?.address && (
+                  <div style={{...ts,fontSize:"clamp(8px,2.1vw,11px)",opacity:0.8,display:"flex",alignItems:"flex-start",gap:"5px",lineHeight:1.4}}>
+                    <span style={{flexShrink:0}}>📍</span><span>{profile.address}</span>
+                  </div>
+                )}
+                <div style={{position:"absolute",bottom:"6%",right:"5%",...ts,fontSize:"7px",opacity:0.35,
+                             fontFamily:"monospace",letterSpacing:"0.12em"}}>XYZ Digital Card</div>
+              </>) : (<>
+                <div style={{...ts,fontSize:"clamp(9px,2.2vw,11px)",fontWeight:600,opacity:0.75,
+                             marginBottom:"7%",letterSpacing:"0.05em"}}>{profile?.name || ""}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:"clamp(4px,1.2vw,8px)"}}>
+                  {appeals.map((a,i) => (
+                    <div key={i} style={{...ts,fontSize:"clamp(8px,2.2vw,12px)",display:"flex",
+                                         alignItems:"flex-start",gap:"6px",opacity:a?1:0.25}}>
+                      <span style={{flexShrink:0,opacity:0.7}}>✦</span>
+                      <span>{a || "（未入力）"}</span>
+                    </div>
+                  ))}
+                </div>
+              </>)}
+            </div>
+          </div>
+        );
+      }
+
+      /* ── 背景ピッカー ── */
+      function BgPicker({ selected, onSelect }) {
+        return (
+          <div className="flex gap-2 flex-wrap">
+            {[1,2,3,4,5].map(n => {
+              const active = selected === String(n);
+              return (
+                <button key={n} type="button" onClick={() => onSelect(String(n))}
+                  style={{width:"52px",height:"32px",borderRadius:"8px",overflow:"hidden",
+                          backgroundImage:`url(hai${n}.png)`,backgroundSize:"cover",backgroundPosition:"center",
+                          backgroundColor:"#888",cursor:"pointer",position:"relative",flexShrink:0,
+                          border:active?"2.5px solid #000":"2.5px solid transparent",
+                          boxShadow:active?"0 0 0 1px #000":"0 1px 3px rgba(0,0,0,0.18)"}}>
+                  {active && <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.28)",
+                                          display:"flex",alignItems:"center",justifyContent:"center",
+                                          color:"white",fontSize:"11px",fontWeight:"bold"}}>✓</div>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      /* ── カラーピッカー ── */
+      function TintPicker({ selected, onSelect }) {
+        return (
+          <div className="flex gap-2 flex-wrap">
+            {TINT_OPTIONS.map(opt => {
+              const active = selected === opt.value;
+              return (
+                <button key={opt.label} type="button" onClick={() => onSelect(opt.value)}
+                  title={opt.label}
+                  style={{width:"28px",height:"28px",borderRadius:"50%",background:opt.bg,cursor:"pointer",
+                          position:"relative",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                          border:active?"2.5px solid #000":"2.5px solid transparent",
+                          boxShadow:active?"0 0 0 1px #000":"0 1px 3px rgba(0,0,0,0.18)"}}>
+                  {!opt.value && <span style={{fontSize:"10px",color:"#888",fontWeight:"bold"}}>✕</span>}
+                  {active && opt.value && <span style={{fontSize:"10px",color:"white",fontWeight:"bold"}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
       /* ── URLリンク行 ── */
       function URLRow({ entry }) {
         const [copied, setCopied] = useState(false);
@@ -325,14 +433,21 @@
           else { e.target.style.display='none'; if(e.target.nextSibling) e.target.nextSibling.style.display='flex'; }
         };
 
-        const CardFace = ({ src }) => (
-          <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-lg">
-            <img src={src} data-src={src} alt={src} className="w-full h-full object-cover" onError={onImgError} />
-            <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
-              <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase">File not found</p>
+        const CardFace = ({ src, side }) => {
+          if (!pro) return (
+            <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
+              <FreeCardFace profile={personData.profile} side={side} />
             </div>
-          </div>
-        );
+          );
+          return (
+            <div className="relative w-full h-full bg-white rounded-2xl overflow-hidden border border-white shadow-lg">
+              <img src={src} data-src={src} alt={src} className="w-full h-full object-cover" onError={onImgError} />
+              <div className="hidden absolute inset-0 bg-neutral-50 flex-col items-center justify-center p-6 text-center">
+                <p className="text-[10px] text-neutral-300 font-mono mb-2 uppercase">File not found</p>
+              </div>
+            </div>
+          );
+        };
 
         return (
           <div className="w-full">
@@ -345,8 +460,8 @@
             <div className="flip-container w-full relative">
               <div className={`flip-card aspect-[1.75/1] cursor-pointer ${flipped ? 'flipped' : ''} ${showHint ? 'hint-anim' : ''}`}
                 style={{height:'auto'}} onClick={() => { setFlipped(f => !f); setShowHint(false); }}>
-                <div className="flip-face w-full h-full"><CardFace src={frontSrc} /></div>
-                <div className="flip-face-back w-full h-full"><CardFace src={backSrc} /></div>
+                <div className="flip-face w-full h-full"><CardFace src={frontSrc} side="front" /></div>
+                <div className="flip-face-back w-full h-full"><CardFace src={backSrc} side="back" /></div>
               </div>
               {/* 無料プランのウォーターマーク（右端縦ストリップ・タップでアクティベーション） */}
               {!pro && (
@@ -395,7 +510,7 @@
             <div className="mt-4 flex items-center justify-center gap-4">
               <QRButton url={siteUrl} />
               <ShareBtn url={siteUrl} title={`${personData.displayName || variablePart} のデジタル名刺`} />
-              <DownloadBtn src={currentSrc} filename={`${personData.displayName || variablePart}_${flipped ? 'B' : 'A'}面.png`} />
+              {pro && <DownloadBtn src={currentSrc} filename={`${personData.displayName || variablePart}_${flipped ? 'B' : 'A'}面.png`} />}
             </div>
 
             {/* URLリンク（無料プランは1件のみ表示） */}
@@ -458,6 +573,9 @@
         const [showUserEdit, setShowUserEdit] = useState(false);
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
+        const defaultProfile = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"" };
+        const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
+        const [editingProfile, setEditingProfile] = useState(defaultProfile);
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -615,6 +733,7 @@
             .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
           setUserEditUrls(padded);
           setUserEditDisplayName(pd.displayName || "");
+          setUserEditProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", ...pd.profile });
           setShowUserEdit(true);
         };
 
@@ -635,7 +754,8 @@
           const links = pro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
-          const personObj = { displayName: userEditDisplayName, plan: pd.plan || "free", links };
+          const effectiveDisplayName = userEditDisplayName || (!isPro(pd) && userEditProfile.name ? userEditProfile.name : "");
+          const personObj = { displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile };
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -660,7 +780,7 @@
           } catch { showToast("error"); }
         };
 
-        const saveUrls = async (name, displayName, urls) => {
+        const saveUrls = async (name, displayName, urls, profile) => {
           const pd = getPersonData(urlsData, name);
           const personIsPro = isPro(pd);
           const allLinks = urls.map(e => ({url: e.url||"", label: e.label||""}))
@@ -669,7 +789,7 @@
           const links = personIsPro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...existingLinks.slice(FREE_LINK_LIMIT)];
-          const personObj = { displayName, plan: pd.plan || "free", links };
+          const personObj = { displayName, plan: pd.plan || "free", links, profile: profile || pd.profile };
           const newData = { ...urlsData, [name]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -786,6 +906,7 @@
                                         const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
                                           .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
+                                        setEditingProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", ...pd.profile });
                                       }}
                                       className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
                                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -811,6 +932,42 @@
                                           placeholder="例：鈴木 一郎"
                                           className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
                                       </div>
+                                      {/* FREEプラン：名刺情報 */}
+                                      {!personIsPro && (
+                                        <div className="space-y-3 pb-3 border-b border-neutral-800">
+                                          <p className="text-[9px] text-neutral-500 uppercase tracking-widest">名刺情報（FREEプラン）</p>
+                                          {[
+                                            {key:"name",    label:"名前",    placeholder:"例：鈴木 一郎"},
+                                            {key:"address", label:"住所",    placeholder:"東京都渋谷区〇〇"},
+                                            {key:"phone",   label:"電話番号", placeholder:"090-1234-5678"},
+                                          ].map(({key,label,placeholder}) => (
+                                            <div key={key}>
+                                              <p className="text-[8px] text-neutral-600 mb-1">{label}</p>
+                                              <input type="text" value={editingProfile[key]||""}
+                                                onChange={e => setEditingProfile(p => ({...p,[key]:e.target.value}))}
+                                                placeholder={placeholder}
+                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                            </div>
+                                          ))}
+                                          <div>
+                                            <p className="text-[8px] text-neutral-600 mb-1">アピール項目</p>
+                                            {[0,1,2,3].map(i => (
+                                              <input key={i} type="text" value={editingProfile.appeals[i]||""}
+                                                onChange={e => { const v=e.target.value; setEditingProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
+                                                placeholder={`アピール${i+1}`}
+                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 mb-1" />
+                                            ))}
+                                          </div>
+                                          <div>
+                                            <p className="text-[8px] text-neutral-600 mb-2">背景</p>
+                                            <BgPicker selected={editingProfile.bg} onSelect={bg => setEditingProfile(p => ({...p,bg}))} />
+                                          </div>
+                                          <div className="mt-2">
+                                            <p className="text-[8px] text-neutral-600 mb-2">カラー</p>
+                                            <TintPicker selected={editingProfile.tint} onSelect={tint => setEditingProfile(p => ({...p,tint}))} />
+                                          </div>
+                                        </div>
+                                      )}
 
                                       {/* リンク */}
                                       <p className="text-[9px] text-neutral-500 uppercase tracking-widest">
@@ -840,7 +997,7 @@
                                         </div>
                                       );})}
                                       <div className="flex gap-2 pt-1">
-                                        <button onClick={() => saveUrls(name, editingDisplayName, editingUrls)}
+                                        <button onClick={() => saveUrls(name, editingDisplayName, editingUrls, editingProfile)}
                                           className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
                                         <button onClick={() => setEditingUrlsName(null)}
                                           className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
@@ -941,18 +1098,56 @@
                               </div>
                               <div className="px-5 pb-6 space-y-4">
                                 <div className="flex items-center justify-between py-1">
-                                  <h3 className="text-sm font-semibold text-neutral-800">リンクを編集</h3>
+                                  <h3 className="text-sm font-semibold text-neutral-800">名刺を編集</h3>
                                   <button onClick={() => setShowUserEdit(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-sm">✕</button>
                                 </div>
-                                {/* 表示名 */}
-                                <div className="space-y-1.5">
-                                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest">表示名</p>
-                                  <input type="text" value={userEditDisplayName} onChange={e => setUserEditDisplayName(e.target.value)}
-                                    placeholder="例：鈴木 一郎"
-                                    className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                </div>
+                                {/* FREEプラン：名刺情報 */}
+                                {!pro && (
+                                  <div className="space-y-3 pb-4 border-b border-neutral-100">
+                                    <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-widest">名刺情報</p>
+                                    {[
+                                      {key:"name",    label:"名前",    placeholder:"例：鈴木 一郎",                type:"text"},
+                                      {key:"address", label:"住所",    placeholder:"例：東京都渋谷区〇〇1-2-3",  type:"text"},
+                                      {key:"phone",   label:"電話番号", placeholder:"例：090-1234-5678",          type:"tel"},
+                                    ].map(({key,label,placeholder,type}) => (
+                                      <div key={key}>
+                                        <p className="text-[9px] text-neutral-400 mb-1">{label}</p>
+                                        <input type={type} value={userEditProfile[key]||""}
+                                          onChange={e => setUserEditProfile(p => ({...p,[key]:e.target.value}))}
+                                          placeholder={placeholder}
+                                          className={`w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm${key==="phone"?" font-mono":""}`} />
+                                      </div>
+                                    ))}
+                                    <div>
+                                      <p className="text-[9px] text-neutral-400 mb-2">裏面アピール項目（4つ）</p>
+                                      {[0,1,2,3].map(i => (
+                                        <input key={i} type="text" value={userEditProfile.appeals[i]||""}
+                                          onChange={e => { const v=e.target.value; setUserEditProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
+                                          placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
+                                          className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm mb-2" />
+                                      ))}
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] text-neutral-400 mb-2">背景デザイン</p>
+                                      <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] text-neutral-400 mb-2">カラー</p>
+                                      <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
+                                    </div>
+                                  </div>
+                                )}
+                                {/* PROプラン：表示名 */}
+                                {pro && (
+                                  <div className="space-y-1.5">
+                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest">表示名</p>
+                                    <input type="text" value={userEditDisplayName} onChange={e => setUserEditDisplayName(e.target.value)}
+                                      placeholder="例：鈴木 一郎"
+                                      className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                  </div>
+                                )}
                                 {/* リンク */}
-                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（最大{PRO_LINK_LIMIT}件）</p>
+                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（{pro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件`}）</p>
                                 {userEditUrls.map((_, i) => {
                                   const locked = !pro && i >= FREE_LINK_LIMIT;
                                   return (
