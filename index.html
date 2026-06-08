@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.8";
+      const APP_VERSION = "v2.9";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1186,7 +1186,15 @@
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
-                                        <p className="text-[9px] font-mono tracking-widest opacity-60 mt-1">PIN: {pd.pin || "未設定"}</p>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[9px] font-mono tracking-widest opacity-60">PIN: {pd.pin || "未設定"}</span>
+                                          {pd.pin && (
+                                            <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(pd.pin); }}
+                                              className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
+                                              コピー
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                     </button>
@@ -1245,9 +1253,46 @@
                                         {!personIsPro && <span className="text-[9px] text-neutral-500">上のPROボタンでアップグレード可能</span>}
                                       </div>
 
+                                      {/* PIN変更（管理者） */}
+                                      <div className="space-y-2 pb-3 border-b border-neutral-800">
+                                        <p className="text-[9px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
+                                        <div className="flex gap-2">
+                                          <input type="tel" inputMode="numeric" maxLength={6}
+                                            value={adminPinInput}
+                                            onChange={e => { setAdminPinInput(e.target.value.replace(/\D/g,"")); setAdminPinMsg(""); }}
+                                            placeholder="新しい6桁PIN"
+                                            className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white font-mono tracking-widest text-center placeholder:text-neutral-600" />
+                                          <button
+                                            disabled={adminPinInput.length !== 6}
+                                            onClick={async () => {
+                                              const name = editingUrlsName;
+                                              const newData = { ...urlsData, [name]: { ...urlsData[name], pin: adminPinInput } };
+                                              setUrlsData(newData);
+                                              localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                              setAdminPinInput(""); setAdminPinMsg("✓ 変更しました");
+                                              setTimeout(() => setAdminPinMsg(""), 3000);
+                                              try {
+                                                if (GAS_READY) { await gasPost({ action:"save_user", name, ...newData[name] }); }
+                                                else if (githubToken) {
+                                                  let sha = null;
+                                                  const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
+                                                  if (getRes.ok) sha = (await getRes.json()).sha;
+                                                  const body = { message:`admin pin change: ${name}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
+                                                  if (sha) body.sha = sha;
+                                                  await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+                                                }
+                                              } catch {}
+                                            }}
+                                            className="px-3 py-2 bg-neutral-700 text-white rounded-xl text-[10px] font-bold hover:bg-white hover:text-black transition-all disabled:opacity-30">
+                                            変更
+                                          </button>
+                                        </div>
+                                        {adminPinMsg && <p className="text-[10px] text-green-400 mt-1">{adminPinMsg}</p>}
+                                      </div>
+
                                       {/* 表示名 */}
                                       <div className="space-y-2 pb-3 border-b border-neutral-800">
-                                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">表示名（日本語名など）</p>
+                                        <p className="text-[9px] text-neutral-400 uppercase tracking-widest">表示名（日本語名など）</p>
                                         <input type="text" value={editingDisplayName} onChange={e => setEditingDisplayName(e.target.value)}
                                           placeholder="例：鈴木 一郎"
                                           className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
@@ -1255,13 +1300,13 @@
                                       {/* 名刺情報：全ユーザー */}
                                       <div className="space-y-3 pb-3 border-b border-neutral-800">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          <p className="text-[9px] text-neutral-500 uppercase tracking-widest">名刺情報</p>
+                                          <p className="text-[9px] text-neutral-400 uppercase tracking-widest">名刺情報</p>
                                           {!personIsPro && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">フォント・サイズ・位置はPROで利用可能</span>}
                                         </div>
                                         {/* 会社名 */}
                                         <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[8px] text-neutral-600">会社名</p>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-[8px] text-neutral-300">会社名</p>
                                             <AlignPicker dark disabled={!personIsPro} selected={editingProfile.companyAlign} onSelect={v => setEditingProfile(p => ({...p,companyAlign:v}))} />
                                           </div>
                                           <input type="text" value={editingProfile.company||""}
@@ -1276,8 +1321,8 @@
                                         </div>
                                         {/* 肩書き */}
                                         <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[8px] text-neutral-600">肩書き</p>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-[8px] text-neutral-300">肩書き</p>
                                             <AlignPicker dark disabled={!personIsPro} selected={editingProfile.titleAlign} onSelect={v => setEditingProfile(p => ({...p,titleAlign:v}))} />
                                           </div>
                                           <input type="text" value={editingProfile.title||""}
@@ -1290,47 +1335,10 @@
                                             <SizePicker dark disabled={!personIsPro} selected={editingProfile.titleFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,titleFontSize:v}))} />
                                           </div>
                                         </div>
-                                        {/* PIN変更（管理者） */}
-                                        <div className="pb-2 border-b border-neutral-800">
-                                          <p className="text-[8px] text-neutral-500 uppercase tracking-widest mb-1.5">PIN変更（6桁）</p>
-                                          <div className="flex gap-2">
-                                            <input type="tel" inputMode="numeric" maxLength={6}
-                                              value={adminPinInput}
-                                              onChange={e => { setAdminPinInput(e.target.value.replace(/\D/g,"")); setAdminPinMsg(""); }}
-                                              placeholder="新しい6桁PIN"
-                                              className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white font-mono tracking-widest text-center placeholder:text-neutral-600" />
-                                            <button
-                                              disabled={adminPinInput.length !== 6}
-                                              onClick={async () => {
-                                                const name = editingUrlsName;
-                                                const newData = { ...urlsData, [name]: { ...urlsData[name], pin: adminPinInput } };
-                                                setUrlsData(newData);
-                                                localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
-                                                setAdminPinInput(""); setAdminPinMsg("✓ 変更しました");
-                                                setTimeout(() => setAdminPinMsg(""), 3000);
-                                                try {
-                                                  if (GAS_READY) { await gasPost({ action:"save_user", name, ...newData[name] }); }
-                                                  else if (githubToken) {
-                                                    let sha = null;
-                                                    const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
-                                                    if (getRes.ok) sha = (await getRes.json()).sha;
-                                                    const body = { message:`admin pin change: ${name}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
-                                                    if (sha) body.sha = sha;
-                                                    await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
-                                                  }
-                                                } catch {}
-                                              }}
-                                              className="px-3 py-2 bg-neutral-700 text-white rounded-xl text-[10px] font-bold hover:bg-white hover:text-black transition-all disabled:opacity-30">
-                                              変更
-                                            </button>
-                                          </div>
-                                          {adminPinMsg && <p className="text-[10px] text-green-400 mt-1">{adminPinMsg}</p>}
-                                        </div>
-
                                         {/* 名前 */}
                                         <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[8px] text-neutral-600">名前</p>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-[8px] text-neutral-300">名前</p>
                                             <AlignPicker dark disabled={!personIsPro} selected={editingProfile.nameAlign} onSelect={v => setEditingProfile(p => ({...p,nameAlign:v}))} />
                                           </div>
                                           <textarea rows={3} value={editingProfile.name||""}
@@ -1345,7 +1353,7 @@
                                         </div>
                                         {/* 住所 */}
                                         <div>
-                                          <p className="text-[8px] text-neutral-600 mb-1">住所</p>
+                                          <p className="text-[8px] text-neutral-300 mb-1">住所</p>
                                           <input type="text" value={editingProfile.address||""}
                                             onChange={e => setEditingProfile(p => ({...p,address:e.target.value}))}
                                             placeholder="東京都渋谷区〇〇"
@@ -1358,7 +1366,7 @@
                                         </div>
                                         {/* 電話番号 */}
                                         <div>
-                                          <p className="text-[8px] text-neutral-600 mb-1">電話番号</p>
+                                          <p className="text-[8px] text-neutral-300 mb-1">電話番号</p>
                                           <input type="text" value={editingProfile.phone||""}
                                             onChange={e => setEditingProfile(p => ({...p,phone:e.target.value}))}
                                             placeholder="090-1234-5678"
@@ -1371,8 +1379,8 @@
                                         </div>
                                         {/* アピール項目 */}
                                         <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[8px] text-neutral-600">アピール項目</p>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-[8px] text-neutral-300">アピール項目</p>
                                             <AlignPicker dark disabled={!personIsPro} selected={editingProfile.appealsAlign} onSelect={v => setEditingProfile(p => ({...p,appealsAlign:v}))} />
                                           </div>
                                           {[0,1,2,3].map(i => (
@@ -1390,17 +1398,17 @@
                                           ))}
                                         </div>
                                         <div>
-                                          <p className="text-[8px] text-neutral-600 mb-2">背景</p>
+                                          <p className="text-[8px] text-neutral-300 mb-2">背景</p>
                                           <BgPicker selected={editingProfile.bg} onSelect={bg => setEditingProfile(p => ({...p,bg}))} />
                                         </div>
                                         <div className="mt-2">
-                                          <p className="text-[8px] text-neutral-600 mb-2">カラー</p>
+                                          <p className="text-[8px] text-neutral-300 mb-2">カラー</p>
                                           <TintPicker selected={editingProfile.tint} onSelect={tint => setEditingProfile(p => ({...p,tint}))} />
                                         </div>
                                       </div>
 
                                       {/* リンク */}
-                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest">
+                                      <p className="text-[9px] text-neutral-400 uppercase tracking-widest">
                                         B面に表示するリンク（{personIsPro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件 / PRO: ${PRO_LINK_LIMIT}件`}）
                                       </p>
                                       {editingUrls.map((_, i) => {
@@ -1408,7 +1416,7 @@
                                         return (
                                         <div key={i} className={`space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0 ${locked ? 'opacity-40' : ''}`}>
                                           <div className="flex items-center gap-2">
-                                            <p className="text-[9px] text-neutral-600 uppercase tracking-widest">Link {i+1}</p>
+                                            <p className="text-[9px] text-neutral-300 uppercase tracking-widest">Link {i+1}</p>
                                             {locked && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO限定</span>}
                                           </div>
                                           <div className={locked ? 'pointer-events-none' : ''}>
@@ -1422,7 +1430,7 @@
                                               onChange={e => { if(locked) return; const val=e.target.value; setEditingUrls(prev => { const n=prev.map(x=>({...x})); n[i]={...n[i],url:val}; return n; }); }}
                                               placeholder={locked ? "PROプランで利用可能" : "https://..."}
                                               disabled={locked}
-                                              className="w-full mt-2 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 font-mono disabled:cursor-not-allowed" />
+                                              className="w-full mt-2 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-300 font-mono disabled:cursor-not-allowed" />
                                           </div>
                                         </div>
                                       );})}
@@ -1430,7 +1438,7 @@
                                         <button onClick={() => saveUrls(name, editingDisplayName, editingUrls, editingProfile)}
                                           className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all">Save</button>
                                         <button onClick={() => setEditingUrlsName(null)}
-                                          className="px-5 text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
+                                          className="px-5 text-[10px] text-neutral-300 hover:text-neutral-400 uppercase tracking-widest transition-colors">Cancel</button>
                                       </div>
                                     </div>
                                   );})()}
@@ -1442,11 +1450,11 @@
 
                         {/* GitHub Token */}
                         <div className="mt-8 border-t border-neutral-800 pt-6">
-                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">GitHub Token</p>
+                          <p className="text-[9px] text-neutral-300 uppercase tracking-widest mb-3">GitHub Token</p>
                           <div className="flex gap-2">
                             <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)}
                               placeholder={githubToken ? "●●●●●●●●（設定済み）" : "ghp_xxxxxxxxxxxx"}
-                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-600 font-mono" />
+                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-300 font-mono" />
                             <button onClick={saveToken} disabled={!tokenInput}
                               className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
                           </div>
@@ -1454,7 +1462,7 @@
 
                         {/* パスワード変更 */}
                         <div className="mt-6 border-t border-neutral-800 pt-6">
-                          <p className="text-[9px] text-neutral-600 uppercase tracking-widest mb-3">管理パスワード変更</p>
+                          <p className="text-[9px] text-neutral-300 uppercase tracking-widest mb-3">管理パスワード変更</p>
                           <div className="flex gap-2">
                             <input type="password" value={newPassInput} onChange={e => setNewPassInput(e.target.value)}
                               placeholder="新しいパスワード"
@@ -1467,7 +1475,7 @@
                         </div>
 
                         <button onClick={() => setIsAdminMode(false)}
-                          className="w-full mt-6 py-4 text-[10px] text-neutral-600 hover:text-neutral-300 uppercase tracking-widest border border-neutral-800 rounded-2xl hover:bg-neutral-900 transition-all">
+                          className="w-full mt-6 py-4 text-[10px] text-neutral-300 hover:text-neutral-300 uppercase tracking-widest border border-neutral-800 rounded-2xl hover:bg-neutral-900 transition-all">
                           Close Panel
                         </button>
                       </div>
@@ -1750,7 +1758,7 @@
                                                   {url ? <img src={url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] text-neutral-400">{label}</div>}
                                                 </div>
                                                 <div className="flex gap-2 flex-1">
-                                                  <label className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] rounded-xl border cursor-pointer transition-all ${uploading ? 'opacity-50 pointer-events-none border-neutral-200 text-neutral-400' : 'border-neutral-300 text-neutral-600 hover:border-black hover:text-black'}`}>
+                                                  <label className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] rounded-xl border cursor-pointer transition-all ${uploading ? 'opacity-50 pointer-events-none border-neutral-200 text-neutral-400' : 'border-neutral-300 text-neutral-300 hover:border-black hover:text-black'}`}>
                                                     {uploading
                                                       ? <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-9-9"/></svg>
                                                       : <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
