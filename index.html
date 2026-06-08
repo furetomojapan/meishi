@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.6";
+      const APP_VERSION = "v2.8";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -768,6 +768,8 @@
         const [pinError, setPinError] = useState("");
         const [pinChangeInput, setPinChangeInput] = useState("");
         const [pinChangeMsg, setPinChangeMsg] = useState("");
+        const [adminPinInput, setAdminPinInput] = useState("");
+        const [adminPinMsg, setAdminPinMsg] = useState("");
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
         const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
@@ -1288,6 +1290,43 @@
                                             <SizePicker dark disabled={!personIsPro} selected={editingProfile.titleFontSize||"S"} onSelect={v => setEditingProfile(p => ({...p,titleFontSize:v}))} />
                                           </div>
                                         </div>
+                                        {/* PIN変更（管理者） */}
+                                        <div className="pb-2 border-b border-neutral-800">
+                                          <p className="text-[8px] text-neutral-500 uppercase tracking-widest mb-1.5">PIN変更（6桁）</p>
+                                          <div className="flex gap-2">
+                                            <input type="tel" inputMode="numeric" maxLength={6}
+                                              value={adminPinInput}
+                                              onChange={e => { setAdminPinInput(e.target.value.replace(/\D/g,"")); setAdminPinMsg(""); }}
+                                              placeholder="新しい6桁PIN"
+                                              className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white font-mono tracking-widest text-center placeholder:text-neutral-600" />
+                                            <button
+                                              disabled={adminPinInput.length !== 6}
+                                              onClick={async () => {
+                                                const name = editingUrlsName;
+                                                const newData = { ...urlsData, [name]: { ...urlsData[name], pin: adminPinInput } };
+                                                setUrlsData(newData);
+                                                localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                                setAdminPinInput(""); setAdminPinMsg("✓ 変更しました");
+                                                setTimeout(() => setAdminPinMsg(""), 3000);
+                                                try {
+                                                  if (GAS_READY) { await gasPost({ action:"save_user", name, ...newData[name] }); }
+                                                  else if (githubToken) {
+                                                    let sha = null;
+                                                    const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
+                                                    if (getRes.ok) sha = (await getRes.json()).sha;
+                                                    const body = { message:`admin pin change: ${name}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
+                                                    if (sha) body.sha = sha;
+                                                    await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+                                                  }
+                                                } catch {}
+                                              }}
+                                              className="px-3 py-2 bg-neutral-700 text-white rounded-xl text-[10px] font-bold hover:bg-white hover:text-black transition-all disabled:opacity-30">
+                                              変更
+                                            </button>
+                                          </div>
+                                          {adminPinMsg && <p className="text-[10px] text-green-400 mt-1">{adminPinMsg}</p>}
+                                        </div>
+
                                         {/* 名前 */}
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
@@ -1576,23 +1615,6 @@
                                     <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
                                     <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
                                   </div>
-                                  {/* PIN変更 */}
-                                  <div className="pb-1 border-b border-neutral-100">
-                                    <p className="text-[9px] text-neutral-400 mb-1.5">PIN変更（6桁）</p>
-                                    <div className="flex gap-2">
-                                      <input type="tel" inputMode="numeric" maxLength={6}
-                                        value={pinChangeInput}
-                                        onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
-                                        placeholder="新しい6桁PIN"
-                                        className="flex-1 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
-                                      <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
-                                        className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
-                                        変更
-                                      </button>
-                                    </div>
-                                    {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
-                                  </div>
-
                                   {/* 名前 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
@@ -1747,6 +1769,23 @@
                                     );
                                   })()}
                                 </div>
+                                {/* PIN変更 */}
+                                <div className="space-y-1.5">
+                                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
+                                  <div className="flex gap-2">
+                                    <input type="tel" inputMode="numeric" maxLength={6}
+                                      value={pinChangeInput}
+                                      onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
+                                      placeholder="新しい6桁PIN"
+                                      className="flex-1 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
+                                    <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
+                                      className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
+                                      変更
+                                    </button>
+                                  </div>
+                                  {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                </div>
+
                                 {/* PROプラン：表示名 */}
                                 {pro && (
                                   <div className="space-y-1.5">
