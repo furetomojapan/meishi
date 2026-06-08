@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.3";
+      const APP_VERSION = "v2.4";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -61,7 +61,13 @@
 
       /* ── データ正規化 ── */
       const normalizeProfile = (p) => {
-        const d = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"", textColor:"#ffffff", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
+        const d = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
+                    title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", titleColor:"",
+                    name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", nameColor:"",
+                    address:"", addressFont:0, addressFontSize:"M", addressColor:"",
+                    phone:"", phoneFont:0, phoneFontSize:"M", phoneColor:"",
+                    appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], appealColors:["","","",""],
+                    bg:"1", bgBack:"", tint:"", textColor:"#ffffff", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
         if (!p) return d;
         const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
         const appealFonts = Array.isArray(p.appealFonts) ? [...p.appealFonts, 0,0,0,0].slice(0,4) : d.appealFonts;
@@ -253,13 +259,15 @@
         const bgSrc = `hai${bgNum}.png`;
         const tint = profile?.tint || "";
         const appeals = profile?.appeals || ["","","",""];
-        const textColor = profile?.textColor || "#ffffff";
-        // 文字色の明度に応じてテキストシャドウを自動切替
-        const hex = textColor.replace("#","");
-        const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
-        const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
-        const shadow = lum > 0.55 ? "0 1px 4px rgba(0,0,0,0.85)" : "0 1px 3px rgba(255,255,255,0.35)";
-        const ts = { color: textColor, textShadow: shadow };
+        const globalColor = profile?.textColor || "#ffffff";
+        // フィールド別カラー or グローバルカラーのテキストスタイルを返す
+        const ts = (fieldColor) => {
+          const c = fieldColor || globalColor;
+          const hx = c.replace("#","");
+          const r=parseInt(hx.slice(0,2),16)||255, g=parseInt(hx.slice(2,4),16)||255, b=parseInt(hx.slice(4,6),16)||255;
+          const lum=(0.299*r+0.587*g+0.114*b)/255;
+          return { color:c, textShadow: lum>0.55 ? "0 1px 4px rgba(0,0,0,0.85)" : "0 1px 3px rgba(255,255,255,0.35)" };
+        };
         return (
           <div style={{position:"relative",width:"100%",height:"100%",borderRadius:"inherit",overflow:"hidden",
                        ...(!transparent && {backgroundImage:`url(${bgSrc})`,backgroundSize:"cover",backgroundPosition:"center",backgroundColor:"#2a2a3a"})}}>
@@ -269,20 +277,20 @@
                 {/* 会社名・肩書き・名前：上部 */}
                 <div style={{display:"flex",flexDirection:"column",gap:"2px"}}>
                   {profile?.company && (
-                    <div style={{...ts,fontSize:FONT_SIZES.name[profile.companyFontSize||"S"],
+                    <div style={{...ts(profile.companyColor),fontSize:FONT_SIZES.name[profile.companyFontSize||"S"],
                                  fontFamily:FONT_OPTIONS[profile.companyFont??0]?.value||"inherit",
                                  textAlign:profile.companyAlign||"left",whiteSpace:"pre-line",opacity:0.9}}>
                       {profile.company}
                     </div>
                   )}
                   {profile?.title && (
-                    <div style={{...ts,fontSize:FONT_SIZES.name[profile.titleFontSize||"S"],
+                    <div style={{...ts(profile.titleColor),fontSize:FONT_SIZES.name[profile.titleFontSize||"S"],
                                  fontFamily:FONT_OPTIONS[profile.titleFont??0]?.value||"inherit",
                                  textAlign:profile.titleAlign||"left",whiteSpace:"pre-line",opacity:0.8}}>
                       {profile.title}
                     </div>
                   )}
-                  <div style={{...ts,fontSize:FONT_SIZES.name[profile?.nameFontSize||"M"],fontWeight:700,
+                  <div style={{...ts(profile?.nameColor),fontSize:FONT_SIZES.name[profile?.nameFontSize||"M"],fontWeight:700,
                                fontFamily:FONT_OPTIONS[profile?.nameFont??0]?.value||"inherit",
                                textAlign:profile?.nameAlign||"left",whiteSpace:"pre-line"}}>
                     {profile?.name || <span style={{opacity:0.3}}>（名前を入力してください）</span>}
@@ -292,7 +300,7 @@
                 <div style={{position:"absolute",bottom:"12%",left:"9%",right:"9%",display:"flex",flexDirection:"column",gap:"6px"}}>
                   {profile?.phone && (
                     <a href={`tel:${profile.phone.replace(/[^\d+]/g,"")}`}
-                      style={{...ts,fontSize:FONT_SIZES.phone[profile?.phoneFontSize||"M"],
+                      style={{...ts(profile?.phoneColor),fontSize:FONT_SIZES.phone[profile?.phoneFontSize||"M"],
                               fontFamily:FONT_OPTIONS[profile?.phoneFont??0]?.value||"inherit",
                               opacity:0.9,display:"flex",alignItems:"center",gap:"5px",textDecoration:"none"}}>
                       <span>☎</span><span>{profile.phone}</span>
@@ -301,20 +309,20 @@
                   {profile?.address && (
                     <a href={`https://maps.google.com/?q=${encodeURIComponent(profile.address)}`}
                       target="_blank" rel="noopener noreferrer"
-                      style={{...ts,fontSize:FONT_SIZES.address[profile?.addressFontSize||"M"],
+                      style={{...ts(profile?.addressColor),fontSize:FONT_SIZES.address[profile?.addressFontSize||"M"],
                               fontFamily:FONT_OPTIONS[profile?.addressFont??0]?.value||"inherit",
                               opacity:0.8,display:"flex",alignItems:"flex-start",gap:"5px",lineHeight:1.4,textDecoration:"none"}}>
                       <span style={{flexShrink:0}}>📍</span><span>{profile.address}</span>
                     </a>
                   )}
                 </div>
-                <div style={{position:"absolute",bottom:"5%",right:"5%",...ts,fontSize:"7px",opacity:0.35,
+                <div style={{position:"absolute",bottom:"5%",right:"5%",...ts(""),fontSize:"7px",opacity:0.35,
                              fontFamily:"monospace",letterSpacing:"0.12em"}}>XYZ Digital Card</div>
               </>) : (<>
                 {/* 裏面：名前なし、アピール項目を大きく中央寄せ */}
                 <div style={{display:"flex",flexDirection:"column",justifyContent:"center",height:"100%",gap:"clamp(6px,1.8vw,12px)"}}>
                   {appeals.map((a,i) => (
-                    <div key={i} style={{...ts,fontSize:"clamp(11px,3vw,16px)",display:"flex",
+                    <div key={i} style={{...ts(profile?.appealColors?.[i]),fontSize:"clamp(11px,3vw,16px)",display:"flex",
                                          alignItems:"flex-start",gap:"8px",opacity:a?1:0.2,
                                          justifyContent:profile?.appealsAlign==="center"?"center":profile?.appealsAlign==="right"?"flex-end":"flex-start",
                                          fontFamily:FONT_OPTIONS[profile?.appealFonts?.[i]??0]?.value||"inherit"}}>
@@ -755,7 +763,13 @@
         const [showUserEdit, setShowUserEdit] = useState(false);
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
-        const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", address:"", addressFont:0, addressFontSize:"M", phone:"", phoneFont:0, phoneFontSize:"M", appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], bg:"1", bgBack:"", tint:"", textColor:"#ffffff" };
+        const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
+                    title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", titleColor:"",
+                    name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", nameColor:"",
+                    address:"", addressFont:0, addressFontSize:"M", addressColor:"",
+                    phone:"", phoneFont:0, phoneFontSize:"M", phoneColor:"",
+                    appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], appealColors:["","","",""],
+                    bg:"1", bgBack:"", tint:"", textColor:"#ffffff" };
         const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
         const [editingProfile, setEditingProfile] = useState(defaultProfile);
 
@@ -1447,6 +1461,17 @@
                                     <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-widest">名刺情報</p>
                                     {!pro && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">フォント・サイズ・位置はPROで利用可能</span>}
                                   </div>
+                                  {/* ── フィールド共通ピッカー行ヘルパー ── */}
+                                  {(() => {
+                                    const PRow = ({label, children}) => (
+                                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                                        <span className="text-[8px] text-neutral-400 w-9 flex-shrink-0">{label}</span>
+                                        <div className="flex-1 flex justify-end">{children}</div>
+                                      </div>
+                                    );
+                                    const setColor = (key, val) => setUserEditProfile(p => ({...p,[key]:val}));
+                                    const setAColor = (i, val) => setUserEditProfile(p => { const ac=[...(p.appealColors||["","","",""])]; ac[i]=val; return {...p,appealColors:ac}; });
+                                    return (<>
                                   {/* 会社名 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
@@ -1458,10 +1483,9 @@
                                       placeholder="例：株式会社〇〇"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.companyFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    <div className="mt-1 flex items-center gap-3">
-                                      <FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} />
-                                      <SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} />
-                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.companyColor||""} onSelect={v => setColor("companyColor",v)} /></PRow>
                                   </div>
                                   {/* 肩書き */}
                                   <div>
@@ -1474,10 +1498,9 @@
                                       placeholder="例：代表取締役 / エンジニア"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.titleFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    <div className="mt-1 flex items-center gap-3">
-                                      <FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} />
-                                      <SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} />
-                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
                                   </div>
                                   {/* 名前 */}
                                   <div>
@@ -1490,36 +1513,37 @@
                                       placeholder="例：鈴木 一郎"
                                       style={{resize:"none", fontFamily:FONT_OPTIONS[userEditProfile.nameFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    <div className="mt-1.5 flex items-center gap-3">
-                                      <FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} />
-                                      <SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} />
-                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.nameColor||""} onSelect={v => setColor("nameColor",v)} /></PRow>
                                   </div>
                                   {/* 住所 */}
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-1">住所</p>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-[9px] text-neutral-400">住所</p>
+                                    </div>
                                     <input type="text" value={userEditProfile.address||""}
                                       onChange={e => setUserEditProfile(p => ({...p,address:e.target.value}))}
                                       placeholder="例：東京都渋谷区〇〇1-2-3"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.addressFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    <div className="mt-1 flex items-center gap-3">
-                                      <FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} />
-                                      <SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} />
-                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.addressColor||""} onSelect={v => setColor("addressColor",v)} /></PRow>
                                   </div>
                                   {/* 電話番号 */}
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-1">電話番号</p>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-[9px] text-neutral-400">電話番号</p>
+                                    </div>
                                     <input type="tel" value={userEditProfile.phone||""}
                                       onChange={e => setUserEditProfile(p => ({...p,phone:e.target.value}))}
                                       placeholder="例：090-1234-5678"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    <div className="mt-1 flex items-center gap-3">
-                                      <FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} />
-                                      <SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} />
-                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.phoneColor||""} onSelect={v => setColor("phoneColor",v)} /></PRow>
                                   </div>
                                   {/* アピール項目 */}
                                   <div>
@@ -1528,19 +1552,20 @@
                                       <AlignPicker disabled={!pro} selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
                                     </div>
                                     {[0,1,2,3].map(i => (
-                                      <div key={i} className="mb-2">
+                                      <div key={i} className="mb-3">
                                         <input type="text" value={userEditProfile.appeals[i]||""}
                                           onChange={e => { const v=e.target.value; setUserEditProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
                                           placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
                                           style={{fontFamily:FONT_OPTIONS[userEditProfile.appealFonts?.[i]??0]?.value}}
                                           className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                        <div className="mt-1">
-                                          <FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
-                                            onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
-                                        </div>
+                                        <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
+                                          onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} /></PRow>
+                                        <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.appealColors?.[i]||""} onSelect={v => setAColor(i,v)} /></PRow>
                                       </div>
                                     ))}
                                   </div>
+                                  </>);
+                                  })()}
                                   <div>
                                     <p className="text-[9px] text-neutral-400 mb-1">背景デザイン（表面）</p>
                                     <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
@@ -1554,7 +1579,7 @@
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
                                   </div>
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-2">文字色</p>
+                                    <p className="text-[9px] text-neutral-400 mb-2">デフォルト文字色（各フィールドで未設定の場合に使用）</p>
                                     <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
                                   </div>
                                   {/* PROのみ：画像アップロード */}
