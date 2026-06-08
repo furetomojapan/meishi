@@ -57,7 +57,7 @@
 
       /* ── データ正規化 ── */
       const normalizeProfile = (p) => {
-        const d = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, appealFonts:[0,0,0,0] };
+        const d = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, nameFontSize:"M", addressFont:0, addressFontSize:"M", phoneFont:0, phoneFontSize:"M", appealFonts:[0,0,0,0] };
         if (!p) return d;
         const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
         const appealFonts = Array.isArray(p.appealFonts) ? [...p.appealFonts, 0,0,0,0].slice(0,4) : d.appealFonts;
@@ -95,6 +95,12 @@
         { label:"丸字",       value:"'Kosugi Maru', sans-serif",     sample:"Aa" },
         { label:"レトロ",     value:"'DotGothic16', sans-serif",     sample:"Aa" },
       ];
+
+      const FONT_SIZES = {
+        name:    { S:"clamp(11px,3vw,16px)",  M:"clamp(15px,4.2vw,24px)", L:"clamp(18px,5vw,28px)",  XL:"clamp(22px,6vw,34px)"  },
+        address: { S:"clamp(7px,1.8vw,9px)",  M:"clamp(8px,2.2vw,11px)",  L:"clamp(10px,2.8vw,14px)", XL:"clamp(13px,3.5vw,18px)" },
+        phone:   { S:"clamp(7px,2vw,10px)",   M:"clamp(9px,2.5vw,13px)",  L:"clamp(11px,3vw,16px)",  XL:"clamp(14px,4vw,20px)"  },
+      };
 
       const normalizeEntry = (e) => {
         if (!e) return { url: "", label: "" };
@@ -251,7 +257,7 @@
             <div style={{position:"relative",zIndex:2,width:"100%",height:"100%",padding:"8% 9%"}}>
               {side === "front" ? (<>
                 {/* 名前：上部 */}
-                <div style={{...ts,fontSize:"clamp(15px,4.2vw,24px)",fontWeight:700,letterSpacing:"0.03em",
+                <div style={{...ts,fontSize:FONT_SIZES.name[profile?.nameFontSize||"M"],fontWeight:700,letterSpacing:"0.03em",
                              whiteSpace:"pre-line",textAlign:profile?.nameAlign||"left",
                              fontFamily:FONT_OPTIONS[profile?.nameFont??0]?.value||"inherit"}}>
                   {profile?.name || <span style={{opacity:0.3}}>（名前を入力してください）</span>}
@@ -260,14 +266,18 @@
                 <div style={{position:"absolute",bottom:"12%",left:"9%",right:"9%",display:"flex",flexDirection:"column",gap:"6px"}}>
                   {profile?.phone && (
                     <a href={`tel:${profile.phone.replace(/[^\d+]/g,"")}`}
-                      style={{...ts,fontSize:"clamp(9px,2.5vw,13px)",opacity:0.9,display:"flex",alignItems:"center",gap:"5px",textDecoration:"none"}}>
-                      <span>☎</span><span style={{fontFamily:"monospace"}}>{profile.phone}</span>
+                      style={{...ts,fontSize:FONT_SIZES.phone[profile?.phoneFontSize||"M"],
+                              fontFamily:FONT_OPTIONS[profile?.phoneFont??0]?.value||"inherit",
+                              opacity:0.9,display:"flex",alignItems:"center",gap:"5px",textDecoration:"none"}}>
+                      <span>☎</span><span>{profile.phone}</span>
                     </a>
                   )}
                   {profile?.address && (
                     <a href={`https://maps.google.com/?q=${encodeURIComponent(profile.address)}`}
                       target="_blank" rel="noopener noreferrer"
-                      style={{...ts,fontSize:"clamp(8px,2.2vw,11px)",opacity:0.8,display:"flex",alignItems:"flex-start",gap:"5px",lineHeight:1.4,textDecoration:"none"}}>
+                      style={{...ts,fontSize:FONT_SIZES.address[profile?.addressFontSize||"M"],
+                              fontFamily:FONT_OPTIONS[profile?.addressFont??0]?.value||"inherit",
+                              opacity:0.8,display:"flex",alignItems:"flex-start",gap:"5px",lineHeight:1.4,textDecoration:"none"}}>
                       <span style={{flexShrink:0}}>📍</span><span>{profile.address}</span>
                     </a>
                   )}
@@ -282,7 +292,6 @@
                                          alignItems:"flex-start",gap:"8px",opacity:a?1:0.2,
                                          justifyContent:profile?.appealsAlign==="center"?"center":profile?.appealsAlign==="right"?"flex-end":"flex-start",
                                          fontFamily:FONT_OPTIONS[profile?.appealFonts?.[i]??0]?.value||"inherit"}}>
-                      <span style={{flexShrink:0,opacity:0.6}}>✦</span>
                       <span style={{whiteSpace:"pre-line"}}>{a || "（未入力）"}</span>
                     </div>
                   ))}
@@ -357,6 +366,27 @@
                           color: active ? (dark?"#000":"#fff") : (dark?"#888":"#555"),
                           border: active ? "none" : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
                   {opt.text}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      /* ── サイズピッカー（S/M/L/XL） ── */
+      function SizePicker({ selected, onSelect, dark = false }) {
+        return (
+          <div className="flex gap-1">
+            {["S","M","L","XL"].map(s => {
+              const active = (selected || "M") === s;
+              return (
+                <button key={s} type="button" onClick={() => onSelect(s)}
+                  style={{minWidth:"24px",height:"22px",padding:"0 4px",borderRadius:"5px",fontSize:"9px",fontWeight:"bold",
+                          cursor:"pointer",
+                          background: active ? (dark?"#fff":"#000") : (dark?"#2a2a2a":"#f0f0f0"),
+                          color: active ? (dark?"#000":"#fff") : (dark?"#aaa":"#555"),
+                          border: active ? `1px solid ${dark?"#fff":"#000"}` : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
+                  {s}
                 </button>
               );
             })}
@@ -640,7 +670,7 @@
         const [showUserEdit, setShowUserEdit] = useState(false);
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
-        const defaultProfile = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, appealFonts:[0,0,0,0] };
+        const defaultProfile = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, nameFontSize:"M", addressFont:0, addressFontSize:"M", phoneFont:0, phoneFontSize:"M", appealFonts:[0,0,0,0] };
         const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
         const [editingProfile, setEditingProfile] = useState(defaultProfile);
 
@@ -1014,23 +1044,37 @@
                                               placeholder={"例：鈴木 一郎"}
                                               style={{resize:"none", fontFamily:FONT_OPTIONS[editingProfile.nameFont??0]?.value}}
                                               className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                            <div className="mt-1.5">
+                                            <div className="mt-1.5 flex items-center gap-3">
                                               <FontPicker dark selected={editingProfile.nameFont??0} onSelect={v => setEditingProfile(p => ({...p,nameFont:v}))} />
+                                              <SizePicker dark selected={editingProfile.nameFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,nameFontSize:v}))} />
                                             </div>
                                           </div>
-                                          {/* 住所・電話番号 */}
-                                          {[
-                                            {key:"address", label:"住所",    placeholder:"東京都渋谷区〇〇"},
-                                            {key:"phone",   label:"電話番号", placeholder:"090-1234-5678"},
-                                          ].map(({key,label,placeholder}) => (
-                                            <div key={key}>
-                                              <p className="text-[8px] text-neutral-600 mb-1">{label}</p>
-                                              <input type="text" value={editingProfile[key]||""}
-                                                onChange={e => setEditingProfile(p => ({...p,[key]:e.target.value}))}
-                                                placeholder={placeholder}
-                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                          {/* 住所 */}
+                                          <div>
+                                            <p className="text-[8px] text-neutral-600 mb-1">住所</p>
+                                            <input type="text" value={editingProfile.address||""}
+                                              onChange={e => setEditingProfile(p => ({...p,address:e.target.value}))}
+                                              placeholder="東京都渋谷��〇〇"
+                                              style={{fontFamily:FONT_OPTIONS[editingProfile.addressFont??0]?.value}}
+                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                            <div className="mt-1 flex items-center gap-3">
+                                              <FontPicker dark selected={editingProfile.addressFont??0} onSelect={v => setEditingProfile(p => ({...p,addressFont:v}))} />
+                                              <SizePicker dark selected={editingProfile.addressFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,addressFontSize:v}))} />
                                             </div>
-                                          ))}
+                                          </div>
+                                          {/* 電話番号 */}
+                                          <div>
+                                            <p className="text-[8px] text-neutral-600 mb-1">電話番号</p>
+                                            <input type="text" value={editingProfile.phone||""}
+                                              onChange={e => setEditingProfile(p => ({...p,phone:e.target.value}))}
+                                              placeholder="090-1234-5678"
+                                              style={{fontFamily:FONT_OPTIONS[editingProfile.phoneFont??0]?.value}}
+                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                            <div className="mt-1 flex items-center gap-3">
+                                              <FontPicker dark selected={editingProfile.phoneFont??0} onSelect={v => setEditingProfile(p => ({...p,phoneFont:v}))} />
+                                              <SizePicker dark selected={editingProfile.phoneFontSize||"M"} onSelect={v => setEditingProfile(p => ({...p,phoneFontSize:v}))} />
+                                            </div>
+                                          </div>
                                           <div>
                                             <div className="flex items-center justify-between mb-1">
                                               <p className="text-[8px] text-neutral-600">アピール項目</p>
@@ -1208,23 +1252,37 @@
                                         placeholder={"例：鈴木 一郎\n（改行・スペースも反映されます）"}
                                         style={{resize:"none", fontFamily:FONT_OPTIONS[userEditProfile.nameFont??0]?.value}}
                                         className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                      <div className="mt-1.5">
+                                      <div className="mt-1.5 flex items-center gap-3">
                                         <FontPicker selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} />
+                                        <SizePicker selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} />
                                       </div>
                                     </div>
-                                    {/* 住所・電話番号 */}
-                                    {[
-                                      {key:"address", label:"住所",    placeholder:"例：東京都渋谷区〇〇1-2-3",  type:"text"},
-                                      {key:"phone",   label:"電話番号", placeholder:"例：090-1234-5678",          type:"tel"},
-                                    ].map(({key,label,placeholder,type}) => (
-                                      <div key={key}>
-                                        <p className="text-[9px] text-neutral-400 mb-1">{label}</p>
-                                        <input type={type} value={userEditProfile[key]||""}
-                                          onChange={e => setUserEditProfile(p => ({...p,[key]:e.target.value}))}
-                                          placeholder={placeholder}
-                                          className={`w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm${key==="phone"?" font-mono":""}`} />
+                                    {/* 住所 */}
+                                    <div>
+                                      <p className="text-[9px] text-neutral-400 mb-1">住所</p>
+                                      <input type="text" value={userEditProfile.address||""}
+                                        onChange={e => setUserEditProfile(p => ({...p,address:e.target.value}))}
+                                        placeholder="例：東京都渋谷区〇〇1-2-3"
+                                        style={{fontFamily:FONT_OPTIONS[userEditProfile.addressFont??0]?.value}}
+                                        className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      <div className="mt-1 flex items-center gap-3">
+                                        <FontPicker selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} />
+                                        <SizePicker selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} />
                                       </div>
-                                    ))}
+                                    </div>
+                                    {/* 電話番号 */}
+                                    <div>
+                                      <p className="text-[9px] text-neutral-400 mb-1">電話番号</p>
+                                      <input type="tel" value={userEditProfile.phone||""}
+                                        onChange={e => setUserEditProfile(p => ({...p,phone:e.target.value}))}
+                                        placeholder="例：090-1234-5678"
+                                        style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
+                                        className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                      <div className="mt-1 flex items-center gap-3">
+                                        <FontPicker selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} />
+                                        <SizePicker selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} />
+                                      </div>
+                                    </div>
                                     <div>
                                       <div className="flex items-center justify-between mb-2">
                                         <p className="text-[9px] text-neutral-400">裏面アピール項目（4つ）</p>
