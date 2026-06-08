@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v3.2";
+      const APP_VERSION = "v3.3";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -392,7 +392,7 @@
         const cur = selected || "#ffffff";
         const isPreset = TEXT_COLOR_PRESETS.includes(cur);
         return (
-          <div className="flex gap-1.5 flex-wrap items-center" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
+          <div className="flex gap-1.5 flex-wrap items-center" style={disabled ? {opacity:0.12,pointerEvents:"none",filter:"grayscale(1)"} : {}}>
             {TEXT_COLOR_PRESETS.map(v => {
               const active = cur === v;
               const isLight = v === "#ffffff" || v === "#f0f0f0" || v === "#ffd700" || v === "#ffa500" || v === "#ff69b4" || v === "#87ceeb" || v === "#90ee90" || v === "#c8a2c8";
@@ -424,7 +424,7 @@
           { value:"right",  text:"右" },
         ];
         return (
-          <div className="flex gap-1" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
+          <div className="flex gap-1" style={disabled ? {opacity:0.12,pointerEvents:"none",filter:"grayscale(1)"} : {}}>
             {opts.map(opt => {
               const active = (selected || "left") === opt.value;
               return (
@@ -432,7 +432,7 @@
                   style={{width:"30px",height:"24px",borderRadius:"6px",fontSize:"10px",fontWeight:"bold",
                           cursor:"pointer",
                           background: active ? (dark?"#fff":"#000") : (dark?"#333":"#f0f0f0"),
-                          color: active ? (dark?"#000":"#fff") : (dark?"#888":"#555"),
+                          color: active ? (dark?"#000":"#fff") : (dark?"#ccc":"#111"),
                           border: active ? "none" : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
                   {opt.text}
                 </button>
@@ -445,7 +445,7 @@
       /* ── サイズピッカー（S/M/L/XL） ── */
       function SizePicker({ selected, onSelect, dark = false, disabled = false }) {
         return (
-          <div className="flex gap-1" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
+          <div className="flex gap-1" style={disabled ? {opacity:0.12,pointerEvents:"none",filter:"grayscale(1)"} : {}}>
             {["S","M","L","XL"].map(s => {
               const active = (selected || "M") === s;
               return (
@@ -453,7 +453,7 @@
                   style={{minWidth:"24px",height:"22px",padding:"0 4px",borderRadius:"5px",fontSize:"9px",fontWeight:"bold",
                           cursor:"pointer",
                           background: active ? (dark?"#fff":"#000") : (dark?"#2a2a2a":"#f0f0f0"),
-                          color: active ? (dark?"#000":"#fff") : (dark?"#aaa":"#555"),
+                          color: active ? (dark?"#000":"#fff") : (dark?"#ccc":"#111"),
                           border: active ? `1px solid ${dark?"#fff":"#000"}` : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
                   {s}
                 </button>
@@ -466,7 +466,7 @@
       /* ── フォントピッカー ── */
       function FontPicker({ selected, onSelect, dark = false, disabled = false }) {
         return (
-          <div className="flex gap-1 flex-wrap" style={disabled ? {opacity:0.35,pointerEvents:"none"} : {}}>
+          <div className="flex gap-1 flex-wrap" style={disabled ? {opacity:0.12,pointerEvents:"none",filter:"grayscale(1)"} : {}}>
             {FONT_OPTIONS.map((opt, i) => {
               const active = (selected ?? 0) === i;
               return (
@@ -475,7 +475,7 @@
                   style={{fontFamily:opt.value,fontSize:"10px",padding:"2px 7px",borderRadius:"6px",
                           cursor:"pointer",whiteSpace:"nowrap",
                           background: active ? (dark?"#fff":"#000") : (dark?"#2a2a2a":"#f0f0f0"),
-                          color: active ? (dark?"#000":"#fff") : (dark?"#aaa":"#555"),
+                          color: active ? (dark?"#000":"#fff") : (dark?"#ccc":"#111"),
                           border: active ? `1px solid ${dark?"#fff":"#000"}` : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
                   {opt.label}
                 </button>
@@ -1781,7 +1781,7 @@
                                       }
                                     };
                                     return (
-                                      <div className={`border-t border-neutral-100 pt-3 space-y-3 ${!canUpload ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+                                      <div className={`border-t border-neutral-100 pt-3 space-y-3 ${!canUpload ? 'opacity-15 pointer-events-none select-none' : ''}`}>
                                         <div className="flex items-center justify-between">
                                           <div>
                                             <p className="text-[9px] text-neutral-400">独自背景画像</p>
