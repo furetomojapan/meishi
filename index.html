@@ -1540,10 +1540,12 @@
                                           URL.revokeObjectURL(localUrl);
                                           setUserEditProfile(p => ({...p, [`${side}ImageUrl`]:r.url, [`${side}Uploading`]:false, [`${side}LocalOnly`]:false}));
                                         } else {
-                                          setUserEditProfile(p => ({...p, [`${side}Uploading`]:false}));
+                                          URL.revokeObjectURL(localUrl);
+                                          setUserEditProfile(p => ({...p, [`${side}ImageUrl`]:"", [`${side}Uploading`]:false, [`${side}LocalOnly`]:true}));
                                         }
                                       } catch {
-                                        setUserEditProfile(p => ({...p, [`${side}Uploading`]:false}));
+                                        URL.revokeObjectURL(localUrl);
+                                        setUserEditProfile(p => ({...p, [`${side}ImageUrl`]:"", [`${side}Uploading`]:false, [`${side}LocalOnly`]:true}));
                                       }
                                     };
                                     return (
@@ -1582,7 +1584,7 @@
                                                 </div>
                                               </div>
                                               {localOnly && !uploading && (
-                                                <p className="text-[8px] text-amber-500 pl-1">⚠ プレビューのみ。GAS再デプロイ後に保存されます</p>
+                                                <p className="text-[8px] text-red-400 pl-1">画像アップに失敗しました</p>
                                               )}
                                             </div>
                                           );
