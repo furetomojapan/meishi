@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v3.5";
+      const APP_VERSION = "v3.6";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -741,6 +741,7 @@
       /* ── メインアプリ ── */
       function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
+        const [adminSearch, setAdminSearch] = useState("");
         const [newUserInput, setNewUserInput] = useState("");
         const [variablePart, setVariablePart] = useState(null);
         const [isAdminMode, setIsAdminMode] = useState(false);
@@ -1197,13 +1198,42 @@
                           )}
                         </div>
 
+                        {registeredNames.length > 0 && (
+                          <div className="relative">
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 pointer-events-none" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input
+                              type="text"
+                              value={adminSearch}
+                              onChange={e => setAdminSearch(e.target.value)}
+                              placeholder="IDまたは名前で検索..."
+                              className="w-full pl-8 pr-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500"
+                            />
+                            {adminSearch && (
+                              <button onClick={() => setAdminSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {registeredNames.length === 0 ? (
                           <div className="py-20 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
                             <p className="text-xs text-neutral-400 mb-3">ユーザーがいません。上から追加してください。</p>
                           </div>
-                        ) : (
+                        ) : (() => {
+                          const q = adminSearch.trim().toLowerCase();
+                          const filtered = [...registeredNames].reverse().filter(name => {
+                            if (!q) return true;
+                            const pd = getPersonData(urlsData, name);
+                            return name.toLowerCase().includes(q) || (pd.displayName || "").toLowerCase().includes(q);
+                          });
+                          return filtered.length === 0 ? (
+                            <div className="py-12 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
+                              <p className="text-xs text-neutral-500">「{adminSearch}」に一致するユーザーがいません</p>
+                            </div>
+                          ) : (
                           <div className="space-y-3">
-                            {registeredNames.map(name => {
+                            {filtered.map(name => {
                               const pd = getPersonData(urlsData, name);
                               return (
                                 <div key={name} className="space-y-2">
@@ -1483,6 +1513,7 @@
                               );
                             })}
                           </div>
+                          );})()}
                         )}
 
                         {/* GitHub Token */}
