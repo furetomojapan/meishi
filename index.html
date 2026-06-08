@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v2.4";
+      const APP_VERSION = "v2.5";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -717,6 +717,8 @@
       }
 
       /* ── トースト通知 ── */
+      const generatePin = () => String(Math.floor(100000 + Math.random() * 900000));
+
       function Toast({ status }) {
         if (!status) return null;
         const cfg = {
@@ -761,6 +763,11 @@
         const [newPassInput, setNewPassInput] = useState("");
         const [passMsg, setPassMsg] = useState("");
         const [showUserEdit, setShowUserEdit] = useState(false);
+        const [showPinModal, setShowPinModal] = useState(false);
+        const [pinInput, setPinInput] = useState("");
+        const [pinError, setPinError] = useState("");
+        const [pinChangeInput, setPinChangeInput] = useState("");
+        const [pinChangeMsg, setPinChangeMsg] = useState("");
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
         const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
@@ -937,7 +944,7 @@
 
 
         /* ── ユーザー自身がリンクを編集 ── */
-        const openUserEdit = () => {
+        const openUserEditDirect = () => {
           const pd = getPersonData(urlsData, variablePart);
           const knownSNS = (v) => SNS_LIST.some(s => s.value === v && s.value !== "" && s.value !== "__custom__");
           const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
@@ -946,6 +953,43 @@
           setUserEditDisplayName(pd.displayName || "");
           setUserEditProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, appealFonts:[0,0,0,0], ...pd.profile, appealFonts: Array.isArray(pd.profile?.appealFonts) ? [...pd.profile.appealFonts,...[0,0,0,0]].slice(0,4) : [0,0,0,0] });
           setShowUserEdit(true);
+        };
+        const openUserEdit = () => {
+          const pd = getPersonData(urlsData, variablePart);
+          if (pd?.pin) {
+            setPinInput(""); setPinError(""); setShowPinModal(true);
+          } else {
+            openUserEditDirect();
+          }
+        };
+        const handlePinVerify = () => {
+          const pd = getPersonData(urlsData, variablePart);
+          if (pinInput === pd?.pin) {
+            setShowPinModal(false); setPinInput(""); setPinError("");
+            openUserEditDirect();
+          } else {
+            setPinError("PINが違います"); setPinInput("");
+          }
+        };
+        const savePinChange = async () => {
+          const newPin = pinChangeInput.trim();
+          if (!/^\d{6}$/.test(newPin)) { setPinChangeMsg("6桁の数字で入力してください"); return; }
+          const newData = { ...urlsData, [variablePart]: { ...urlsData[variablePart], pin: newPin } };
+          setUrlsData(newData);
+          localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+          setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました");
+          setTimeout(() => setPinChangeMsg(""), 3000);
+          try {
+            if (GAS_READY) { await gasPost({ action:"save_user", name:variablePart, ...newData[variablePart] }); }
+            else if (githubToken) {
+              let sha = null;
+              const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
+              if (getRes.ok) sha = (await getRes.json()).sha;
+              const body = { message:`update pin: ${variablePart}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
+              if (sha) body.sha = sha;
+              await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+            }
+          } catch {}
         };
 
         // ── GAS POST ヘルパー ──
@@ -1101,7 +1145,7 @@
                               onClick={async () => {
                                 const id = newUserInput.trim();
                                 if (!id || registeredNames.includes(id)) return;
-                                const personObj = { displayName:"", plan:"free", licenseKey:"", links:[], profile: normalizeProfile(null) };
+                                const personObj = { displayName:"", plan:"free", licenseKey:"", links:[], profile: normalizeProfile(null), pin: generatePin() };
                                 const newData = { ...urlsData, [id]: personObj };
                                 setUrlsData(newData);
                                 localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -1140,6 +1184,31 @@
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[9px] font-mono tracking-widest opacity-60">PIN: {pd.pin || "未設定"}</span>
+                                          <button
+                                            onClick={async e => {
+                                              e.stopPropagation();
+                                              const newPin = generatePin();
+                                              const newData = { ...urlsData, [name]: { ...urlsData[name], pin: newPin } };
+                                              setUrlsData(newData);
+                                              localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                              try {
+                                                if (GAS_READY) { await gasPost({ action:"save_user", name, ...newData[name] }); }
+                                                else if (githubToken) {
+                                                  let sha = null;
+                                                  const getRes = await fetch(GH_API, { headers:{ Authorization:`token ${githubToken}` } });
+                                                  if (getRes.ok) sha = (await getRes.json()).sha;
+                                                  const body = { message:`regen pin: ${name}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))), sha };
+                                                  if (sha) body.sha = sha;
+                                                  await fetch(GH_API, { method:"PUT", headers:{ Authorization:`token ${githubToken}`, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+                                                }
+                                              } catch {}
+                                            }}
+                                            className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-400 hover:text-white transition-colors">
+                                            再生成
+                                          </button>
+                                        </div>
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                     </button>
@@ -1412,6 +1481,35 @@
                       const previewPd = showUserEdit ? { ...pd, profile: userEditProfile } : pd;
                       return (<>
                         <FlipCard variablePart={variablePart} personData={previewPd} pro={pro} />
+
+                        {/* PIN認証モーダル */}
+                        {showPinModal && (
+                          <>
+                            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-6"
+                              onClick={() => setShowPinModal(false)}>
+                              <div className="bg-white rounded-3xl p-8 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+                                <p className="text-sm font-bold text-center mb-1">編集PIN認証</p>
+                                <p className="text-[10px] text-neutral-400 text-center mb-5">6桁のPINを入力してください</p>
+                                <input
+                                  type="tel" inputMode="numeric" maxLength={6}
+                                  value={pinInput} autoFocus
+                                  onChange={e => { setPinInput(e.target.value.replace(/\D/g,"")); setPinError(""); }}
+                                  onKeyDown={e => e.key === "Enter" && handlePinVerify()}
+                                  placeholder="● ● ● ● ● ●"
+                                  className="w-full text-center text-2xl font-mono tracking-[0.5em] px-4 py-4 border-2 border-neutral-200 rounded-2xl focus:outline-none focus:border-black mb-2" />
+                                {pinError && <p className="text-[11px] text-red-500 text-center mb-2">{pinError}</p>}
+                                <button onClick={handlePinVerify} disabled={pinInput.length !== 6}
+                                  className="w-full py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all disabled:opacity-30 mt-1">
+                                  確認
+                                </button>
+                                <button onClick={() => setShowPinModal(false)}
+                                  className="w-full mt-2 py-2 text-[10px] text-neutral-400 hover:text-black transition-colors">
+                                  キャンセル
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
 
                         {/* リンク編集ボタン（FREE/PRO共通） */}
                         <div className="mt-5 flex items-center justify-center gap-4">
@@ -1691,6 +1789,23 @@
                                     </div>
                                   </div>
                                 );})}
+                                {/* PIN変更 */}
+                                <div className="pt-4 border-t border-neutral-100 mt-2">
+                                  <p className="text-[9px] text-neutral-400 mb-2">PIN変更（6桁）</p>
+                                  <div className="flex gap-2">
+                                    <input type="tel" inputMode="numeric" maxLength={6}
+                                      value={pinChangeInput}
+                                      onChange={e => { setPinChangeInput(e.target.value.replace(/\D/g,"")); setPinChangeMsg(""); }}
+                                      placeholder="新しい6桁PIN"
+                                      className="flex-1 px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm font-mono tracking-widest text-center" />
+                                    <button onClick={savePinChange} disabled={pinChangeInput.length !== 6}
+                                      className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">
+                                      変更
+                                    </button>
+                                  </div>
+                                  {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                </div>
+
                                 <div className="flex gap-3 pt-2">
                                   <button onClick={saveUserLinks}
                                     className="flex-1 py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all">保存</button>
