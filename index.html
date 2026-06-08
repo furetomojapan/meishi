@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v3.4";
+      const APP_VERSION = "v3.5";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1615,7 +1615,7 @@
                                 <p className="text-[10px] text-neutral-400 -mt-1">空白文字（スペース・改行）も認識します</p>
                                 {/* PIN変更 */}
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-[10px] text-neutral-400 uppercase tracking-widest">PIN変更</p>
+                                  <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">PIN変更</p>
                                   <span className="text-[10px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
                                     現在: {getPersonData(urlsData, variablePart)?.pin || "未設定"}
                                   </span>
@@ -1635,14 +1635,14 @@
                                 {/* 名刺情報：全ユーザー */}
                                 <div className="space-y-3 pb-4 border-b border-neutral-100">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-widest">名刺情報</p>
+                                    <p className="text-[10px] text-neutral-700 font-semibold uppercase tracking-widest">名刺情報</p>
                                     {!pro && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">フォント・サイズ・位置はPROで利用可能</span>}
                                   </div>
                                   {/* ── フィールド共通ピッカー行ヘルパー ── */}
                                   {(() => {
                                     const PRow = ({label, children}) => (
                                       <div className="flex items-center justify-between gap-2 mt-1.5">
-                                        <span className="text-[8px] text-neutral-400 w-9 flex-shrink-0">{label}</span>
+                                        <span className="text-[8px] text-neutral-600 w-9 flex-shrink-0">{label}</span>
                                         <div className="flex-1 flex justify-end">{children}</div>
                                       </div>
                                     );
@@ -1652,7 +1652,7 @@
                                   {/* 会社名 */}
                                   <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-[9px] text-neutral-400">会社名</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">会社名</p>
                                       <AlignPicker disabled={!pro} selected={userEditProfile.companyAlign} onSelect={v => setUserEditProfile(p => ({...p,companyAlign:v}))} />
                                     </div>
                                     <input type="text" value={userEditProfile.company||""}
@@ -1667,7 +1667,7 @@
                                   {/* 肩書き */}
                                   <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-[9px] text-neutral-400">肩書き</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">肩書き</p>
                                       <AlignPicker disabled={!pro} selected={userEditProfile.titleAlign} onSelect={v => setUserEditProfile(p => ({...p,titleAlign:v}))} />
                                     </div>
                                     <input type="text" value={userEditProfile.title||""}
@@ -1682,7 +1682,7 @@
                                   {/* 名前 */}
                                   <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-[9px] text-neutral-400">名前</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">名前</p>
                                       <AlignPicker disabled={!pro} selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />
                                     </div>
                                     <textarea rows={3} value={userEditProfile.name||""}
@@ -1697,7 +1697,7 @@
                                   {/* 住所 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
-                                      <p className="text-[9px] text-neutral-400">住所</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">住所</p>
                                     </div>
                                     <input type="text" value={userEditProfile.address||""}
                                       onChange={e => setUserEditProfile(p => ({...p,address:e.target.value}))}
@@ -1711,7 +1711,7 @@
                                   {/* 電話番号 */}
                                   <div>
                                     <div className="flex items-center justify-between mb-1">
-                                      <p className="text-[9px] text-neutral-400">電話番号</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">電話番号</p>
                                     </div>
                                     <input type="tel" value={userEditProfile.phone||""}
                                       onChange={e => setUserEditProfile(p => ({...p,phone:e.target.value}))}
@@ -1725,7 +1725,7 @@
                                   {/* アピール項目 */}
                                   <div>
                                     <div className="flex items-center gap-2 mb-2">
-                                      <p className="text-[9px] text-neutral-400">裏面アピール項目（4つ）</p>
+                                      <p className="text-[9px] text-neutral-700 font-medium">裏面アピール項目（4つ）</p>
                                       <AlignPicker disabled={!pro} selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
                                     </div>
                                     {[0,1,2,3].map(i => (
@@ -1744,19 +1744,19 @@
                                   </>);
                                   })()}
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-1">背景デザイン（表面）</p>
+                                    <p className="text-[9px] text-neutral-700 font-medium mb-1">背景デザイン（表面）</p>
                                     <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
                                   </div>
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-1">背景デザイン（裏面）</p>
+                                    <p className="text-[9px] text-neutral-700 font-medium mb-1">背景デザイン（裏面）</p>
                                     <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
                                   </div>
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-2">カラー（オーバーレイ）</p>
+                                    <p className="text-[9px] text-neutral-700 font-medium mb-2">カラー（オーバーレイ）</p>
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
                                   </div>
                                   <div>
-                                    <p className="text-[9px] text-neutral-400 mb-2">デフォルト文字色（各フィールドで未設定の場合に使用）</p>
+                                    <p className="text-[9px] text-neutral-700 font-medium mb-2">デフォルト文字色（各フィールドで未設定の場合に使用）</p>
                                     <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
                                   </div>
                                   {/* 画像アップロード（+Gプランで利用可） */}
@@ -1795,7 +1795,7 @@
                                       <div className={`border-t border-neutral-100 pt-3 space-y-3 ${!canUpload ? 'opacity-15 pointer-events-none select-none' : ''}`}>
                                         <div className="flex items-center justify-between">
                                           <div>
-                                            <p className="text-[9px] text-neutral-400">独自背景画像</p>
+                                            <p className="text-[9px] text-neutral-700 font-medium">独自背景画像</p>
                                             {!canUpload && <p className="text-[8px] text-sky-500 mt-0.5">✦ +Gプランで利用できます</p>}
                                           </div>
                                           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1842,14 +1842,14 @@
                                 {/* PROプラン：表示名 */}
                                 {pro && (
                                   <div className="space-y-1.5">
-                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest">表示名</p>
+                                    <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">表示名</p>
                                     <input type="text" value={userEditDisplayName} onChange={e => setUserEditDisplayName(e.target.value)}
                                       placeholder="例：鈴木 一郎"
                                       className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
                                   </div>
                                 )}
                                 {/* リンク */}
-                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest">リンク（{pro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件`}）</p>
+                                <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">リンク（{pro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件`}）</p>
                                 {userEditUrls.map((_, i) => {
                                   const locked = !pro && i >= FREE_LINK_LIMIT;
                                   return (
