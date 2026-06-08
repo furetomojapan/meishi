@@ -92,6 +92,10 @@ function doPost(e) {
       deleteUser(payload.name);
       return jsonResponse({ success: true });
 
+    } else if (action === "upload_image") {
+      const url = uploadImage(payload.name, payload.side, payload.base64, payload.mimeType || "image/png");
+      return jsonResponse({ success: true, url });
+
     } else {
       return jsonResponse({ error: "unknown action" });
     }
@@ -131,6 +135,27 @@ function saveUser(name, displayName, licenseKey, links, plan, profile) {
   }
   // 新規追加
   sheet.appendRow([name, displayName || "", licenseKey || "", linksJson, planVal, profileJson]);
+}
+
+function uploadImage(name, side, base64Data, mimeType) {
+  // meishi_images フォルダを取得または作成
+  let folder;
+  const folders = DriveApp.getFoldersByName("meishi_images");
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder("meishi_images");
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  }
+  // 既存ファイルを削除
+  const filename = `${side}_${name}.jpg`;
+  const existing = folder.getFilesByName(filename);
+  while (existing.hasNext()) { existing.next().setTrashed(true); }
+  // 新規保存
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType || "image/jpeg", filename);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return `https://drive.google.com/uc?id=${file.getId()}&export=view`;
 }
 
 function deleteUser(name) {
