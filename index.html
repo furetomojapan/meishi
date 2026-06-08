@@ -57,7 +57,7 @@
 
       /* ── データ正規化 ── */
       const normalizeProfile = (p) => {
-        const d = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"" };
+        const d = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left" };
         if (!p) return d;
         const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
         return { ...d, ...p, appeals };
@@ -241,7 +241,8 @@
             <div style={{position:"relative",zIndex:2,width:"100%",height:"100%",padding:"8% 9%"}}>
               {side === "front" ? (<>
                 {/* 名前：上部 */}
-                <div style={{...ts,fontSize:"clamp(15px,4.2vw,24px)",fontWeight:700,letterSpacing:"0.03em"}}>
+                <div style={{...ts,fontSize:"clamp(15px,4.2vw,24px)",fontWeight:700,letterSpacing:"0.03em",
+                             whiteSpace:"pre-line",textAlign:profile?.nameAlign||"left"}}>
                   {profile?.name || <span style={{opacity:0.3}}>（名前を入力してください）</span>}
                 </div>
                 {/* 電話・住所：下部固定 */}
@@ -267,9 +268,10 @@
                 <div style={{display:"flex",flexDirection:"column",justifyContent:"center",height:"100%",gap:"clamp(6px,1.8vw,12px)"}}>
                   {appeals.map((a,i) => (
                     <div key={i} style={{...ts,fontSize:"clamp(11px,3vw,16px)",display:"flex",
-                                         alignItems:"flex-start",gap:"8px",opacity:a?1:0.2}}>
+                                         alignItems:"flex-start",gap:"8px",opacity:a?1:0.2,
+                                         justifyContent:profile?.appealsAlign==="center"?"center":profile?.appealsAlign==="right"?"flex-end":"flex-start"}}>
                       <span style={{flexShrink:0,opacity:0.6}}>✦</span>
-                      <span>{a || "（未入力）"}</span>
+                      <span style={{whiteSpace:"pre-line"}}>{a || "（未入力）"}</span>
                     </div>
                   ))}
                 </div>
@@ -317,6 +319,32 @@
                           boxShadow:active?"0 0 0 1px #000":"0 1px 3px rgba(0,0,0,0.18)"}}>
                   {!opt.value && <span style={{fontSize:"10px",color:"#888",fontWeight:"bold"}}>✕</span>}
                   {active && opt.value && <span style={{fontSize:"10px",color:"white",fontWeight:"bold"}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      /* ── 位置揃えピッカー（左/中/右） ── */
+      function AlignPicker({ selected, onSelect, dark = false }) {
+        const opts = [
+          { value:"left",   text:"左" },
+          { value:"center", text:"中" },
+          { value:"right",  text:"右" },
+        ];
+        return (
+          <div className="flex gap-1">
+            {opts.map(opt => {
+              const active = (selected || "left") === opt.value;
+              return (
+                <button key={opt.value} type="button" onClick={() => onSelect(opt.value)}
+                  style={{width:"30px",height:"24px",borderRadius:"6px",fontSize:"10px",fontWeight:"bold",
+                          cursor:"pointer",
+                          background: active ? (dark?"#fff":"#000") : (dark?"#333":"#f0f0f0"),
+                          color: active ? (dark?"#000":"#fff") : (dark?"#888":"#555"),
+                          border: active ? "none" : `1px solid ${dark?"#444":"#e0e0e0"}`}}>
+                  {opt.text}
                 </button>
               );
             })}
@@ -578,7 +606,7 @@
         const [showUserEdit, setShowUserEdit] = useState(false);
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
-        const defaultProfile = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"" };
+        const defaultProfile = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left" };
         const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
         const [editingProfile, setEditingProfile] = useState(defaultProfile);
 
@@ -738,7 +766,7 @@
             .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
           setUserEditUrls(padded);
           setUserEditDisplayName(pd.displayName || "");
-          setUserEditProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", ...pd.profile });
+          setUserEditProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", ...pd.profile });
           setShowUserEdit(true);
         };
 
@@ -911,7 +939,7 @@
                                         const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
                                           .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
-                                        setEditingProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", ...pd.profile });
+                                        setEditingProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", ...pd.profile });
                                       }}
                                       className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
                                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -941,8 +969,20 @@
                                       {!personIsPro && (
                                         <div className="space-y-3 pb-3 border-b border-neutral-800">
                                           <p className="text-[9px] text-neutral-500 uppercase tracking-widest">名刺情報（FREEプラン）</p>
+                                          {/* 名前：textarea（3行）+ 揃え */}
+                                          <div>
+                                            <div className="flex items-center justify-between mb-1">
+                                              <p className="text-[8px] text-neutral-600">名前</p>
+                                              <AlignPicker dark selected={editingProfile.nameAlign} onSelect={v => setEditingProfile(p => ({...p,nameAlign:v}))} />
+                                            </div>
+                                            <textarea rows={3} value={editingProfile.name||""}
+                                              onChange={e => setEditingProfile(p => ({...p,name:e.target.value}))}
+                                              placeholder={"例：鈴木 一郎"}
+                                              style={{resize:"none"}}
+                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                          </div>
+                                          {/* 住所・電話番号 */}
                                           {[
-                                            {key:"name",    label:"名前",    placeholder:"例：鈴木 一郎"},
                                             {key:"address", label:"住所",    placeholder:"東京都渋谷区〇〇"},
                                             {key:"phone",   label:"電話番号", placeholder:"090-1234-5678"},
                                           ].map(({key,label,placeholder}) => (
@@ -955,7 +995,10 @@
                                             </div>
                                           ))}
                                           <div>
-                                            <p className="text-[8px] text-neutral-600 mb-1">アピール項目</p>
+                                            <div className="flex items-center justify-between mb-1">
+                                              <p className="text-[8px] text-neutral-600">アピール項目</p>
+                                              <AlignPicker dark selected={editingProfile.appealsAlign} onSelect={v => setEditingProfile(p => ({...p,appealsAlign:v}))} />
+                                            </div>
                                             {[0,1,2,3].map(i => (
                                               <input key={i} type="text" value={editingProfile.appeals[i]||""}
                                                 onChange={e => { const v=e.target.value; setEditingProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
@@ -1110,8 +1153,20 @@
                                 {!pro && (
                                   <div className="space-y-3 pb-4 border-b border-neutral-100">
                                     <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-widest">名刺情報</p>
+                                    {/* 名前：textarea（3行）+ 揃え */}
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <p className="text-[9px] text-neutral-400">名前</p>
+                                        <AlignPicker selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />
+                                      </div>
+                                      <textarea rows={3} value={userEditProfile.name||""}
+                                        onChange={e => setUserEditProfile(p => ({...p,name:e.target.value}))}
+                                        placeholder={"例：鈴木 一郎\n（改行・スペースも反映されます）"}
+                                        style={{resize:"none"}}
+                                        className="w-full px-3 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                    </div>
+                                    {/* 住所・電話番号 */}
                                     {[
-                                      {key:"name",    label:"名前",    placeholder:"例：鈴木 一郎",                type:"text"},
                                       {key:"address", label:"住所",    placeholder:"例：東京都渋谷区〇〇1-2-3",  type:"text"},
                                       {key:"phone",   label:"電話番号", placeholder:"例：090-1234-5678",          type:"tel"},
                                     ].map(({key,label,placeholder,type}) => (
@@ -1124,7 +1179,10 @@
                                       </div>
                                     ))}
                                     <div>
-                                      <p className="text-[9px] text-neutral-400 mb-2">裏面アピール項目（4つ）</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-[9px] text-neutral-400">裏面アピール項目（4つ）</p>
+                                        <AlignPicker selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
+                                      </div>
                                       {[0,1,2,3].map(i => (
                                         <input key={i} type="text" value={userEditProfile.appeals[i]||""}
                                           onChange={e => { const v=e.target.value; setUserEditProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
