@@ -943,7 +943,9 @@
               const r = await gasPost({ action:"save_admin_pass", currentPass: adminPassLocal, password: newPass });
               showToast(r.success ? "saved" : "error");
             } else {
-          } catch {}
+              showToast("saved_local");
+            }
+          } catch { showToast("error"); }
           setPassMsg("✓ 変更しました（全デバイスに反映）");
           setNewPassInput("");
           setTimeout(() => setPassMsg(""), 3000);
@@ -1525,7 +1527,6 @@
                           Close Panel
                         </button>
                       </div>
-                    )}
                   </motion.div>
 
                 ) : !variablePart ? (
