@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.7";
+      const APP_VERSION = "v4.8";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -771,6 +771,7 @@
         const [pinError, setPinError] = useState("");
         const [pinChangeInput, setPinChangeInput] = useState("");
         const [pinChangeMsg, setPinChangeMsg] = useState("");
+        const [myPin, setMyPin] = useState("");
         const [showPinSetup, setShowPinSetup] = useState(false);
         const [pinSetupInput, setPinSetupInput] = useState("");
         const [pinSetupConfirm, setPinSetupConfirm] = useState("");
@@ -1008,6 +1009,8 @@
             if (r.success) {
               setPinAuthToken(r.token);
               setShowPinModal(false); setPinInput(""); setPinError("");
+              // 認証済みセッションでPINを取得して表示用に保持
+              gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
               openUserEditDirect();
             } else { setPinError("PINが違います"); setPinInput(""); }
           } else {
@@ -1025,7 +1028,7 @@
           try {
             if (GAS_READY) {
               const r = await gasPost({ action:"change_pin", name:variablePart, token:pinAuthToken, newPin });
-              if (r.success) { setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
+              if (r.success) { setMyPin(newPin); setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
               else { setPinChangeMsg(r.error || "エラーが発生しました"); }
             } else {
               // fallback
@@ -1379,6 +1382,26 @@
                                                   } catch { setAdminPinMsg("エラー"); }
                                                 }}
                                                 className="px-3 py-2 bg-neutral-700 text-white rounded-xl text-[10px] font-bold hover:bg-white hover:text-black transition-all disabled:opacity-30">変更</button>
+                                              <button
+                                                onClick={async () => {
+                                                  const n2 = editingUrlsName;
+                                                  if (!window.confirm(`${pd.displayName || n2} のPINをリセットしますか？\nユーザーは次回アクセス時に新しいPINを設定します。`)) return;
+                                                  try {
+                                                    if (GAS_READY) {
+                                                      const r = await gasPost({ action:"admin_reset_pin", adminPass:adminPassLocal, name:n2 });
+                                                      if (r.success) {
+                                                        setAdminAllPins(p => ({ ...p, [n2]: "" }));
+                                                        setUrlsData(prev => {
+                                                          const updated = { ...prev, [n2]: { ...prev[n2], hasPinSet: false } };
+                                                          localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
+                                                          return updated;
+                                                        });
+                                                        setAdminPinMsg("✓ リセットしました"); setTimeout(()=>setAdminPinMsg(""),3000);
+                                                      } else { setAdminPinMsg(r.error||"エラー"); }
+                                                    }
+                                                  } catch { setAdminPinMsg("エラー"); }
+                                                }}
+                                                className="px-3 py-2 bg-red-900 text-red-300 rounded-xl text-[10px] font-bold hover:bg-red-500 hover:text-white transition-all">リセット</button>
                                             </div>
                                             {adminPinMsg && <p className="text-[10px] text-green-400 mt-1">{adminPinMsg}</p>}
                                           </div>
@@ -1675,6 +1698,7 @@
                                     const r = await gasPost({ action:"set_initial_pin", name:variablePart, pin:pinSetupInput });
                                     if (r.success) {
                                       setPinAuthToken(r.token);
+                                      setMyPin(pinSetupInput); // 設定したPINを表示用に保持
                                       setShowPinSetup(false);
                                       setUrlsData(prev => {
                                         const updated = { ...prev, [variablePart]: { ...prev[variablePart], hasPinSet: true } };
@@ -1735,6 +1759,7 @@
                             if (editDirty && !window.confirm("変更を破棄して閉じますか？")) return;
                             setEditOrigJSON(null);
                             setShowUserEdit(false);
+                            setMyPin(""); // セッション終了時にPINをメモリから消去
                           };
                           const PRow = ({label, children}) => (
                             <div className="flex items-center justify-between gap-2 mt-1.5">
@@ -1783,7 +1808,7 @@
                                   <div className="flex items-center gap-2 mb-2">
                                     <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">PIN変更</p>
                                     <span className="text-[10px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
-                                      現在: {getPersonData(urlsData, variablePart)?.pin || "未設定"}
+                                      現在: {myPin || "未設定"}
                                     </span>
                                   </div>
                                   <div className="flex gap-2 items-center">

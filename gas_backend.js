@@ -120,6 +120,19 @@ function doPost(e) {
         return jsonResponse({ success: true });
       }
 
+      case "get_my_pin": {
+        if (!validateSession(p.name, p.token))
+          return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
+        const pin = getUserPin(p.name);
+        return jsonResponse({ success: true, pin });
+      }
+
+      case "admin_reset_pin": {
+        if (!checkAdminPass(p.adminPass)) return authError();
+        setUserPin(p.name, ""); // PINをクリア
+        return jsonResponse({ success: true });
+      }
+
       case "set_initial_pin": {
         // PINが未設定のユーザーだけが使えるアクション（初回設定用）
         if (!p.name || !p.pin || !/^\d{6}$/.test(String(p.pin)))
