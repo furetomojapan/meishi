@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.4";
+      const APP_VERSION = "v4.5";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -787,6 +787,7 @@
         const [editTab, setEditTab] = useState("info"); // "info" | "design" | "links"
         const [editOrigJSON, setEditOrigJSON] = useState(null); // dirty tracking snapshot
         const [adminEditTab, setAdminEditTab] = useState("info"); // admin panel user tab
+        const [adminAllPins, setAdminAllPins] = useState({});
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -885,6 +886,14 @@
           if (variablePart) { const pd = getPersonData(urlsData, variablePart); updateOGP(variablePart, pd); }
         }, [variablePart, urlsData]);
 
+        const fetchAllPins = async (pass) => {
+          if (!GAS_READY) return;
+          try {
+            const r = await gasPost({ action:"admin_get_all_pins", adminPass: pass });
+            if (r.success && r.pins) setAdminAllPins(r.pins);
+          } catch {}
+        };
+
         const handleLogin = async (e) => {
           e.preventDefault();
           const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -894,6 +903,7 @@
               setIsLoggedIn(true); setAdminPassLocal(clean);
               localStorage.setItem('meisi_admin_pass', clean);
               setError(""); setPasswordInput("");
+              fetchAllPins(clean);
             } else { setError("正しいコードを入力してください"); setPasswordInput(""); }
           } else {
             const stored = localStorage.getItem('meisi_admin_pass') || 'admin123';
@@ -1031,7 +1041,7 @@
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
           const effectiveDisplayName = userEditDisplayName || (!isPro(pd) && userEditProfile.name ? userEditProfile.name : "");
-          const personObj = { displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile };
+          const personObj = { displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile, pin: pd.pin || "" };
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -1058,7 +1068,7 @@
           const links = personIsPro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...existingLinks.slice(FREE_LINK_LIMIT)];
-          const personObj = { displayName, plan: pd.plan || "free", links, profile: profile || pd.profile };
+          const personObj = { displayName, plan: pd.plan || "free", links, profile: profile || pd.profile, pin: pd.pin || "" };
           const newData = { ...urlsData, [name]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -1161,8 +1171,15 @@
                                 try {
                                   if (GAS_READY) {
                                     const r = await gasPost({ action:"admin_create_user", adminPass:adminPassLocal, name:id, pin:initPin });
+                                    if (r.success) {
+                                      const createdPin = r.pin || initPin;
+                                      setAdminAllPins(p => ({ ...p, [id]: createdPin }));
+                                    }
                                     showToast(r.success ? "saved" : "error");
-                                  } else { showToast("saved_local"); }
+                                  } else {
+                                    setAdminAllPins(p => ({ ...p, [id]: initPin }));
+                                    showToast("saved_local");
+                                  }
                                 } catch { showToast("error"); }
                               }}
                               className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
@@ -1219,17 +1236,22 @@
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[9px] font-mono tracking-widest opacity-60">
-                                            PIN: {pd.pin || "未設定"}
-                                          </span>
-                                          {pd.pin && (
-                                            <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(pd.pin); }}
-                                              className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
-                                              コピー
-                                            </button>
-                                          )}
-                                        </div>
+                                        {(() => {
+                                          const displayPin = adminAllPins[name] || pd.pin || "";
+                                          return (
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                              <span className="text-[9px] font-mono tracking-widest opacity-60">
+                                                PIN: {displayPin || "未設定"}
+                                              </span>
+                                              {displayPin && (
+                                                <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(displayPin); }}
+                                                  className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
+                                                  コピー
+                                                </button>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                     </button>
@@ -1318,7 +1340,7 @@
                                             <div className="flex items-center gap-2 mb-2">
                                               <p className="text-[9px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
                                               <span className="text-[9px] font-mono text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
-                                                現在: {getPersonData(urlsData, editingUrlsName)?.pin || "未設定"}
+                                                現在: {adminAllPins[editingUrlsName] || getPersonData(urlsData, editingUrlsName)?.pin || "未設定"}
                                               </span>
                                             </div>
                                             <div className="flex gap-2">
@@ -1333,12 +1355,15 @@
                                                   try {
                                                     if (GAS_READY) {
                                                       const r = await gasPost({ action:"admin_set_pin", adminPass:adminPassLocal, name:n2, pin:adminPinInput });
-                                                      if (r.success) { setAdminPinInput(""); setAdminPinMsg("✓ 変更しました"); setTimeout(()=>setAdminPinMsg(""),3000); }
-                                                      else { setAdminPinMsg(r.error||"エラー"); }
+                                                      if (r.success) {
+                                                        setAdminAllPins(p => ({ ...p, [n2]: adminPinInput }));
+                                                        setAdminPinInput(""); setAdminPinMsg("✓ 変更しました"); setTimeout(()=>setAdminPinMsg(""),3000);
+                                                      } else { setAdminPinMsg(r.error||"エラー"); }
                                                     } else {
                                                       const newData = { ...urlsData, [n2]: { ...urlsData[n2], pin: adminPinInput } };
                                                       setUrlsData(newData);
                                                       localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                                      setAdminAllPins(p => ({ ...p, [n2]: adminPinInput }));
                                                       setAdminPinInput(""); setAdminPinMsg("✓ 変更しました");
                                                       setTimeout(()=>setAdminPinMsg(""),3000);
                                                     }

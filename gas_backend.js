@@ -163,6 +163,17 @@ function doPost(e) {
         return jsonResponse({ success: true, pin });
       }
 
+      case "admin_get_all_pins": {
+        if (!checkAdminPass(p.adminPass)) return authError();
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+        const rows  = sheet.getDataRange().getValues();
+        const pins  = {};
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i][0]) pins[rows[i][0]] = String(rows[i][6] || "");
+        }
+        return jsonResponse({ success: true, pins });
+      }
+
       case "admin_set_pin": {
         if (!checkAdminPass(p.adminPass)) return authError();
         if (!p.pin || !/^\d{6}$/.test(String(p.pin)))
