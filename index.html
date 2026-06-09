@@ -1915,82 +1915,6 @@
                                 {/* ───── デザインタブ ───── */}
                                 {editTab === "design" && (<>
                                   {!pro && <div className="text-[10px] bg-amber-50 text-amber-600 px-3 py-2 rounded-xl border border-amber-100">フォント・サイズ・位置はPROで利用可能</div>}
-                                  {/* 背景 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（表面）</p>
-                                    <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（裏面）</p>
-                                    <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
-                                    <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
-                                    <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
-                                  </div>
-                                  {/* 会社名 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">会社名</p>
-                                      <AlignPicker disabled={!pro} selected={userEditProfile.companyAlign} onSelect={v => setUserEditProfile(p => ({...p,companyAlign:v}))} />
-                                    </div>
-                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} /></PRow>
-                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} /></PRow>
-                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.companyColor||""} onSelect={v => setColor("companyColor",v)} /></PRow>
-                                  </div>
-                                  {/* 肩書き */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">肩書き</p>
-                                      <AlignPicker disabled={!pro} selected={userEditProfile.titleAlign} onSelect={v => setUserEditProfile(p => ({...p,titleAlign:v}))} />
-                                    </div>
-                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} /></PRow>
-                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
-                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
-                                  </div>
-                                  {/* 名前 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">名前</p>
-                                      <AlignPicker disabled={!pro} selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />
-                                    </div>
-                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} /></PRow>
-                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} /></PRow>
-                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.nameColor||""} onSelect={v => setColor("nameColor",v)} /></PRow>
-                                  </div>
-                                  {/* 住所 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-1.5">住所</p>
-                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} /></PRow>
-                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} /></PRow>
-                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.addressColor||""} onSelect={v => setColor("addressColor",v)} /></PRow>
-                                  </div>
-                                  {/* 電話番号 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-1.5">電話番号</p>
-                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} /></PRow>
-                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} /></PRow>
-                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.phoneColor||""} onSelect={v => setColor("phoneColor",v)} /></PRow>
-                                  </div>
-                                  {/* アピール */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">アピール</p>
-                                      <AlignPicker disabled={!pro} selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
-                                    </div>
-                                    {[0,1,2,3].map(i => (
-                                      <div key={i} className="flex items-center gap-2 mb-1.5">
-                                        <span className="text-[9px] text-neutral-400 w-8 flex-shrink-0">行{i+1}</span>
-                                        <FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
-                                          onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
-                                        <TextColorPicker disabled={!pro} selected={userEditProfile.appealColors?.[i]||""} onSelect={v => setAColor(i,v)} />
-                                      </div>
-                                    ))}
-                                  </div>
                                   {/* 独自背景画像（+G） */}
                                   {(() => {
                                     const canUpload = isPlusG(getPersonData(urlsData, variablePart));
@@ -2074,6 +1998,82 @@
                                       </div>
                                     );
                                   })()}
+                                  {/* 背景 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（表面）</p>
+                                    <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（裏面）</p>
+                                    <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
+                                    <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
+                                    <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
+                                  </div>
+                                  {/* 会社名 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">会社名</p>
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.companyAlign} onSelect={v => setUserEditProfile(p => ({...p,companyAlign:v}))} />
+                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.companyFont??0} onSelect={v => setUserEditProfile(p => ({...p,companyFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.companyFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,companyFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.companyColor||""} onSelect={v => setColor("companyColor",v)} /></PRow>
+                                  </div>
+                                  {/* 肩書き */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">肩書き</p>
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.titleAlign} onSelect={v => setUserEditProfile(p => ({...p,titleAlign:v}))} />
+                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.titleFont??0} onSelect={v => setUserEditProfile(p => ({...p,titleFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.titleFontSize||"S"} onSelect={v => setUserEditProfile(p => ({...p,titleFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.titleColor||""} onSelect={v => setColor("titleColor",v)} /></PRow>
+                                  </div>
+                                  {/* 名前 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">名前</p>
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.nameAlign} onSelect={v => setUserEditProfile(p => ({...p,nameAlign:v}))} />
+                                    </div>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.nameFont??0} onSelect={v => setUserEditProfile(p => ({...p,nameFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.nameFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,nameFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.nameColor||""} onSelect={v => setColor("nameColor",v)} /></PRow>
+                                  </div>
+                                  {/* 住所 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-1.5">住所</p>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.addressFont??0} onSelect={v => setUserEditProfile(p => ({...p,addressFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.addressFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,addressFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.addressColor||""} onSelect={v => setColor("addressColor",v)} /></PRow>
+                                  </div>
+                                  {/* 電話番号 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-1.5">電話番号</p>
+                                    <PRow label="フォント"><FontPicker disabled={!pro} selected={userEditProfile.phoneFont??0} onSelect={v => setUserEditProfile(p => ({...p,phoneFont:v}))} /></PRow>
+                                    <PRow label="サイズ"><SizePicker disabled={!pro} selected={userEditProfile.phoneFontSize||"M"} onSelect={v => setUserEditProfile(p => ({...p,phoneFontSize:v}))} /></PRow>
+                                    <PRow label="カラー"><TextColorPicker disabled={!pro} selected={userEditProfile.phoneColor||""} onSelect={v => setColor("phoneColor",v)} /></PRow>
+                                  </div>
+                                  {/* アピール */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">アピール</p>
+                                      <AlignPicker disabled={!pro} selected={userEditProfile.appealsAlign} onSelect={v => setUserEditProfile(p => ({...p,appealsAlign:v}))} />
+                                    </div>
+                                    {[0,1,2,3].map(i => (
+                                      <div key={i} className="flex items-center gap-2 mb-1.5">
+                                        <span className="text-[9px] text-neutral-400 w-8 flex-shrink-0">行{i+1}</span>
+                                        <FontPicker disabled={!pro} selected={userEditProfile.appealFonts?.[i]??0}
+                                          onSelect={v => setUserEditProfile(p => { const af=[...(p.appealFonts||[0,0,0,0])]; af[i]=v; return {...p,appealFonts:af}; })} />
+                                        <TextColorPicker disabled={!pro} selected={userEditProfile.appealColors?.[i]||""} onSelect={v => setAColor(i,v)} />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </>)}
 
                                 {/* ───── リンクタブ ───── */}
