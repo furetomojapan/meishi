@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.6";
+      const APP_VERSION = "v4.7";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1169,8 +1169,7 @@
                               onClick={async () => {
                                 const id = newUserInput.trim();
                                 if (!id || registeredNames.includes(id)) return;
-                                const initPin = generatePin();
-                                const personObj = { displayName:"", plan:"free", plusG:false, licenseKey:"", links:[], profile: normalizeProfile(null) };
+                                const personObj = { displayName:"", plan:"free", plusG:false, licenseKey:"", links:[], profile: normalizeProfile(null), hasPinSet: false };
                                 const newData = { ...urlsData, [id]: personObj };
                                 setUrlsData(newData);
                                 localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -1179,14 +1178,9 @@
                                 showToast("saving", 10000);
                                 try {
                                   if (GAS_READY) {
-                                    const r = await gasPost({ action:"admin_create_user", adminPass:adminPassLocal, name:id, pin:initPin });
-                                    if (r.success) {
-                                      const createdPin = r.pin || initPin;
-                                      setAdminAllPins(p => ({ ...p, [id]: createdPin }));
-                                    }
+                                    const r = await gasPost({ action:"admin_create_user", adminPass:adminPassLocal, name:id });
                                     showToast(r.success ? "saved" : "error");
                                   } else {
-                                    setAdminAllPins(p => ({ ...p, [id]: initPin }));
                                     showToast("saved_local");
                                   }
                                 } catch { showToast("error"); }

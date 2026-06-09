@@ -139,9 +139,8 @@ function doPost(e) {
 
       case "admin_create_user": {
         if (!checkAdminPass(p.adminPass)) return authError();
-        const pin = p.pin || generatePin();
-        adminCreateUser(p.name, pin);
-        return jsonResponse({ success: true, pin }); // 初期PINを返す
+        adminCreateUser(p.name); // PINは作成しない（ユーザーが初回設定）
+        return jsonResponse({ success: true });
       }
 
       case "admin_save_user": {
@@ -271,13 +270,13 @@ function saveUserProfile(name, displayName, links, profile) {
 }
 
 // ── 管理者: ユーザー作成 ─────────────────────────────────────────
-function adminCreateUser(name, pin) {
+function adminCreateUser(name) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
   const rows  = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === name) return; // 既存
   }
-  sheet.appendRow([name, "", "", "[]", "free", "", pin || generatePin(), false]);
+  sheet.appendRow([name, "", "", "[]", "free", "", "", false]); // PIN空欄（ユーザーが初回設定）
 }
 
 // ── 管理者: フル保存 ─────────────────────────────────────────────
@@ -303,8 +302,8 @@ function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin,
     ]]);
     return;
   }
-  // 新規
-  sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson, pin ? String(pin) : generatePin(), plusGVal]);
+  // 新規（PINは空欄 — ユーザーが初回設定）
+  sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson, pin ? String(pin) : "", plusGVal]);
 }
 
 // ── 管理者: プランtoggle ─────────────────────────────────────────
