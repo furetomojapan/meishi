@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.8";
+      const APP_VERSION = "v4.9";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -990,17 +990,25 @@
           setEditTab("info");
           setShowUserEdit(true);
         };
-        const openUserEdit = () => {
-          const pd = getPersonData(urlsData, variablePart);
-          if (pd?.hasPinSet) {
-            // PIN設定済み → 認証モーダル
-            setPinInput(""); setPinError(""); setShowPinModal(true);
-          } else if (GAS_READY) {
-            // PIN未設定 → 初回設定モーダル
-            setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setShowPinSetup(true);
-          } else {
-            // GAS未接続フォールバック
-            openUserEditDirect();
+        const openUserEdit = async () => {
+          if (!GAS_READY) { openUserEditDirect(); return; }
+          try {
+            const r = await gasPost({ action:"check_pin_set", name:variablePart });
+            if (r.hasPinSet) {
+              // PIN設定済み → 認証モーダル
+              setPinInput(""); setPinError(""); setShowPinModal(true);
+            } else {
+              // PIN未設定 → 初回設定モーダル
+              setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setShowPinSetup(true);
+            }
+          } catch {
+            // GAS通信失敗時はローカル状態で判断
+            const pd = getPersonData(urlsData, variablePart);
+            if (pd?.hasPinSet) {
+              setPinInput(""); setPinError(""); setShowPinModal(true);
+            } else {
+              setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setShowPinSetup(true);
+            }
           }
         };
         const handlePinVerify = async () => {

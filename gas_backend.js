@@ -120,6 +120,12 @@ function doPost(e) {
         return jsonResponse({ success: true });
       }
 
+      case "check_pin_set": {
+        // 認証不要 — PINの有無だけ返す（値は返さない）
+        const hasPinSet = !!(getUserPin(p.name));
+        return jsonResponse({ success: true, hasPinSet });
+      }
+
       case "get_my_pin": {
         if (!validateSession(p.name, p.token))
           return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
