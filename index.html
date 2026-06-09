@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.5";
+      const APP_VERSION = "v4.6";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -771,6 +771,10 @@
         const [pinError, setPinError] = useState("");
         const [pinChangeInput, setPinChangeInput] = useState("");
         const [pinChangeMsg, setPinChangeMsg] = useState("");
+        const [showPinSetup, setShowPinSetup] = useState(false);
+        const [pinSetupInput, setPinSetupInput] = useState("");
+        const [pinSetupConfirm, setPinSetupConfirm] = useState("");
+        const [pinSetupMsg, setPinSetupMsg] = useState("");
         const [adminPinInput, setAdminPinInput] = useState("");
         const [adminPinMsg, setAdminPinMsg] = useState("");
         const [userEditUrls, setUserEditUrls] = useState([]);
@@ -981,9 +985,14 @@
         };
         const openUserEdit = () => {
           const pd = getPersonData(urlsData, variablePart);
-          if (pd?.pin) {
+          if (pd?.hasPinSet) {
+            // PIN設定済み → 認証モーダル
             setPinInput(""); setPinError(""); setShowPinModal(true);
+          } else if (GAS_READY) {
+            // PIN未設定 → 初回設定モーダル
+            setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setShowPinSetup(true);
           } else {
+            // GAS未接続フォールバック
             openUserEditDirect();
           }
         };
@@ -1622,6 +1631,68 @@
                               </div>
                             </div>
                           </>
+                        )}
+
+                        {/* PIN初回設定モーダル */}
+                        {showPinSetup && (
+                          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-6"
+                            onClick={() => setShowPinSetup(false)}>
+                            <div className="bg-white rounded-3xl p-8 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+                              <p className="text-sm font-bold text-center mb-1">🔐 PIN初回設定</p>
+                              <p className="text-[10px] text-neutral-400 text-center mb-5">この名刺を保護する6桁のPINを設定してください</p>
+                              <input
+                                type="tel" inputMode="numeric" maxLength={6} autoFocus
+                                value={pinSetupInput}
+                                onChange={e => { setPinSetupInput(e.target.value.replace(/\D/g,"")); setPinSetupMsg(""); }}
+                                placeholder="● ● ● ● ● ●"
+                                className="w-full text-center text-2xl font-mono tracking-[0.5em] px-4 py-4 bg-yellow-200 border-2 border-neutral-200 rounded-2xl focus:outline-none focus:border-black mb-3" />
+                              <input
+                                type="tel" inputMode="numeric" maxLength={6}
+                                value={pinSetupConfirm}
+                                onChange={e => { setPinSetupConfirm(e.target.value.replace(/\D/g,"")); setPinSetupMsg(""); }}
+                                onKeyDown={async e => {
+                                  if (e.key !== "Enter" || pinSetupInput.length !== 6 || pinSetupInput !== pinSetupConfirm) return;
+                                  try {
+                                    const r = await gasPost({ action:"set_initial_pin", name:variablePart, pin:pinSetupInput });
+                                    if (r.success) {
+                                      setPinAuthToken(r.token); setShowPinSetup(false);
+                                      setUrlsData(prev => { const u = {...prev,[variablePart]:{...prev[variablePart],hasPinSet:true}}; localStorage.setItem('meisi_urls_data',JSON.stringify(u)); return u; });
+                                      openUserEditDirect();
+                                    } else { setPinSetupMsg(r.error||"エラー"); }
+                                  } catch { setPinSetupMsg("通信エラー"); }
+                                }}
+                                placeholder="確認（もう一度）"
+                                className="w-full text-center text-2xl font-mono tracking-[0.5em] px-4 py-4 bg-neutral-100 border-2 border-neutral-200 rounded-2xl focus:outline-none focus:border-black mb-2" />
+                              {pinSetupMsg && <p className="text-[11px] text-red-500 text-center mb-2">{pinSetupMsg}</p>}
+                              <button
+                                onClick={async () => {
+                                  if (pinSetupInput.length !== 6) { setPinSetupMsg("6桁で入力してください"); return; }
+                                  if (pinSetupInput !== pinSetupConfirm) { setPinSetupMsg("PINが一致しません"); return; }
+                                  try {
+                                    const r = await gasPost({ action:"set_initial_pin", name:variablePart, pin:pinSetupInput });
+                                    if (r.success) {
+                                      setPinAuthToken(r.token);
+                                      setShowPinSetup(false);
+                                      // urlsDataのhasPinSetをtrueに更新
+                                      setUrlsData(prev => {
+                                        const updated = { ...prev, [variablePart]: { ...prev[variablePart], hasPinSet: true } };
+                                        localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                      openUserEditDirect();
+                                    } else { setPinSetupMsg(r.error || "エラーが発生しました"); }
+                                  } catch { setPinSetupMsg("通信エラーが発生しました"); }
+                                }}
+                                disabled={pinSetupInput.length !== 6 || pinSetupConfirm.length !== 6}
+                                className="w-full py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all disabled:opacity-30 mt-1">
+                                PINを設定して編集する
+                              </button>
+                              <button onClick={() => setShowPinSetup(false)}
+                                className="w-full mt-2 py-2 text-[10px] text-neutral-400 hover:text-black transition-colors">
+                                キャンセル
+                              </button>
+                            </div>
+                          </div>
                         )}
 
                         {/* リンク編集ボタン（FREE/PRO共通） */}

@@ -120,6 +120,17 @@ function doPost(e) {
         return jsonResponse({ success: true });
       }
 
+      case "set_initial_pin": {
+        // PINが未設定のユーザーだけが使えるアクション（初回設定用）
+        if (!p.name || !p.pin || !/^\d{6}$/.test(String(p.pin)))
+          return jsonResponse({ success: false, error: "6桁の数字で入力してください" });
+        const currentPin = getUserPin(p.name);
+        if (currentPin) return jsonResponse({ success: false, error: "PINは既に設定されています" });
+        setUserPin(p.name, String(p.pin));
+        const token = createSession(p.name);
+        return jsonResponse({ success: true, token });
+      }
+
       // ── 管理者操作（adminPass必須）──────────────────────────────
 
       case "verify_admin": {
@@ -225,9 +236,9 @@ function getAllUsersPublic() {
     const links       = parseJson(row[3], []);
     const plan        = row[4] || "free";
     const profile     = parseJson(row[5], null);
-    // row[6] = pin ← 送らない ★
+    const hasPinSet   = !!(row[6]);                // PINの有無だけ公開（値は送らない）★
     const plusG       = row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1";
-    result[name] = { displayName, plan, plusG, licenseKey, links, profile };
+    result[name] = { displayName, plan, plusG, licenseKey, links, profile, hasPinSet };
   }
   return result;
 }
