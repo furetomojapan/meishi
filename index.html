@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.3";
+      const APP_VERSION = "v4.4";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -748,7 +748,7 @@
         const [isLoggedIn, setIsLoggedIn] = useState(false);
         const [adminPassLocal, setAdminPassLocal] = useState(() => localStorage.getItem('meisi_admin_pass') || "");
         const [pinAuthToken, setPinAuthToken] = useState(null);
-        const [revealedPins, setRevealedPins] = useState({});
+
         const [error, setError] = useState("");
         const [urlsData, setUrlsData] = useState(() => {
           // localStorage からの初期値（GitHub fetch 前の即時表示用）
@@ -1221,24 +1221,12 @@
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
                                         <div className="flex items-center gap-1.5 mt-1">
                                           <span className="text-[9px] font-mono tracking-widest opacity-60">
-                                            PIN: {revealedPins[name] || "●●●●●●"}
+                                            PIN: {pd.pin || "未設定"}
                                           </span>
-                                          {revealedPins[name] ? (
-                                            <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(revealedPins[name]); }}
+                                          {pd.pin && (
+                                            <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(pd.pin); }}
                                               className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
                                               コピー
-                                            </button>
-                                          ) : (
-                                            <button onClick={async e => {
-                                              e.stopPropagation();
-                                              if (!GAS_READY) return;
-                                              const r = await gasPost({ action:"admin_get_pin", adminPass:adminPassLocal, name });
-                                              if (r.success) {
-                                                setRevealedPins(prev => ({...prev, [name]: r.pin}));
-                                                setTimeout(() => setRevealedPins(prev => { const n={...prev}; delete n[name]; return n; }), 10000);
-                                              }
-                                            }} className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
-                                              表示
                                             </button>
                                           )}
                                         </div>
