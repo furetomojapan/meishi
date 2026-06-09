@@ -292,7 +292,7 @@ function doPost(e) {
           MailApp.sendEmail({
             to: email,
             subject: "【デジタル名刺】登録完了 — あなたの名刺URLをお届けします",
-            body: "登録ありがとうございます！\n\nあなた専用の名刺URLはこちらです：\n" + cardUrl + "\n\n初回アクセス時にPINの設定が必要です。\n\n— デジタル名刺チーム"
+            body: "登録ありがとうございます！\n\nあなた専用の名刺URLはこちらです：\n" + cardUrl + "\n\n初回アクセス時に6桁のPINの設定が必要です。\n\n— XYZ Digital Card プロジェクト"
           });
         } catch(mailErr) { /* メール失敗でも登録は成功 */ }
         try {
