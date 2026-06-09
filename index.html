@@ -1915,6 +1915,23 @@
                                 {/* ───── デザインタブ ───── */}
                                 {editTab === "design" && (<>
                                   {!pro && <div className="text-[10px] bg-amber-50 text-amber-600 px-3 py-2 rounded-xl border border-amber-100">フォント・サイズ・位置はPROで利用可能</div>}
+                                  {/* 背景 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（表面）</p>
+                                    <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（裏面）</p>
+                                    <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
+                                    <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
+                                  </div>
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
+                                    <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
+                                  </div>
                                   {/* 会社名 */}
                                   <div className="border-b border-neutral-100 pb-3">
                                     <div className="flex items-center justify-between mb-1.5">
@@ -1973,23 +1990,6 @@
                                         <TextColorPicker disabled={!pro} selected={userEditProfile.appealColors?.[i]||""} onSelect={v => setAColor(i,v)} />
                                       </div>
                                     ))}
-                                  </div>
-                                  {/* 背景 */}
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（表面）</p>
-                                    <BgPicker selected={userEditProfile.bg} onSelect={bg => setUserEditProfile(p => ({...p,bg}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（裏面）</p>
-                                    <BgPicker selected={userEditProfile.bgBack || userEditProfile.bg} onSelect={bgBack => setUserEditProfile(p => ({...p,bgBack}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
-                                    <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
-                                  </div>
-                                  <div className="border-b border-neutral-100 pb-3">
-                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
-                                    <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
                                   </div>
                                   {/* 独自背景画像（+G） */}
                                   {(() => {
