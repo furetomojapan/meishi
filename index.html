@@ -853,8 +853,14 @@
                     // prevのplanが既にproなら、GASの古いデータで上書きしない
                     const merged = { ...res.users };
                     Object.keys(prev).forEach(k => {
+                      if (!merged[k]) return;
+                      // planを保持
                       if (prev[k]?.plan === "pro" && res.users[k]?.plan !== "pro") {
-                        merged[k] = { ...res.users[k], plan: prev[k].plan };
+                        merged[k] = { ...merged[k], plan: prev[k].plan };
+                      }
+                      // hasPinSet: ローカルでtrueが確認済みなら保持（GAS未再デプロイ対策）
+                      if (prev[k]?.hasPinSet && !merged[k]?.hasPinSet) {
+                        merged[k] = { ...merged[k], hasPinSet: true };
                       }
                     });
                     localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
@@ -1652,6 +1658,9 @@
                                       setPinAuthToken(r.token); setShowPinSetup(false);
                                       setUrlsData(prev => { const u = {...prev,[variablePart]:{...prev[variablePart],hasPinSet:true}}; localStorage.setItem('meisi_urls_data',JSON.stringify(u)); return u; });
                                       openUserEditDirect();
+                                    } else if (r.error && r.error.includes("既に設定")) {
+                                      setUrlsData(prev => { const u = {...prev,[variablePart]:{...prev[variablePart],hasPinSet:true}}; localStorage.setItem('meisi_urls_data',JSON.stringify(u)); return u; });
+                                      setShowPinSetup(false); setPinInput(""); setPinError(""); setShowPinModal(true);
                                     } else { setPinSetupMsg(r.error||"エラー"); }
                                   } catch { setPinSetupMsg("通信エラー"); }
                                 }}
@@ -1667,13 +1676,21 @@
                                     if (r.success) {
                                       setPinAuthToken(r.token);
                                       setShowPinSetup(false);
-                                      // urlsDataのhasPinSetをtrueに更新
                                       setUrlsData(prev => {
                                         const updated = { ...prev, [variablePart]: { ...prev[variablePart], hasPinSet: true } };
                                         localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
                                         return updated;
                                       });
                                       openUserEditDirect();
+                                    } else if (r.error && r.error.includes("既に設定")) {
+                                      // PINがGASに既に保存済み → 認証モーダルへ切り替え
+                                      setUrlsData(prev => {
+                                        const updated = { ...prev, [variablePart]: { ...prev[variablePart], hasPinSet: true } };
+                                        localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                      setShowPinSetup(false);
+                                      setPinInput(""); setPinError(""); setShowPinModal(true);
                                     } else { setPinSetupMsg(r.error || "エラーが発生しました"); }
                                   } catch { setPinSetupMsg("通信エラーが発生しました"); }
                                 }}
