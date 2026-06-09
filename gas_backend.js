@@ -13,11 +13,14 @@
  * 5. initSheets() を1回手動実行（sessionsシートを追加するため）
  */
 
-const SHEET_USERS    = "users";
-const SHEET_CONFIG   = "config";
-const SHEET_LICENSE  = "licenses";
-const SHEET_SESSIONS = "sessions";
-const SESSION_TTL_MS = 60 * 60 * 1000; // 60分
+const SHEET_USERS         = "users";
+const SHEET_CONFIG        = "config";
+const SHEET_LICENSE       = "licenses";
+const SHEET_SESSIONS      = "sessions";
+const SHEET_REGISTRATIONS = "registrations";
+const SESSION_TTL_MS      = 60 * 60 * 1000; // 60分
+const ADMIN_EMAIL         = "furetomojapan@gmail.com";
+const SITE_URL            = "https://furetomojapan.github.io/meishi/";
 
 // ── シート初期化 ──────────────────────────────────────────────────
 function initSheets() {
@@ -60,6 +63,14 @@ function initSheets() {
     ses = ss.insertSheet(SHEET_SESSIONS);
     ses.appendRow(["name","token","expiresAt"]);
     ses.getRange(1,1,1,3).setFontWeight("bold");
+  }
+
+  // registrations シート（自己登録追跡用）
+  let reg = ss.getSheetByName(SHEET_REGISTRATIONS);
+  if (!reg) {
+    reg = ss.insertSheet(SHEET_REGISTRATIONS);
+    reg.appendRow(["emailNormalized","emailOriginal","userId","registeredAt"]);
+    reg.getRange(1,1,1,4).setFontWeight("bold");
   }
 }
 
@@ -230,6 +241,69 @@ function doPost(e) {
         if (!checkAdminPass(p.adminPass)) return authError();
         saveLicenses(p.licenses);
         return jsonResponse({ success: true });
+      }
+
+      case "self_register": {
+        const email = (p.email || "").trim().toLowerCase();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+          return jsonResponse({ success: false, error: "正しいメールアドレスを入力してください" });
+
+        const normalized = normalizeEmail(email);
+        const ss2 = SpreadsheetApp.getActiveSpreadsheet();
+        const regSheet = ss2.getSheetByName(SHEET_REGISTRATIONS);
+        const now = new Date();
+
+        // 24h 重複チェック
+        if (regSheet) {
+          const regRows = regSheet.getDataRange().getValues();
+          for (let i = 1; i < regRows.length; i++) {
+            if (regRows[i][0] === normalized) {
+              const registeredAt = new Date(regRows[i][3]);
+              if ((now - registeredAt) < 24 * 60 * 60 * 1000) {
+                const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - (now - registeredAt)) / (60 * 60 * 1000));
+                return jsonResponse({ success: false, error: `このメールアドレスは登録済みです。${hoursLeft}時間後に再度お試しください。` });
+              }
+            }
+          }
+        }
+
+        // ユーザーID 生成（@より前、重複時は3文字追加）
+        const usersSheet = ss2.getSheetByName(SHEET_USERS);
+        const usersRows  = usersSheet ? usersSheet.getDataRange().getValues() : [];
+        const existingIds = new Set(usersRows.slice(1).map(r => r[0]));
+        let baseId = email.split("@")[0].replace(/[^a-z0-9_\-]/gi, "").toLowerCase().slice(0, 20);
+        if (!baseId) baseId = "user";
+        let userId = baseId;
+        let attempts = 0;
+        while (existingIds.has(userId) && attempts < 10) {
+          userId = baseId + generateShortId(3);
+          attempts++;
+        }
+        if (existingIds.has(userId))
+          return jsonResponse({ success: false, error: "IDの生成に失敗しました。別のメールアドレスをお試しください。" });
+
+        // ユーザー作成
+        adminCreateUser(userId);
+        if (regSheet) regSheet.appendRow([normalized, email, userId, now.toISOString()]);
+
+        // メール送信
+        const cardUrl = SITE_URL + "?id=" + userId + "&new=1";
+        try {
+          MailApp.sendEmail({
+            to: email,
+            subject: "【デジタル名刺】登録完了 — あなたの名刺URLをお届けします",
+            body: "登録ありがとうございます！\n\nあなた専用の名刺URLはこちらです：\n" + cardUrl + "\n\n初回アクセス時にPINの設定が必要です。\n\n— デジタル名刺チーム"
+          });
+        } catch(mailErr) { /* メール失敗でも登録は成功 */ }
+        try {
+          MailApp.sendEmail({
+            to: ADMIN_EMAIL,
+            subject: "[名刺] 新規ユーザー登録: " + userId,
+            body: "新規ユーザーが登録しました。\nID: " + userId + "\nメール: " + email + "\n登録日時: " + now.toISOString()
+          });
+        } catch(e) { /* ignore */ }
+
+        return jsonResponse({ success: true, userId, cardUrl });
       }
 
       default:
@@ -497,4 +571,25 @@ function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── メール正規化（Gmail +alias / ドット除去）────────────────────────
+function normalizeEmail(email) {
+  const lower = email.toLowerCase().trim();
+  const [local, domain] = lower.split("@");
+  const cleanLocal = local.split("+")[0];
+  if (["gmail.com", "googlemail.com"].includes(domain)) {
+    return cleanLocal.replace(/\./g, "") + "@" + domain;
+  }
+  return cleanLocal + "@" + domain;
+}
+
+// ── ランダム英数字 n 文字 ──────────────────────────────────────────
+function generateShortId(n) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < n; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
 }

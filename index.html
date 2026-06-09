@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v4.9";
+      const APP_VERSION = "v4.10";
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -1735,6 +1735,18 @@
                                 キャンセル
                               </button>
                             </div>
+                          </div>
+                        )}
+
+                        {/* 初回登録ウェルカムバナー */}
+                        {isNewUser && (
+                          <div className="mt-5 mx-auto max-w-xs bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+                            <span className="text-lg leading-none mt-0.5">👋</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-bold text-amber-900">ようこそ！</p>
+                              <p className="text-[11px] text-amber-700 mt-0.5">「名刺を編集」から名刺を作り始めましょう</p>
+                            </div>
+                            <button onClick={() => setIsNewUser(false)} className="text-amber-400 hover:text-amber-700 text-sm leading-none mt-0.5">✕</button>
                           </div>
                         )}
 
