@@ -778,6 +778,7 @@
         const [pinSetupMsg, setPinSetupMsg] = useState("");
         const [adminPinInput, setAdminPinInput] = useState("");
         const [adminPinMsg, setAdminPinMsg] = useState("");
+        const [isNewUser, setIsNewUser] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
         const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
@@ -836,6 +837,13 @@
         };
 
         useEffect(() => {
+          // ?new=1 をURLから削除（バナー表示後に不要）
+          if (new URLSearchParams(window.location.search).get('new') === '1') {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('new');
+            const newSearch = params.toString();
+            history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''));
+          }
           loadNamesData(null).then(names => setRegisteredNames(names));
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
