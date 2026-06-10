@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.1"; // タグ未保存警告 + PIN自動送信/待機表示
+      const APP_VERSION = "v5.2"; // タグ例の刷新 + SAVE表記
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -88,6 +88,7 @@
       const FREE_TAG_LIMIT  = 1;
       const PRO_TAG_LIMIT   = 5;
       const TAG_MAX_LEN     = 20;
+      const TAG_PLACEHOLDERS = ["例：all", "例：飲食", "例：トヨタ", "例：DIY", "例：渋谷（地域）"];
       // タグ正規化（GAS側と同一仕様: NFKC → trim → 小文字 → 連続空白を1つに）
       const normalizeTag = (t) => {
         let s = String(t || "");
@@ -1727,7 +1728,7 @@
                                                 </div>
                                                 <input type="text" value={curTags[i] || ""} maxLength={TAG_MAX_LEN}
                                                   onChange={e => { const val = e.target.value; setAdminAllTags(prev => { const n = { ...prev }; const arr = [...(n[editingUrlsName] || [])]; while (arr.length < PRO_TAG_LIMIT) arr.push(""); arr[i] = val; n[editingUrlsName] = arr; return n; }); setAdminTagMsg(""); }}
-                                                  placeholder="例：イベント名、業界など"
+                                                  placeholder={TAG_PLACEHOLDERS[i]}
                                                   className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
                                               </div>
                                             );
@@ -1952,7 +1953,7 @@
                             setMyPin(""); // セッション終了時にPINをメモリから消去
                           };
                           const handleFooterSave = () => {
-                            if (tagsDirty && !window.confirm("タグは未保存です。この「保存」ボタンではタグは保存されません（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグ以外を保存して閉じますか？")) return;
+                            if (tagsDirty && !window.confirm("タグは未保存です。このSAVEボタンではタグは保存されません（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグ以外を保存して閉じますか？")) return;
                             saveUserLinks();
                           };
                           const PRow = ({label, children}) => (
@@ -2270,11 +2271,13 @@
                                 {/* ───── タグタブ ───── */}
                                 {editTab === "tags" && (<>
                                   <p className="text-[10px] text-neutral-500">タグ（{pro ? `最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個`}・各{TAG_MAX_LEN}文字以内）</p>
-                                  <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100">
-                                    同じタグを設定している他のユーザーと、お互いの名刺（表示名とリンク）が見え合うようになります
+                                  <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 space-y-1">
+                                    <p>同じタグを設定している他のユーザーと、お互いの名刺（表示名とリンク）が見え合うようになります</p>
+                                    <p>例：<b>all</b>（全員に公開）、業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）</p>
+                                    <p>※ <b>all</b> は全員に公開したい人が共通で使うタグです（all と入力した人同士で名刺が見え合います）</p>
                                   </div>
                                   <div className="text-[10px] bg-neutral-100 text-neutral-600 px-3 py-2 rounded-xl border border-neutral-200">
-                                    ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。画面下の「保存」ボタンでは保存されません
+                                    ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。画面下のSAVEボタンでは保存されません
                                   </div>
                                   {tagsDirty && (
                                     <div className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2 rounded-xl border border-amber-200 font-semibold animate-pulse">
@@ -2291,7 +2294,7 @@
                                         </div>
                                         <input type="text" value={userEditTags[i] || ""} maxLength={TAG_MAX_LEN}
                                           onChange={e => { if (locked) return; const val = e.target.value; setUserEditTags(prev => { const n = [...prev]; while (n.length < PRO_TAG_LIMIT) n.push(""); n[i] = val; return n; }); setTagSaveMsg(""); }}
-                                          placeholder={locked ? "PROプランで利用可能" : "例：イベント名、業界、趣味など"}
+                                          placeholder={locked ? "PROプランで利用可能" : TAG_PLACEHOLDERS[i]}
                                           disabled={locked}
                                           className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm disabled:bg-neutral-50 disabled:cursor-not-allowed" />
                                       </div>
@@ -2341,7 +2344,7 @@
                               <div className="px-5 py-4 border-t border-neutral-100 flex gap-3 flex-shrink-0">
                                 <button onClick={handleFooterSave}
                                   className={`flex-1 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest active:scale-95 transition-all ${editDirty ? 'bg-amber-500 text-white shadow-md' : 'bg-black text-white hover:bg-neutral-800'}`}>
-                                  {editDirty ? "● 保存する" : "保存"}
+                                  {editDirty ? "● SAVE" : "SAVE"}
                                 </button>
                                 <button onClick={closeEditSheet}
                                   className="px-5 py-3.5 text-[10px] text-neutral-400 hover:text-black rounded-2xl border border-neutral-200 transition-colors">キャンセル</button>
