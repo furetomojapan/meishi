@@ -22,22 +22,32 @@ const SESSION_TTL_MS      = 60 * 60 * 1000; // 60分
 const ADMIN_EMAIL         = "furetomojapan@gmail.com";
 const SITE_URL            = "https://furetomojapan.github.io/meishi/";
 
+// タグ機能
+const FREE_TAG_LIMIT = 1;
+const PRO_TAG_LIMIT  = 5;
+const TAG_MAX_LEN    = 20;
+
 // ── シート初期化 ──────────────────────────────────────────────────
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // users シート（pin・plusG列を追加）
+  // users シート（pin・plusG・publicId・tags列を追加）
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG"]);
-    us.getRange(1,1,1,8).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags"]);
+    us.getRange(1,1,1,10).setFontWeight("bold");
   } else {
-    // 既存シートにpin/plusG列がなければ追加
-    const header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    if (!header.includes("pin"))  us.getRange(1, header.length + 1).setValue("pin");
-    if (!header.includes("plusG")) us.getRange(1, header.length + 2).setValue("plusG");
+    // 既存シートに足りない列があれば追加
+    let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
+    ["pin","plusG","publicId","tags"].forEach(col => {
+      header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
+      if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
+    });
   }
+
+  // 既存ユーザーにpublicIdを発行（未設定の行のみ）
+  migratePublicIds();
 
   // config シート
   let cs = ss.getSheetByName(SHEET_CONFIG);
@@ -161,7 +171,60 @@ function doPost(e) {
         return jsonResponse({ success: true, token });
       }
 
+      // ── タグ操作（PINトークン必須）──────────────────────────────
+
+      case "save_tags": {
+        if (!validateSession(p.name, p.token))
+          return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
+        const plan  = getUserPlan(p.name);
+        const limit = plan === "pro" ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
+        const r = sanitizeTags(p.tags, limit);
+        if (r.error) return jsonResponse({ success: false, error: r.error });
+        if (!setUserTags(p.name, r.tags))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
+        return jsonResponse({ success: true, tags: r.tags });
+      }
+
+      case "get_my_tags": {
+        if (!validateSession(p.name, p.token))
+          return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
+        return jsonResponse({ success: true, tags: getUserTags(p.name) });
+      }
+
+      case "get_users_by_tag": {
+        if (!validateSession(p.name, p.token))
+          return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
+        const tag = normalizeTag(p.tag);
+        if (!tag) return jsonResponse({ success: false, error: "タグを指定してください" });
+        // 本人がそのタグを（プラン上有効な範囲で）持っているか検証
+        const myTags = activeTags(getUserTags(p.name), getUserPlan(p.name));
+        if (!myTags.includes(tag))
+          return jsonResponse({ success: false, error: "このタグはあなたに設定されていません" });
+        return jsonResponse({ success: true, tag, users: findUsersByTag(tag, p.name) });
+      }
+
       // ── 管理者操作（adminPass必須）──────────────────────────────
+
+      case "admin_get_tags": {
+        if (!checkAdminPass(p.adminPass)) return authError();
+        const t = getUsersTable();
+        const all = {};
+        if (t.colTags >= 0) {
+          for (let i = 1; i < t.rows.length; i++) {
+            if (t.rows[i][0]) all[t.rows[i][0]] = parseJson(t.rows[i][t.colTags], []);
+          }
+        }
+        return jsonResponse({ success: true, tags: all });
+      }
+
+      case "admin_save_tags": {
+        if (!checkAdminPass(p.adminPass)) return authError();
+        const r = sanitizeTags(p.tags, PRO_TAG_LIMIT); // 管理者は最大5つまで保存可
+        if (r.error) return jsonResponse({ success: false, error: r.error });
+        if (!setUserTags(p.name, r.tags))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
+        return jsonResponse({ success: true, tags: r.tags });
+      }
 
       case "verify_admin": {
         return jsonResponse({ success: checkAdminPass(p.password) });
@@ -286,8 +349,9 @@ function doPost(e) {
         adminCreateUser(userId);
         if (regSheet) regSheet.appendRow([normalized, email, userId, now.toISOString()]);
 
-        // メール送信
-        const cardUrl = SITE_URL + "?id=" + userId + "&new=1";
+        // メール送信（URLはpublicIdを使用 — メール由来IDを隠す）
+        const newPublicId = getPublicId(userId);
+        const cardUrl = SITE_URL + "?id=" + (newPublicId || userId) + "&new=1";
         try {
           MailApp.sendEmail({
             to: email,
@@ -316,8 +380,8 @@ function doPost(e) {
 
 // ── ユーザーデータ（公開用 — PIN送らない）───────────────────────
 function getAllUsersPublic() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
-  const rows  = sheet.getDataRange().getValues();
+  const t     = getUsersTable();
+  const rows  = t.rows;
   const result = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -330,7 +394,9 @@ function getAllUsersPublic() {
     const profile     = parseJson(row[5], null);
     const hasPinSet   = !!(row[6]);                // PINの有無だけ公開（値は送らない）★
     const plusG       = row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1";
-    result[name] = { displayName, plan, plusG, licenseKey, links, profile, hasPinSet };
+    const publicId    = t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "";
+    // ★ tags は公開しない（列挙防止 — get_users_by_tag 経由のみ）
+    result[name] = { displayName, plan, plusG, licenseKey, links, profile, hasPinSet, publicId };
   }
   return result;
 }
@@ -364,12 +430,16 @@ function saveUserProfile(name, displayName, links, profile) {
 
 // ── 管理者: ユーザー作成 ─────────────────────────────────────────
 function adminCreateUser(name) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
-  const rows  = sheet.getDataRange().getValues();
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === name) return; // 既存
+  const t = getUsersTable();
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) return; // 既存
   }
-  sheet.appendRow([name, "", "", "[]", "free", "", "", false]); // PIN空欄（ユーザーが初回設定）
+  const existing = t.colPublicId >= 0
+    ? new Set(t.rows.slice(1).map(r => String(r[t.colPublicId] || "")).filter(Boolean))
+    : new Set();
+  const publicId = generatePublicId(existing);
+  // PIN空欄（ユーザーが初回設定）、publicId発行、tags空
+  t.sheet.appendRow([name, "", "", "[]", "free", "", "", false, publicId, "[]"]);
 }
 
 // ── 管理者: フル保存 ─────────────────────────────────────────────
@@ -395,8 +465,12 @@ function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin,
     ]]);
     return;
   }
-  // 新規（PINは空欄 — ユーザーが初回設定）
-  sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson, pin ? String(pin) : "", plusGVal]);
+  // 新規（PINは空欄 — ユーザーが初回設定、publicId発行）
+  const t = getUsersTable();
+  const existing = t.colPublicId >= 0
+    ? new Set(t.rows.slice(1).map(r => String(r[t.colPublicId] || "")).filter(Boolean))
+    : new Set();
+  sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson, pin ? String(pin) : "", plusGVal, generatePublicId(existing), "[]"]);
 }
 
 // ── 管理者: プランtoggle ─────────────────────────────────────────
@@ -590,6 +664,132 @@ function generateShortId(n) {
   let result = "";
   for (let i = 0; i < n; i++) {
     result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
+// ── publicId / tags ────────────────────────────────────────────────
+// 列位置はヘッダー名で解決（既存シートの列順差異に対応）
+function getUsersTable() {
+  const sheet  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  const rows   = sheet.getDataRange().getValues();
+  const header = rows[0] || [];
+  return {
+    sheet, rows,
+    colPublicId: header.indexOf("publicId"), // 0-based, -1なら列なし
+    colTags:     header.indexOf("tags")
+  };
+}
+
+function generatePublicId(existingSet) {
+  for (let a = 0; a < 20; a++) {
+    let id = "zz";
+    for (let i = 0; i < 9; i++) id += Math.floor(Math.random() * 10);
+    if (!existingSet || !existingSet.has(id)) return id;
+  }
+  return "zz" + Date.now(); // フォールバック
+}
+
+// publicId未設定の全ユーザー行に発行（initSheetsから呼ばれる）
+function migratePublicIds() {
+  const t = getUsersTable();
+  if (t.colPublicId < 0) return;
+  const existing = new Set(t.rows.slice(1).map(r => String(r[t.colPublicId] || "")).filter(Boolean));
+  for (let i = 1; i < t.rows.length; i++) {
+    if (!t.rows[i][0]) continue;
+    if (!t.rows[i][t.colPublicId]) {
+      const id = generatePublicId(existing);
+      existing.add(id);
+      t.sheet.getRange(i + 1, t.colPublicId + 1).setValue(id);
+    }
+  }
+}
+
+function getPublicId(name) {
+  const t = getUsersTable();
+  if (t.colPublicId < 0) return "";
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) return String(t.rows[i][t.colPublicId] || "");
+  }
+  return "";
+}
+
+// タグ正規化: NFKC → trim → 小文字 → 連続空白を1つに
+function normalizeTag(tag) {
+  let s = String(tag || "");
+  try { s = s.normalize("NFKC"); } catch(e) {}
+  s = s.trim().toLowerCase().replace(/\s+/g, " ");
+  return s;
+}
+
+// 検証込みのタグ配列整形。問題があれば {error} を返す
+function sanitizeTags(rawTags, limit) {
+  if (!Array.isArray(rawTags)) return { error: "tags形式が不正です" };
+  const seen = new Set();
+  const out = [];
+  for (const raw of rawTags) {
+    const tag = normalizeTag(raw);
+    if (!tag) continue;
+    if (tag.length > TAG_MAX_LEN) return { error: "タグは" + TAG_MAX_LEN + "文字以内にしてください: " + tag };
+    if (seen.has(tag)) continue;
+    seen.add(tag);
+    out.push(tag);
+  }
+  if (out.length > limit) return { error: "タグは最大" + limit + "個までです" };
+  return { tags: out };
+}
+
+function getUserTags(name) {
+  const t = getUsersTable();
+  if (t.colTags < 0) return [];
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) return parseJson(t.rows[i][t.colTags], []);
+  }
+  return [];
+}
+
+// tags列のみ更新（他の列には一切触らない）
+function setUserTags(name, tags) {
+  const t = getUsersTable();
+  if (t.colTags < 0) throw new Error("tags列がありません。initSheets()を実行してください");
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) {
+      t.sheet.getRange(i + 1, t.colTags + 1).setValue(JSON.stringify(tags || []));
+      return true;
+    }
+  }
+  return false;
+}
+
+function getUserPlan(name) {
+  const t = getUsersTable();
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) return t.rows[i][4] || "free";
+  }
+  return "free";
+}
+
+// プランに応じて有効なタグだけ返す（FREEは先頭1つ、PROは5つ）
+function activeTags(tags, plan) {
+  const limit = plan === "pro" ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
+  return (tags || []).slice(0, limit);
+}
+
+// 同じタグを持つユーザー一覧（displayName + publicId のみ返す）
+function findUsersByTag(tag, excludeName) {
+  const t = getUsersTable();
+  const result = [];
+  if (t.colTags < 0 || t.colPublicId < 0) return result;
+  for (let i = 1; i < t.rows.length; i++) {
+    const row = t.rows[i];
+    if (!row[0] || row[0] === excludeName) continue;
+    const plan = row[4] || "free";
+    const tags = activeTags(parseJson(row[t.colTags], []), plan);
+    if (!tags.includes(tag)) continue;
+    result.push({
+      displayName: row[1] || "",
+      publicId: String(row[t.colPublicId] || "")
+    });
   }
   return result;
 }
