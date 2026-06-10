@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.7"; // タグ仲間: ランダム5名・並列取得・アンバーボタン
+      const APP_VERSION = "v5.8"; // タグ変更24時間制限 + 仕様説明の表示
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -827,6 +827,7 @@
         const [userEditTags, setUserEditTags] = useState([]);      // 編集中のタグ入力値
         const [mySavedTags, setMySavedTags] = useState([]);        // サーバー保存済みタグ（マッチ検索用）
         const [tagSaveMsg, setTagSaveMsg] = useState("");
+        const [tagNextChange, setTagNextChange] = useState(0); // 次にタグ変更できる時刻(ms)。0=制限なし
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -1069,10 +1070,11 @@
             if (t.length > TAG_MAX_LEN) { setTagSaveMsg(`タグは${TAG_MAX_LEN}文字以内にしてください`); return; }
             seen.add(t); cleaned.push(t);
           }
-          // プライバシー確認（初回のみ）
-          if (cleaned.length > 0 && !localStorage.getItem('meisi_tag_consent')) {
-            if (!window.confirm("タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。よろしいですか？")) return;
-            localStorage.setItem('meisi_tag_consent', '1');
+          // 保存前の確認（毎回表示）
+          if (cleaned.length > 0) {
+            if (!window.confirm("タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。\n保存後24時間はタグを変更できません（削除はいつでも可能）。よろしいですか？")) return;
+          } else if (mySavedTags.length > 0) {
+            if (!window.confirm("タグをすべて削除しますか？（削除はいつでも可能です）")) return;
           }
           if (!GAS_READY) { setTagSaveMsg("オフラインのため保存できません"); return; }
           setTagSaveMsg("保存中…");
@@ -1081,10 +1083,14 @@
             if (r.success) {
               setMySavedTags(r.tags || []);
               setUserEditTags(r.tags || []);
+              setTagNextChange(r.nextChangeAt || 0);
               setShowCardTags(false); setCardTagMatches(null); // 次回開いた時に再取得
               setTagSaveMsg("✓ タグを保存しました。カード画面の「タグ仲間」ボタンから確認できます");
               setTimeout(() => setTagSaveMsg(""), 5000);
-            } else { setTagSaveMsg(r.error || "エラーが発生しました"); }
+            } else {
+              if (r.nextChangeAt) setTagNextChange(r.nextChangeAt);
+              setTagSaveMsg(r.error || "エラーが発生しました");
+            }
           } catch { setTagSaveMsg("通信エラー"); }
         };
 
@@ -1095,7 +1101,7 @@
           if (!tok || !GAS_READY) return null;
           try {
             const r = await gasPost({ action:"get_my_tags", name:variablePart, token:tok });
-            if (r.success) return { token: tok, tags: r.tags || [] };
+            if (r.success) return { token: tok, tags: r.tags || [], nextChangeAt: r.nextChangeAt || 0 };
           } catch { return null; } // 通信エラー時はトークンを消さない
           localStorage.removeItem(tokenKey(variablePart)); // 無効・期限切れ
           return null;
@@ -1158,7 +1164,7 @@
             const st = await tryStoredToken();
             if (st) {
               setPinAuthToken(st.token);
-              setMySavedTags(st.tags); setUserEditTags(st.tags);
+              setMySavedTags(st.tags); setUserEditTags(st.tags); setTagNextChange(st.nextChangeAt || 0);
               gasPost({ action:"get_my_pin", name:variablePart, token:st.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
               openUserEditDirect();
               setEditOpening(false);
@@ -1207,7 +1213,7 @@
                 gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
                 // 自分のタグを取得
                 gasPost({ action:"get_my_tags", name:variablePart, token:r.token }).then(tr => {
-                  if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); }
+                  if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); setTagNextChange(tr.nextChangeAt || 0); }
                 });
                 openUserEditDirect();
               }
@@ -1805,7 +1811,7 @@
                                             <p>※ <b>all</b> は全員に公開したい人が共通で使うタグです（all と入力した人同士で見え合います）</p>
                                           </div>
                                           <div className="text-[10px] bg-neutral-800 text-neutral-400 px-3 py-2 rounded-xl border border-neutral-700">
-                                            ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。一番下のSaveボタンでは保存されません
+                                            ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。一番下のSaveボタンでは保存されません。ユーザーのタグ変更は24時間に1回ですが、<b>管理者の保存は制限対象外</b>です
                                           </div>
                                           {adminTagsDirty && (
                                             <div className="text-[10px] bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/30 font-semibold animate-pulse">
@@ -2039,6 +2045,7 @@
                               <p className="text-[10px] text-neutral-700 font-semibold uppercase tracking-widest">タグ仲間の名刺</p>
                               <button onClick={() => setShowCardTags(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
                             </div>
+                            <p className="text-[10px] text-neutral-400">同じタグを設定している人の中から、開くたびにランダムで最大{TAG_FRIENDS_DISPLAY}名まで表示されます（毎回顔ぶれが変わります）</p>
                             {Object.keys(cardTagMatches).length === 0 && (
                               <p className="text-[10px] text-neutral-400">タグが設定されていません。「名刺を編集」のタグタブから設定できます</p>
                             )}
@@ -2404,10 +2411,16 @@
                                     <p>同じタグを設定している他のユーザーと、お互いの名刺（表示名とリンク）が見え合うようになります</p>
                                     <p>例：<b>all</b>（全員に公開）、業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）</p>
                                     <p>※ <b>all</b> は全員に公開したい人が共通で使うタグです（all と入力した人同士で名刺が見え合います）</p>
+                                    <p>※ タグ仲間には、同じタグの人の中から開くたびにランダムで最大5名まで表示されます</p>
                                   </div>
                                   <div className="text-[10px] bg-neutral-100 text-neutral-600 px-3 py-2 rounded-xl border border-neutral-200">
-                                    ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。画面下のSAVEボタンでは保存されません
+                                    ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。画面下のSAVEボタンでは保存されません。保存後<b>24時間</b>はタグを変更できません（削除はいつでも可能）
                                   </div>
+                                  {tagNextChange > Date.now() && (
+                                    <div className="text-[10px] bg-red-50 text-red-500 px-3 py-2 rounded-xl border border-red-100 font-semibold">
+                                      🔒 次のタグ変更まで 残り約{Math.ceil((tagNextChange - Date.now()) / (60 * 60 * 1000))}時間（削除はいつでも可能）
+                                    </div>
+                                  )}
                                   {tagsDirty && (
                                     <div className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2 rounded-xl border border-amber-200 font-semibold animate-pulse">
                                       ● 入力中のタグはまだ保存されていません

@@ -23,9 +23,10 @@ const ADMIN_EMAIL         = "furetomojapan@gmail.com";
 const SITE_URL            = "https://furetomojapan.github.io/meishi/";
 
 // タグ機能
-const FREE_TAG_LIMIT = 1;
-const PRO_TAG_LIMIT  = 5;
-const TAG_MAX_LEN    = 20;
+const FREE_TAG_LIMIT  = 1;
+const PRO_TAG_LIMIT   = 5;
+const TAG_MAX_LEN     = 20;
+const TAG_COOLDOWN_MS = 24 * 60 * 60 * 1000; // タグ変更は24時間に1回（全削除は対象外）
 
 // ── シート初期化 ──────────────────────────────────────────────────
 function initSheets() {
@@ -35,12 +36,12 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags"]);
-    us.getRange(1,1,1,10).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt"]);
+    us.getRange(1,1,1,11).setFontWeight("bold");
   } else {
     // 既存シートに足りない列があれば追加
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
@@ -183,15 +184,33 @@ function doPost(e) {
         const limit = plan === "pro" ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
         const r = sanitizeTags(p.tags, limit);
         if (r.error) return jsonResponse({ success: false, error: r.error });
+        const nowMs = Date.now();
+        // 24時間クールダウン（タグありの保存のみ。全削除はいつでも可能）
+        if (r.tags.length > 0) {
+          const last = getTagsUpdatedAt(p.name);
+          if (last && (nowMs - last) < TAG_COOLDOWN_MS) {
+            const hoursLeft = Math.ceil((TAG_COOLDOWN_MS - (nowMs - last)) / (60 * 60 * 1000));
+            return jsonResponse({
+              success: false,
+              error: "タグは保存後24時間変更できません。次に変更できるのは約" + hoursLeft + "時間後です（削除はいつでも可能）",
+              nextChangeAt: last + TAG_COOLDOWN_MS
+            });
+          }
+        }
         if (!setUserTags(p.name, r.tags))
           return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
-        return jsonResponse({ success: true, tags: r.tags });
+        if (r.tags.length > 0) setTagsUpdatedAt(p.name, nowMs);
+        const last2 = getTagsUpdatedAt(p.name);
+        const next  = last2 ? last2 + TAG_COOLDOWN_MS : 0;
+        return jsonResponse({ success: true, tags: r.tags, nextChangeAt: next > Date.now() ? next : 0 });
       }
 
       case "get_my_tags": {
         if (!validateSession(p.name, p.token))
           return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
-        return jsonResponse({ success: true, tags: getUserTags(p.name) });
+        const lastUpd = getTagsUpdatedAt(p.name);
+        const nextChg = lastUpd ? lastUpd + TAG_COOLDOWN_MS : 0;
+        return jsonResponse({ success: true, tags: getUserTags(p.name), nextChangeAt: nextChg > Date.now() ? nextChg : 0 });
       }
 
       case "get_users_by_tag": {
@@ -687,9 +706,36 @@ function getUsersTable() {
   const header = rows[0] || [];
   return {
     sheet, rows,
-    colPublicId: header.indexOf("publicId"), // 0-based, -1なら列なし
-    colTags:     header.indexOf("tags")
+    colPublicId:     header.indexOf("publicId"), // 0-based, -1なら列なし
+    colTags:         header.indexOf("tags"),
+    colTagsUpdated:  header.indexOf("tagsUpdatedAt")
   };
+}
+
+// タグ最終保存日時（ms）を取得。未設定・列なしは 0
+function getTagsUpdatedAt(name) {
+  const t = getUsersTable();
+  if (t.colTagsUpdated < 0) return 0;
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) {
+      const v = t.rows[i][t.colTagsUpdated];
+      if (!v) return 0;
+      const ms = new Date(v).getTime();
+      return isNaN(ms) ? 0 : ms;
+    }
+  }
+  return 0;
+}
+
+function setTagsUpdatedAt(name, ms) {
+  const t = getUsersTable();
+  if (t.colTagsUpdated < 0) return;
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) {
+      t.sheet.getRange(i + 1, t.colTagsUpdated + 1).setValue(new Date(ms).toISOString());
+      return;
+    }
+  }
 }
 
 function generatePublicId(existingSet) {
