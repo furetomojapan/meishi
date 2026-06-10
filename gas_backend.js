@@ -128,7 +128,8 @@ function doPost(e) {
         // plan・plusG・pinは変更不可
         if (!validateSession(p.name, p.token))
           return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
-        saveUserProfile(p.name, p.displayName, p.links, p.profile);
+        if (!saveUserProfile(p.name, p.displayName, p.links, p.profile))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
         return jsonResponse({ success: true });
       }
 
@@ -164,6 +165,8 @@ function doPost(e) {
         // PINが未設定のユーザーだけが使えるアクション（初回設定用）
         if (!p.name || !p.pin || !/^\d{6}$/.test(String(p.pin)))
           return jsonResponse({ success: false, error: "6桁の数字で入力してください" });
+        if (!userExists(p.name))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません。ページを再読み込みしてください" });
         const currentPin = getUserPin(p.name);
         if (currentPin) return jsonResponse({ success: false, error: "PINは既に設定されています" });
         setUserPin(p.name, String(p.pin));
@@ -424,8 +427,9 @@ function saveUserProfile(name, displayName, links, profile) {
     sheet.getRange(i+1, 2).setValue(displayName || "");  // displayName
     sheet.getRange(i+1, 4).setValue(linksJson);           // links
     sheet.getRange(i+1, 6).setValue(profileJson);         // profile
-    return;
+    return true;
   }
+  return false; // ユーザーが見つからない
 }
 
 // ── 管理者: ユーザー作成 ─────────────────────────────────────────
@@ -496,6 +500,17 @@ function adminTogglePlusG(name) {
     const newVal = !cur;
     sheet.getRange(i+1, 8).setValue(newVal);
     return newVal;
+  }
+  return false;
+}
+
+// ── ユーザー存在確認 ─────────────────────────────────────────────
+function userExists(name) {
+  if (!name) return false;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === name) return true;
   }
   return false;
 }

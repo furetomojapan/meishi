@@ -888,6 +888,10 @@
                       if (prev[k]?.hasPinSet && !merged[k]?.hasPinSet) {
                         merged[k] = { ...merged[k], hasPinSet: true };
                       }
+                      // publicId: GAS未再デプロイでも保持
+                      if (prev[k]?.publicId && !merged[k]?.publicId) {
+                        merged[k] = { ...merged[k], publicId: prev[k].publicId };
+                      }
                     });
                     localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
                     // GASユーザーリストでregisteredNamesも更新
@@ -1076,6 +1080,12 @@
           setTagMatchLoading("");
         };
         const openUserEdit = async () => {
+          // publicId（zz+9桁）が内部名に未解決のまま編集に入ると、存在しないID宛に
+          // PIN設定・保存が走ってしまうためブロック
+          if (/^zz\d{9}$/.test(variablePart) && !urlsData[variablePart]) {
+            window.alert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
+            return;
+          }
           if (!GAS_READY) { openUserEditDirect(); return; }
           try {
             const r = await gasPost({ action:"check_pin_set", name:variablePart });
@@ -1156,7 +1166,8 @@
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
           const effectiveDisplayName = userEditDisplayName || (!isPro(pd) && userEditProfile.name ? userEditProfile.name : "");
-          const personObj = { displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile, pin: pd.pin || "" };
+          // ...pd で hasPinSet / publicId / plusG 等の既存フィールドを保持（上書き消失防止）
+          const personObj = { ...pd, displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile, pin: pd.pin || "" };
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
@@ -1183,7 +1194,8 @@
           const links = personIsPro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...existingLinks.slice(FREE_LINK_LIMIT)];
-          const personObj = { displayName, plan: pd.plan || "free", links, profile: profile || pd.profile, pin: pd.pin || "" };
+          // ...pd で hasPinSet / publicId 等の既存フィールドを保持（上書き消失防止）
+          const personObj = { ...pd, displayName, plan: pd.plan || "free", links, profile: profile || pd.profile, pin: pd.pin || "" };
           const newData = { ...urlsData, [name]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
