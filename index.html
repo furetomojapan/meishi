@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.6"; // 端末記憶（PIN省略30日）+ タグ仲間ボタン
+      const APP_VERSION = "v5.7"; // タグ仲間: ランダム5名・並列取得・アンバーボタン
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -827,8 +827,6 @@
         const [userEditTags, setUserEditTags] = useState([]);      // 編集中のタグ入力値
         const [mySavedTags, setMySavedTags] = useState([]);        // サーバー保存済みタグ（マッチ検索用）
         const [tagSaveMsg, setTagSaveMsg] = useState("");
-        const [tagMatches, setTagMatches] = useState({});           // { tag: [{displayName, publicId}] }
-        const [tagMatchLoading, setTagMatchLoading] = useState(""); // ロード中のタグ名
 
         const showToast = (status, ms=3000) => {
           setToast(status);
@@ -1055,7 +1053,7 @@
           setUserEditProfile(newProf);
           setEditOrigJSON(JSON.stringify(newProf) + JSON.stringify(padded));
           setEditTab("info");
-          setTagSaveMsg(""); setTagMatches({}); setTagMatchLoading("");
+          setTagSaveMsg("");
           setShowUserEdit(true);
         };
 
@@ -1083,24 +1081,13 @@
             if (r.success) {
               setMySavedTags(r.tags || []);
               setUserEditTags(r.tags || []);
-              setTagMatches({});
-              setTagSaveMsg("✓ タグを保存しました");
-              setTimeout(() => setTagSaveMsg(""), 3000);
+              setShowCardTags(false); setCardTagMatches(null); // 次回開いた時に再取得
+              setTagSaveMsg("✓ タグを保存しました。カード画面の「タグ仲間」ボタンから確認できます");
+              setTimeout(() => setTagSaveMsg(""), 5000);
             } else { setTagSaveMsg(r.error || "エラーが発生しました"); }
           } catch { setTagSaveMsg("通信エラー"); }
         };
 
-        /* ── 同じタグの名刺を検索 ── */
-        const loadTagMatches = async (tag) => {
-          if (!GAS_READY) return;
-          setTagMatchLoading(tag);
-          try {
-            const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token:pinAuthToken, tag });
-            if (r.success) setTagMatches(prev => ({ ...prev, [tag]: shuffleArr(r.users || []) }));
-            else setTagSaveMsg(r.error || "取得に失敗しました");
-          } catch { setTagSaveMsg("通信エラー"); }
-          setTagMatchLoading("");
-        };
         /* ── 端末記憶トークン（30日セッション） ── */
         const tokenKey = (name) => 'meisi_token_' + name;
         const tryStoredToken = async () => {
@@ -1120,18 +1107,18 @@
           setTimeout(() => setDeviceMemMsg(""), 4000);
         };
 
-        /* ── カード画面: タグ仲間の一覧 ── */
+        /* ── カード画面: タグ仲間の一覧（並列取得・各タグランダム5名まで） ── */
+        const TAG_FRIENDS_DISPLAY = 5;
         const loadCardTagMatches = async (token, tags) => {
           const pd = getPersonData(urlsData, variablePart);
           const active = (tags || []).slice(0, isPro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
-          const result = {};
-          for (const tag of active) {
+          const entries = await Promise.all(active.map(async (tag) => {
             try {
               const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token, tag });
-              result[tag] = r.success ? shuffleArr(r.users || []) : [];
-            } catch { result[tag] = []; }
-          }
-          setCardTagMatches(result);
+              return [tag, r.success ? shuffleArr(r.users || []).slice(0, TAG_FRIENDS_DISPLAY) : []];
+            } catch { return [tag, []]; }
+          }));
+          setCardTagMatches(Object.fromEntries(entries));
           setShowCardTags(true);
         };
         const openTagFriends = async () => {
@@ -2035,7 +2022,7 @@
                             {editOpening ? "読み込み中…" : "名刺を編集"}
                           </button>
                           <button onClick={openTagFriends} disabled={cardTagBusy}
-                            className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-full px-4 py-2 ${cardTagBusy ? 'text-neutral-300 border-neutral-100 cursor-wait' : showCardTags ? 'text-white bg-neutral-800 border-neutral-800' : 'text-neutral-500 hover:text-black border-neutral-200 hover:border-black'}`}>
+                            className={`flex items-center gap-1.5 text-[11px] font-semibold transition-all active:scale-95 border rounded-full px-4 py-2 shadow-sm ${cardTagBusy ? 'bg-amber-200 text-amber-600 border-amber-200 cursor-wait' : showCardTags ? 'bg-amber-500 text-black border-amber-500' : 'bg-amber-400 text-black border-amber-400 hover:bg-amber-300'}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                             {cardTagBusy ? "読み込み中…" : "タグ仲間"}
                           </button>
@@ -2447,37 +2434,6 @@
                                     {tagsDirty ? "● タグを保存する" : "タグを保存"}
                                   </button>
                                   {tagSaveMsg && <p className={`text-[10px] mt-1 ${tagSaveMsg.startsWith("✓") ? 'text-green-500' : 'text-red-500'}`}>{tagSaveMsg}</p>}
-
-                                  {/* 同じタグの名刺一覧 */}
-                                  {mySavedTags.slice(0, tagLimit).length > 0 && (
-                                    <div className="border-t border-neutral-100 pt-4 space-y-3">
-                                      <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">同じタグの名刺</p>
-                                      {mySavedTags.slice(0, tagLimit).map(tag => (
-                                        <div key={tag} className="space-y-2">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full font-semibold"># {tag}</span>
-                                            <button onClick={() => loadTagMatches(tag)} disabled={tagMatchLoading === tag}
-                                              className="text-[10px] text-neutral-400 hover:text-black underline underline-offset-2 disabled:opacity-40">
-                                              {tagMatchLoading === tag ? "検索中…" : (tagMatches[tag] ? "再読み込み" : "名刺を見る")}
-                                            </button>
-                                          </div>
-                                          {tagMatches[tag] && (
-                                            tagMatches[tag].length === 0
-                                              ? <p className="text-[10px] text-neutral-400 pl-1">同じタグのユーザーはまだいません</p>
-                                              : <div className="space-y-1.5">
-                                                  {tagMatches[tag].map((u, j) => (
-                                                    <a key={j} href={`${getSiteBase()}#${u.publicId}`} target="_blank" rel="noopener noreferrer"
-                                                      className="flex items-center justify-between px-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-100 rounded-xl transition-colors">
-                                                      <span className="text-xs text-neutral-700 font-medium">{u.displayName || "（名前未設定）"}</span>
-                                                      <span className="text-[9px] text-neutral-400 font-mono">名刺を開く →</span>
-                                                    </a>
-                                                  ))}
-                                                </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
                                 </>)}
 
                               </div>{/* /スクロール領域 */}
