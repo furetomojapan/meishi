@@ -18,7 +18,7 @@ const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
 const SHEET_SESSIONS      = "sessions";
 const SHEET_REGISTRATIONS = "registrations";
-const SESSION_TTL_MS      = 60 * 60 * 1000; // 60分
+const SESSION_TTL_MS      = 30 * 24 * 60 * 60 * 1000; // 30日（端末記憶用）
 const ADMIN_EMAIL         = "furetomojapan@gmail.com";
 const SITE_URL            = "https://furetomojapan.github.io/meishi/";
 
@@ -564,11 +564,7 @@ function generateToken() {
 function createSession(name) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESSIONS);
   cleanExpiredSessions(sheet);
-  // 同一ユーザーの既存セッションを削除
-  const rows = sheet.getDataRange().getValues();
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rows[i][0] === name) sheet.deleteRow(i+1);
-  }
+  // 複数端末対応: 同一ユーザーの既存セッションは削除しない（期限切れのみ掃除）
   const token     = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   sheet.appendRow([name, token, expiresAt]);

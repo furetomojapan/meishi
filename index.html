@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.5"; // ☆STORE☆ボタン（全プラン表示）
+      const APP_VERSION = "v5.6"; // 端末記憶（PIN省略30日）+ タグ仲間ボタン
       const GH_REPO = "furetomojapan/meishi";
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -89,6 +89,15 @@
       const PRO_TAG_LIMIT   = 5;
       const TAG_MAX_LEN     = 20;
       const TAG_PLACEHOLDERS = ["例：all", "例：飲食", "例：トヨタ", "例：DIY", "例：渋谷（地域）"];
+      // Fisher-Yates シャッフル（マッチ一覧のランダム表示用）
+      const shuffleArr = (arr) => {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
       // タグ正規化（GAS側と同一仕様: NFKC → trim → 小文字 → 連続空白を1つに）
       const normalizeTag = (t) => {
         let s = String(t || "");
@@ -790,6 +799,11 @@
         const [adminPinMsg, setAdminPinMsg] = useState("");
         const [pinBusy, setPinBusy] = useState(false);        // PIN検証/設定の通信中
         const [editOpening, setEditOpening] = useState(false); // 編集パネルを開く準備中
+        const [pinModalPurpose, setPinModalPurpose] = useState("edit"); // "edit" | "tags"
+        const [showCardTags, setShowCardTags] = useState(false);   // カード画面のタグ仲間セクション
+        const [cardTagMatches, setCardTagMatches] = useState(null); // { tag: users[] }
+        const [cardTagBusy, setCardTagBusy] = useState(false);
+        const [deviceMemMsg, setDeviceMemMsg] = useState("");
         const [isNewUser, setIsNewUser] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
@@ -1082,11 +1096,66 @@
           setTagMatchLoading(tag);
           try {
             const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token:pinAuthToken, tag });
-            if (r.success) setTagMatches(prev => ({ ...prev, [tag]: r.users || [] }));
+            if (r.success) setTagMatches(prev => ({ ...prev, [tag]: shuffleArr(r.users || []) }));
             else setTagSaveMsg(r.error || "取得に失敗しました");
           } catch { setTagSaveMsg("通信エラー"); }
           setTagMatchLoading("");
         };
+        /* ── 端末記憶トークン（30日セッション） ── */
+        const tokenKey = (name) => 'meisi_token_' + name;
+        const tryStoredToken = async () => {
+          const tok = localStorage.getItem(tokenKey(variablePart));
+          if (!tok || !GAS_READY) return null;
+          try {
+            const r = await gasPost({ action:"get_my_tags", name:variablePart, token:tok });
+            if (r.success) return { token: tok, tags: r.tags || [] };
+          } catch { return null; } // 通信エラー時はトークンを消さない
+          localStorage.removeItem(tokenKey(variablePart)); // 無効・期限切れ
+          return null;
+        };
+        const forgetDevice = () => {
+          localStorage.removeItem(tokenKey(variablePart));
+          setPinAuthToken(null);
+          setDeviceMemMsg("✓ この端末の記憶を消しました。次回からPIN入力が必要です");
+          setTimeout(() => setDeviceMemMsg(""), 4000);
+        };
+
+        /* ── カード画面: タグ仲間の一覧 ── */
+        const loadCardTagMatches = async (token, tags) => {
+          const pd = getPersonData(urlsData, variablePart);
+          const active = (tags || []).slice(0, isPro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
+          const result = {};
+          for (const tag of active) {
+            try {
+              const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token, tag });
+              result[tag] = r.success ? shuffleArr(r.users || []) : [];
+            } catch { result[tag] = []; }
+          }
+          setCardTagMatches(result);
+          setShowCardTags(true);
+        };
+        const openTagFriends = async () => {
+          if (cardTagBusy) return;
+          if (showCardTags) { setShowCardTags(false); return; } // 開いていれば閉じる
+          if (/^zz\d{9}$/.test(variablePart) && !urlsData[variablePart]) {
+            window.alert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
+            return;
+          }
+          setCardTagBusy(true);
+          try {
+            const st = await tryStoredToken();
+            if (st) {
+              setPinAuthToken(st.token);
+              await loadCardTagMatches(st.token, st.tags);
+            } else {
+              // 記憶なし → PIN認証（成功後にタグ仲間を表示）
+              setPinModalPurpose("tags");
+              setPinInput(""); setPinError(""); setPinBusy(false); setShowPinModal(true);
+            }
+          } catch {}
+          setCardTagBusy(false);
+        };
+
         const openUserEdit = async () => {
           // publicId（zz+9桁）が内部名に未解決のまま編集に入ると、存在しないID宛に
           // PIN設定・保存が走ってしまうためブロック
@@ -1097,6 +1166,19 @@
           if (!GAS_READY) { openUserEditDirect(); return; }
           if (editOpening) return;
           setEditOpening(true);
+          // 端末記憶トークンがあればPIN入力をスキップ
+          try {
+            const st = await tryStoredToken();
+            if (st) {
+              setPinAuthToken(st.token);
+              setMySavedTags(st.tags); setUserEditTags(st.tags);
+              gasPost({ action:"get_my_pin", name:variablePart, token:st.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
+              openUserEditDirect();
+              setEditOpening(false);
+              return;
+            }
+          } catch {}
+          setPinModalPurpose("edit");
           try {
             const r = await gasPost({ action:"check_pin_set", name:variablePart });
             if (r.hasPinSet) {
@@ -1126,15 +1208,22 @@
           if (GAS_READY) {
             const r = await gasPost({ action:"verify_pin", name:variablePart, pin });
             if (r.success) {
+              localStorage.setItem(tokenKey(variablePart), r.token); // 端末に30日記憶
               setPinAuthToken(r.token);
               setShowPinModal(false); setPinInput(""); setPinError("");
-              // 認証済みセッションでPINを取得して表示用に保持
-              gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
-              // 自分のタグを取得
-              gasPost({ action:"get_my_tags", name:variablePart, token:r.token }).then(tr => {
-                if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); }
-              });
-              openUserEditDirect();
+              if (pinModalPurpose === "tags") {
+                // タグ仲間表示が目的 → 編集パネルは開かずに一覧表示
+                const tr = await gasPost({ action:"get_my_tags", name:variablePart, token:r.token });
+                await loadCardTagMatches(r.token, tr.success ? (tr.tags || []) : []);
+              } else {
+                // 認証済みセッションでPINを取得して表示用に保持
+                gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
+                // 自分のタグを取得
+                gasPost({ action:"get_my_tags", name:variablePart, token:r.token }).then(tr => {
+                  if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); }
+                });
+                openUserEditDirect();
+              }
             } else { setPinError("PINが違います"); setPinInput(""); }
           } else {
             // fallback: local check
@@ -1157,6 +1246,7 @@
           try {
             const r = await gasPost({ action:"set_initial_pin", name:variablePart, pin:pinVal });
             if (r.success) {
+              localStorage.setItem(tokenKey(variablePart), r.token); // 端末に30日記憶
               setPinAuthToken(r.token);
               setMyPin(pinVal); // 設定したPINを表示用に保持
               setMySavedTags([]); setUserEditTags([]);
@@ -1224,7 +1314,7 @@
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
           setShowUserEdit(false);
           setEditOrigJSON(null);
-          setPinAuthToken(null); // トークンをクリア
+          // トークンは破棄しない（端末記憶で30日有効 — 「この端末の記憶を消す」で破棄可能）
           showToast("saving", 15000);
           try {
             if (GAS_READY) {
@@ -1944,11 +2034,43 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             {editOpening ? "読み込み中…" : "名刺を編集"}
                           </button>
+                          <button onClick={openTagFriends} disabled={cardTagBusy}
+                            className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-full px-4 py-2 ${cardTagBusy ? 'text-neutral-300 border-neutral-100 cursor-wait' : showCardTags ? 'text-white bg-neutral-800 border-neutral-800' : 'text-neutral-500 hover:text-black border-neutral-200 hover:border-black'}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                            {cardTagBusy ? "読み込み中…" : "タグ仲間"}
+                          </button>
                           <a href={STORES_URL} target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black hover:bg-neutral-800 active:scale-95 transition-all rounded-full px-4 py-2">
                             ☆STORE☆
                           </a>
                         </div>
+
+                        {/* タグ仲間の名刺一覧（カード画面・編集パネル不要） */}
+                        {showCardTags && cardTagMatches && (
+                          <div className="mt-5 mx-auto max-w-sm bg-white border border-neutral-100 rounded-2xl p-4 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] text-neutral-700 font-semibold uppercase tracking-widest">タグ仲間の名刺</p>
+                              <button onClick={() => setShowCardTags(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
+                            </div>
+                            {Object.keys(cardTagMatches).length === 0 && (
+                              <p className="text-[10px] text-neutral-400">タグが設定されていません。「名刺を編集」のタグタブから設定できます</p>
+                            )}
+                            {Object.entries(cardTagMatches).map(([tag, users]) => (
+                              <div key={tag} className="space-y-1.5">
+                                <span className="inline-block text-[10px] bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full font-semibold"># {tag}</span>
+                                {users.length === 0
+                                  ? <p className="text-[10px] text-neutral-400 pl-1">同じタグのユーザーはまだいません</p>
+                                  : users.map((u, j) => (
+                                      <a key={j} href={`${getSiteBase()}#${u.publicId}`} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center justify-between px-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-100 rounded-xl transition-colors">
+                                        <span className="text-xs text-neutral-700 font-medium">{u.displayName || "（名前未設定）"}</span>
+                                        <span className="text-[9px] text-neutral-400 font-mono">名刺を開く →</span>
+                                      </a>
+                                    ))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {/* ユーザーリンク編集モーダル（ボトムシート） */}
                         {showUserEdit && (() => {
@@ -2028,6 +2150,14 @@
                                       className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">変更</button>
                                   </div>
                                   {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                </div>
+                                {/* この端末の記憶 */}
+                                <div className="border-t border-neutral-100 pt-3">
+                                  <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest mb-1">この端末の記憶</p>
+                                  <p className="text-[10px] text-neutral-400 mb-2">PIN認証は30日間この端末に記憶され、次回からPIN入力なしで編集・タグ仲間の閲覧ができます。共有端末では下のボタンで記憶を消してください</p>
+                                  <button onClick={forgetDevice}
+                                    className="px-4 py-2 bg-neutral-100 text-neutral-600 rounded-xl text-[10px] font-bold hover:bg-red-50 hover:text-red-500 border border-neutral-200 hover:border-red-200 transition-all">この端末の記憶を消す</button>
+                                  {deviceMemMsg && <p className="text-[10px] text-green-500 mt-1">{deviceMemMsg}</p>}
                                 </div>
                                 {/* 名刺テキスト入力（情報タブ） */}
                                 {(()=>{return(<>
