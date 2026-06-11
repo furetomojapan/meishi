@@ -700,6 +700,80 @@
       }
 
       /* ── メインアプリ ── */
+      /* ── プロフィール文字入力フォーム（ユーザー編集/管理者編集 共通）──
+         フェーズ3: 二重実装を統合。dark=true で管理画面（黒）テーマ。
+         ここを変更すれば両画面に反映される（個別修正は不要） */
+      function ProfileTextFields({ profile, setProfile, dark }) {
+        const labelCls = `text-[9px] uppercase tracking-widest mb-1 ${dark ? 'text-neutral-400' : 'text-neutral-500'}`;
+        const inputCls = dark
+          ? "w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600"
+          : "w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm";
+        const dividerCls = dark ? 'border-neutral-800' : 'border-neutral-100';
+        const noteCls = dark
+          ? "text-[10px] bg-blue-500/10 text-blue-300 px-3 py-2 rounded-xl border border-blue-500/20"
+          : "text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100";
+        const set = (key) => (e) => { const v = e.target.value; setProfile(p => ({ ...p, [key]: v })); };
+        const ff = (fontKey) => ({ fontFamily: FONT_OPTIONS[profile[fontKey] ?? 0]?.value });
+        return (<>
+          {/* 会社名 */}
+          <div className={`border-t ${dividerCls} pt-3`}>
+            <p className={labelCls}>会社名</p>
+            <input type="text" value={profile.company||""} onChange={set('company')}
+              placeholder="例：株式会社〇〇" style={ff('companyFont')} className={inputCls} />
+          </div>
+          {/* 肩書き */}
+          <div>
+            <p className={labelCls}>肩書き</p>
+            <input type="text" value={profile.title||""} onChange={set('title')}
+              placeholder="例：代表取締役 / エンジニア" style={ff('titleFont')} className={inputCls} />
+          </div>
+          {/* 名前 */}
+          <div>
+            <p className={labelCls}>名前</p>
+            <textarea rows={3} value={profile.name||""} onChange={set('name')}
+              placeholder="例：鈴木 一郎" style={{resize:"none", ...ff('nameFont')}} className={inputCls} />
+          </div>
+          {/* 住所 */}
+          <div>
+            <p className={labelCls}>住所</p>
+            <input type="text" value={profile.address||""} onChange={set('address')}
+              placeholder="例：東京都渋谷区〇〇1-2-3" style={ff('addressFont')} className={inputCls} />
+          </div>
+          {/* 電話番号 */}
+          <div>
+            <p className={labelCls}>電話番号</p>
+            <input type="tel" value={profile.phone||""} onChange={set('phone')}
+              placeholder="例：090-1234-5678" style={ff('phoneFont')} className={inputCls} />
+          </div>
+          {/* タグ仲間向けの連絡先（任意） */}
+          <div className={`border-t ${dividerCls} pt-3 space-y-2`}>
+            <p className={labelCls}>タグ仲間に見せる連絡先（任意）</p>
+            <p className={noteCls}>タグ仲間から名刺を開いた人には、上の電話番号・住所の代わりに<b>ここに入力した内容だけ</b>が表示されます。<b>空欄ならその項目は表示されません</b>。QRコードやURLを直接渡した相手には、これまで通り上の連絡先が表示されます</p>
+            <div>
+              <p className={labelCls}>タグ用 住所</p>
+              <input type="text" value={profile.tagAddress||""} onChange={set('tagAddress')}
+                placeholder="例：東京都渋谷区（市区まで等。空欄=非表示）" className={inputCls} />
+            </div>
+            <div>
+              <p className={labelCls}>タグ用 電話番号</p>
+              <input type="tel" value={profile.tagPhone||""} onChange={set('tagPhone')}
+                placeholder="例：会社の代表番号（空欄=非表示）" className={inputCls} />
+            </div>
+          </div>
+          {/* 裏面アピール */}
+          <div className={`border-t ${dividerCls} pt-3`}>
+            <p className={`${labelCls} mb-2`}>裏面アピール（4つ）</p>
+            {[0,1,2,3].map(i => (
+              <input key={i} type="text" value={profile.appeals?.[i]||""}
+                onChange={e => { const v=e.target.value; setProfile(p => { const a=[...(p.appeals||["","","",""])]; a[i]=v; return {...p,appeals:a}; }); }}
+                placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
+                style={{fontFamily:FONT_OPTIONS[profile.appealFonts?.[i]??0]?.value}}
+                className={`${inputCls} mb-2`} />
+            ))}
+          </div>
+        </>);
+      }
+
       function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
         const [adminSearch, setAdminSearch] = useState("");
@@ -1540,71 +1614,8 @@
                                               placeholder="例：鈴木 一郎"
                                               className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
                                           </div>
-                                          {/* テキスト入力のみ */}
-                                          <div>
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mb-2">会社名</p>
-                                            <input type="text" value={editingProfile.company||""}
-                                              onChange={e => setEditingProfile(p => ({...p,company:e.target.value}))}
-                                              placeholder="例：株式会社〇〇"
-                                              style={{fontFamily:FONT_OPTIONS[editingProfile.companyFont??0]?.value}}
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          <div>
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mb-2">肩書き</p>
-                                            <input type="text" value={editingProfile.title||""}
-                                              onChange={e => setEditingProfile(p => ({...p,title:e.target.value}))}
-                                              placeholder="例：代表取締役 / エンジニア"
-                                              style={{fontFamily:FONT_OPTIONS[editingProfile.titleFont??0]?.value}}
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          <div>
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mb-2">名前</p>
-                                            <textarea rows={3} value={editingProfile.name||""}
-                                              onChange={e => setEditingProfile(p => ({...p,name:e.target.value}))}
-                                              placeholder="例：鈴木 一郎"
-                                              style={{resize:"none",fontFamily:FONT_OPTIONS[editingProfile.nameFont??0]?.value}}
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          <div>
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mb-2">住所</p>
-                                            <input type="text" value={editingProfile.address||""}
-                                              onChange={e => setEditingProfile(p => ({...p,address:e.target.value}))}
-                                              placeholder="東京都渋谷区〇〇"
-                                              style={{fontFamily:FONT_OPTIONS[editingProfile.addressFont??0]?.value}}
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          <div>
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mb-2">電話番号</p>
-                                            <input type="text" value={editingProfile.phone||""}
-                                              onChange={e => setEditingProfile(p => ({...p,phone:e.target.value}))}
-                                              placeholder="090-1234-5678"
-                                              style={{fontFamily:FONT_OPTIONS[editingProfile.phoneFont??0]?.value}}
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          {/* ★ v5.10: タグ仲間向けの連絡先（任意） */}
-                                          <div className="pt-1 border-t border-neutral-800 space-y-2">
-                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest">タグ仲間に見せる連絡先（任意・空欄=非表示）</p>
-                                            <input type="text" value={editingProfile.tagAddress||""}
-                                              onChange={e => setEditingProfile(p => ({...p,tagAddress:e.target.value}))}
-                                              placeholder="タグ用 住所（例：東京都渋谷区）"
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                            <input type="text" value={editingProfile.tagPhone||""}
-                                              onChange={e => setEditingProfile(p => ({...p,tagPhone:e.target.value}))}
-                                              placeholder="タグ用 電話番号（例：会社代表番号）"
-                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                          </div>
-                                          <div className="pt-1 border-t border-neutral-800">
-                                            <div className="flex items-center gap-2 mb-2">
-                                              <p className="text-[9px] text-neutral-400 uppercase tracking-widest">アピール（4つ）</p>
-                                            </div>
-                                            {[0,1,2,3].map(i => (
-                                              <input key={i} type="text" value={editingProfile.appeals[i]||""}
-                                                onChange={e => { const v=e.target.value; setEditingProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
-                                                placeholder={`アピール${i+1}`}
-                                                style={{fontFamily:FONT_OPTIONS[editingProfile.appealFonts?.[i]??0]?.value}}
-                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600 mb-2" />
-                                            ))}
-                                          </div>
+                                          {/* フェーズ3: 文字入力はユーザー編集と共通（ProfileTextFields） */}
+                                          <ProfileTextFields profile={editingProfile} setProfile={setEditingProfile} dark />
                                         </>)}
 
                                         {/* ───── デザインタブ ───── */}
@@ -2097,85 +2108,8 @@
                                     className="px-4 py-2 bg-neutral-100 text-neutral-600 rounded-xl text-[10px] font-bold hover:bg-red-50 hover:text-red-500 border border-neutral-200 hover:border-red-200 transition-all">この端末の記憶を消す</button>
                                   {deviceMemMsg && <p className="text-[10px] text-green-500 mt-1">{deviceMemMsg}</p>}
                                 </div>
-                                {/* 名刺テキスト入力（情報タブ） */}
-                                {(()=>{return(<>
-                                  {/* 会社名 */}
-                                  <div className="border-t border-neutral-100 pt-3">
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">会社名</p>
-                                    <input type="text" value={userEditProfile.company||""}
-                                      onChange={e => setUserEditProfile(p => ({...p,company:e.target.value}))}
-                                      placeholder="例：株式会社〇〇"
-                                      style={{fontFamily:FONT_OPTIONS[userEditProfile.companyFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                  </div>
-                                  {/* 肩書き */}
-                                  <div>
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">肩書き</p>
-                                    <input type="text" value={userEditProfile.title||""}
-                                      onChange={e => setUserEditProfile(p => ({...p,title:e.target.value}))}
-                                      placeholder="例：代表取締役 / エンジニア"
-                                      style={{fontFamily:FONT_OPTIONS[userEditProfile.titleFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                  </div>
-                                  {/* 名前 */}
-                                  <div>
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">名前</p>
-                                    <textarea rows={3} value={userEditProfile.name||""}
-                                      onChange={e => setUserEditProfile(p => ({...p,name:e.target.value}))}
-                                      placeholder="例：鈴木 一郎"
-                                      style={{resize:"none",fontFamily:FONT_OPTIONS[userEditProfile.nameFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                  </div>
-                                  {/* 住所 */}
-                                  <div>
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">住所</p>
-                                    <input type="text" value={userEditProfile.address||""}
-                                      onChange={e => setUserEditProfile(p => ({...p,address:e.target.value}))}
-                                      placeholder="例：東京都渋谷区〇〇1-2-3"
-                                      style={{fontFamily:FONT_OPTIONS[userEditProfile.addressFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                  </div>
-                                  {/* 電話番号 */}
-                                  <div>
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">電話番号</p>
-                                    <input type="tel" value={userEditProfile.phone||""}
-                                      onChange={e => setUserEditProfile(p => ({...p,phone:e.target.value}))}
-                                      placeholder="例：090-1234-5678"
-                                      style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
-                                      className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                  </div>
-                                  {/* ★ v5.10: タグ仲間向けの連絡先（任意） */}
-                                  <div className="border-t border-neutral-100 pt-3 space-y-2">
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest">タグ仲間に見せる連絡先（任意）</p>
-                                    <p className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100">タグ仲間からあなたの名刺を開いた人には、上の電話番号・住所の代わりに<b>ここに入力した内容だけ</b>が表示されます。<b>空欄ならその項目は表示されません</b>。QRコードやURLを直接渡した相手には、これまで通り上の連絡先が表示されます</p>
-                                    <div>
-                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">タグ用 住所</p>
-                                      <input type="text" value={userEditProfile.tagAddress||""}
-                                        onChange={e => setUserEditProfile(p => ({...p,tagAddress:e.target.value}))}
-                                        placeholder="例：東京都渋谷区（市区まで等。空欄=非表示）"
-                                        className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    </div>
-                                    <div>
-                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">タグ用 電話番号</p>
-                                      <input type="tel" value={userEditProfile.tagPhone||""}
-                                        onChange={e => setUserEditProfile(p => ({...p,tagPhone:e.target.value}))}
-                                        placeholder="例：会社の代表番号（空欄=非表示）"
-                                        className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
-                                    </div>
-                                  </div>
-                                  {/* アピール */}
-                                  <div className="border-t border-neutral-100 pt-3">
-                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-2">裏面アピール（4つ）</p>
-                                    {[0,1,2,3].map(i => (
-                                      <input key={i} type="text" value={userEditProfile.appeals[i]||""}
-                                        onChange={e => { const v=e.target.value; setUserEditProfile(p => { const a=[...p.appeals]; a[i]=v; return {...p,appeals:a}; }); }}
-                                        placeholder={`アピール${i+1}（例：〇〇の経験10年）`}
-                                        style={{fontFamily:FONT_OPTIONS[userEditProfile.appealFonts?.[i]??0]?.value}}
-                                        className="w-full px-3 py-2 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm mb-2" />
-                                    ))}
-                                  </div>
-                                  </>);
-                                })()}
+                                {/* フェーズ3: 文字入力は管理者編集と共通（ProfileTextFields） */}
+                                <ProfileTextFields profile={userEditProfile} setProfile={setUserEditProfile} />
                                 </>)}
 
                                 {/* ───── デザインタブ ───── */}
