@@ -11,7 +11,6 @@
 index.html       … 本体（閲覧・編集・管理画面すべて含む単一ファイル / React + Babel standalone）
 welcome.html     … メール自己登録ページ
 gas_backend.js   … GAS用コード（Apps Scriptに貼り付けて使用。リポジトリはマスターコピー）
-urls.json        … 旧方式の名残のデモデータ（参照されない。フェーズ2で削除予定）
 hai1〜10.png     … カード背景画像
 image1_/image2_* … 旧デモ用名刺画像（フェーズ6で削除予定）
 docs/            … セッションログ・計画書・スモークテスト・各種資料

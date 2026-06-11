@@ -72,7 +72,6 @@
       const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
-        if (Array.isArray(raw)) return { displayName: "", plan: "free", links: raw.map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(null) };
         return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
@@ -216,58 +215,7 @@
       }
 
       /* ── 写真保存ボタン ── */
-      // iOS/Android: navigator.share({ files }) でネイティブ共有シートを開き「写真に保存」
-      // PC: <a download> でファイルダウンロード
-      function DownloadBtn({ src, filename }) {
-        const [loading, setLoading] = useState(false);
-        const [saved, setSaved] = useState(false);
-
-        const handle = async () => {
-          setLoading(true);
-          try {
-            const url = `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const file = new File([blob], filename, { type: blob.type || 'image/png' });
-
-            // iOS Safari 15.1+ / Android Chrome 89+ → ネイティブ共有シート
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: filename });
-              setSaved(true);
-              setTimeout(() => setSaved(false), 2000);
-            } else {
-              // PC フォールバック: <a download>
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl; a.download = filename; a.click();
-              URL.revokeObjectURL(blobUrl);
-              setSaved(true);
-              setTimeout(() => setSaved(false), 2000);
-            }
-          } catch(e) {
-            // キャンセルは無視、それ以外はGitHub直リンクを開く
-            if (e?.name !== 'AbortError') {
-              window.open(`https://raw.githubusercontent.com/${GH_REPO}/main/${src}`, '_blank');
-            }
-          }
-          setLoading(false);
-        };
-
-        return (
-          <button onClick={handle} disabled={loading}
-            className={`flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md ${saved ? 'bg-black text-white' : 'bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg'} disabled:opacity-50`}>
-            {loading
-              ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 11-9-9"/></svg>
-              : saved
-              ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              : <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            }
-            <span className="text-[10px] font-semibold tracking-wide">
-              {loading ? '...' : saved ? '完了' : '写真保存'}
-            </span>
-          </button>
-        );
-      }
+      // フェーズ2: 旧GitHub画像のDownloadBtn（未使用）を削除
 
       /* ── フリーカード（テキスト名刺）── */
       function FreeCardFace({ profile, side, transparent = false }) {
@@ -601,7 +549,6 @@
         const siteUrl = `${getSiteBase()}#${personData?.publicId || variablePart}`; // publicIdでID秘匿
         const frontSrc = `image1_${variablePart}.png`;
         const backSrc  = `image2_${variablePart}.png`;
-        const currentSrc = flipped ? backSrc : frontSrc;
         const ghFallback = src => `https://raw.githubusercontent.com/${GH_REPO}/main/${src}`;
 
         useEffect(() => {
@@ -733,7 +680,6 @@
       }
 
       /* ── トースト通知 ── */
-      const generatePin = () => String(Math.floor(100000 + Math.random() * 900000));
 
       function Toast({ status }) {
         if (!status) return null;
@@ -833,23 +779,10 @@
           setTimeout(() => setToast(""), ms);
         };
 
-        const loadNamesData = async (currentUrlsData) => {
-          const nameSet = new Set();
-          // GASユーザーデータのキーを追加（最優先）
-          if (currentUrlsData) Object.keys(currentUrlsData).forEach(k => nameSet.add(k));
-          try { const res = await fetch('/api/names'); const data = await res.json(); if (data?.length > 0) data.forEach(n => nameSet.add(n)); } catch {}
-          try {
-            const ghRes = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/`);
-            if (ghRes.ok) {
-              const files = await ghRes.json();
-              files.map(f => f.name).filter(n => /^(image1_|image2_|img1_|img2_)/i.test(n))
-                .map(n => n.replace(/^(image1_|image2_|img1_|img2_)/i,"").replace(/\.(png|jpg|jpeg|gif|webp)$/i,""))
-                .filter(n => n.length > 0).forEach(n => nameSet.add(n));
-            }
-          } catch {}
-          const result = Array.from(nameSet).filter(n => n.length > 0);
-          return result.length > 0 ? result : ["ichiro_suzuki","sanae_takaichi"];
-        };
+        // ユーザー一覧 = サーバーデータ（admin_get_all）のキー。
+        // フェーズ2: /api/names（存在しないAPI）とGitHubリポジトリ一覧からの名前推測を削除
+        const loadNamesData = (currentUrlsData) =>
+          Object.keys(currentUrlsData || {}).filter(n => n.length > 0);
 
         // OGPメタタグを動的に更新
         const updateOGP = (name, data) => {
@@ -909,7 +842,6 @@
             const newSearch = params.toString();
             history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''));
           }
-          loadNamesData(null).then(names => setRegisteredNames(names));
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) {
@@ -944,7 +876,7 @@
             const r = await gasPost({ action:"admin_get_all", adminPass: pass });
             if (r.success && r.users) {
               setUrlsData(prev => ({ ...prev, ...r.users }));
-              loadNamesData(r.users).then(names => setRegisteredNames(names));
+              setRegisteredNames(loadNamesData(r.users));
             }
           } catch {}
         };
@@ -1374,7 +1306,7 @@
                             <span className="text-[9px] font-mono text-white bg-neutral-900 border border-neutral-700 px-2 py-0.5 rounded-full">{APP_VERSION}</span>
                           </div>
                           <div className="flex gap-6 items-center">
-                            <button onClick={async () => setRegisteredNames(await loadNamesData(urlsData))}
+                            <button onClick={() => fetchAllUsers(adminPassLocal)}
                               className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
                               <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Sync
                             </button>

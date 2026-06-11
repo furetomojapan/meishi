@@ -358,12 +358,7 @@ function doPost(e) {
         return jsonResponse({ success: true });
       }
 
-      // 旧互換エイリアス
-      case "delete_user": {
-        if (!checkAdminPass(p.adminPass)) return authError();
-        deleteUser(p.name);
-        return jsonResponse({ success: true });
-      }
+      // フェーズ2: 旧互換エイリアス delete_user は削除（admin_delete_user に一本化）
 
       case "save_licenses": {
         if (!checkAdminPass(p.adminPass)) return authError();
