@@ -700,6 +700,64 @@
       }
 
       /* ── メインアプリ ── */
+      /* ── タグ編集（全体公開トグル + タグ入力欄）ユーザー/管理者 共通 ──
+         フェーズ3: v5.9で2回実装したトグル+入力欄を統合。
+         lockedEditable=true（管理者）は上限超過枠も入力可（保存可・無効） */
+      function TagFields({ tags, onChange, pro, dark, lockedEditable, confirmAllOn, onNotice }) {
+        const allOn = (tags || []).some(t => normalizeTag(t) === "all");
+        const nonAll = (tags || []).filter(t => normalizeTag(t) !== "all");
+        const compose = (on, rest) => (on ? ["all"] : []).concat(rest);
+        const slotLimit = (pro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT) - (allOn ? 1 : 0);
+        const inputCls = dark
+          ? "w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600"
+          : "w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm disabled:bg-neutral-50 disabled:cursor-not-allowed";
+        return (<>
+          {/* 全体公開トグル（旧「all」タグ） */}
+          <label className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${
+            allOn ? (dark ? 'bg-amber-500/10 border-amber-500/40' : 'bg-amber-50 border-amber-300')
+                  : (dark ? 'bg-neutral-800 border-neutral-700' : 'bg-neutral-50 border-neutral-200')}`}>
+            <span className={`text-[11px] ${dark ? 'text-neutral-300' : 'text-neutral-700'}`}>
+              <b>🌐 全体に公開する</b>
+              <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると、全体公開中のすべての利用者にこの名刺（表示名とリンク）が表示されます{!pro && "（FREEはタグとの併用不可）"}</span>
+            </span>
+            <input type="checkbox" checked={allOn}
+              onChange={e => {
+                const on = e.target.checked;
+                if (on && confirmAllOn && !window.confirm("全体公開をONにすると、全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます（反映には保存が必要です）。よろしいですか？")) return;
+                onChange(compose(on, nonAll));
+              }}
+              className="w-5 h-5 accent-amber-500 flex-shrink-0" />
+          </label>
+          {/* タグ入力欄 */}
+          {Array.from({ length: PRO_TAG_LIMIT - (allOn ? 1 : 0) }).map((_, i) => {
+            const locked = i >= slotLimit;
+            const disabled = locked && !lockedEditable;
+            return (
+              <div key={i} className={`space-y-1 ${locked ? 'opacity-40' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <p className={`text-[9px] uppercase tracking-widest font-mono ${dark ? 'text-neutral-300' : 'text-neutral-400'}`}>Tag {i+1}</p>
+                  {locked && <span className={`text-[8px] px-2 py-0.5 rounded-full font-semibold ${dark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-600'}`}>
+                    {!pro ? (lockedEditable ? "PRO限定（保存可・無効）" : "PRO限定") : "全体公開で1枠使用中"}</span>}
+                </div>
+                <input type="text" value={nonAll[i] || ""} maxLength={TAG_MAX_LEN}
+                  onChange={e => {
+                    if (disabled) return;
+                    const val = e.target.value;
+                    if (normalizeTag(val) === "all") { onNotice && onNotice("全体公開は上のスイッチで設定してください"); return; }
+                    const rest = [...nonAll];
+                    while (rest.length < PRO_TAG_LIMIT) rest.push("");
+                    rest[i] = val;
+                    onChange(compose(allOn, rest));
+                  }}
+                  placeholder={disabled ? (!pro ? "PROプランで利用可能" : "全体公開をOFFにすると使えます") : TAG_PLACEHOLDERS[i] || "例：タグ"}
+                  disabled={disabled}
+                  className={inputCls} />
+              </div>
+            );
+          })}
+        </>);
+      }
+
       /* ── プロフィール文字入力フォーム（ユーザー編集/管理者編集 共通）──
          フェーズ3: 二重実装を統合。dark=true で管理画面（黒）テーマ。
          ここを変更すれば両画面に反映される（個別修正は不要） */
@@ -1708,12 +1766,6 @@
                                         {/* ───── タグタブ ───── */}
                                         {adminEditTab === "tags" && (() => {
                                           const curTags = adminAllTags[editingUrlsName] || [];
-                                          const userTagLimit = personIsPro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
-                                          // ★ v5.9: 「all」は全体公開トグルに分離（ユーザー画面と同仕様）
-                                          const aAllOn = curTags.some(t => normalizeTag(t) === "all");
-                                          const aNonAll = curTags.filter(t => normalizeTag(t) !== "all");
-                                          const aCompose = (on, rest) => (on ? ["all"] : []).concat(rest);
-                                          const aSlotLimit = userTagLimit - (aAllOn ? 1 : 0);
                                           return (<>
                                           <p className="text-[9px] text-neutral-400 uppercase tracking-widest">
                                             タグ（{personIsPro ? `PRO: 最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個有効`}・各{TAG_MAX_LEN}文字以内・全体公開も1個分）
@@ -1723,20 +1775,6 @@
                                             <p>例：業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）、地域（<b>渋谷</b>）</p>
                                             <p>※ 全体公開（旧 all タグ）は下のスイッチで設定します</p>
                                           </div>
-                                          {/* ★ 全体公開トグル */}
-                                          <label className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${aAllOn ? 'bg-amber-500/10 border-amber-500/40' : 'bg-neutral-800 border-neutral-700'}`}>
-                                            <span className="text-[11px] text-neutral-300">
-                                              <b>🌐 全体に公開する</b>
-                                              <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると全体公開中の全利用者にこのユーザーの名刺が表示されます</span>
-                                            </span>
-                                            <input type="checkbox" checked={aAllOn}
-                                              onChange={e => {
-                                                const on = e.target.checked;
-                                                setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: aCompose(on, aNonAll) }));
-                                                setAdminTagMsg(""); setAdminTagsDirty(true);
-                                              }}
-                                              className="w-5 h-5 accent-amber-500 flex-shrink-0" />
-                                          </label>
                                           <div className="text-[10px] bg-neutral-800 text-neutral-400 px-3 py-2 rounded-xl border border-neutral-700">
                                             ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。一番下のSaveボタンでは保存されません。ユーザーのタグ変更は24時間に1回ですが、<b>管理者の保存は制限対象外</b>です
                                           </div>
@@ -1746,29 +1784,10 @@
                                             </div>
                                           )}
                                           {!personIsPro && <div className="text-[10px] bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20">FREEプランは1つ目のタグのみマッチ対象になります（全体公開も1個分）</div>}
-                                          {Array.from({ length: PRO_TAG_LIMIT - (aAllOn ? 1 : 0) }).map((_, i) => {
-                                            const inactive = i >= aSlotLimit;
-                                            return (
-                                              <div key={i} className={`space-y-1 ${inactive ? 'opacity-40' : ''}`}>
-                                                <div className="flex items-center gap-2">
-                                                  <p className="text-[9px] text-neutral-300 uppercase tracking-widest">Tag {i+1}</p>
-                                                  {inactive && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{!personIsPro ? "PRO限定（保存可・無効）" : "全体公開で1枠使用中"}</span>}
-                                                </div>
-                                                <input type="text" value={aNonAll[i] || ""} maxLength={TAG_MAX_LEN}
-                                                  onChange={e => {
-                                                    const val = e.target.value;
-                                                    if (normalizeTag(val) === "all") { setAdminTagMsg("全体公開は上のスイッチで設定してください"); return; }
-                                                    const rest = [...aNonAll];
-                                                    while (rest.length < PRO_TAG_LIMIT) rest.push("");
-                                                    rest[i] = val;
-                                                    setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: aCompose(aAllOn, rest) }));
-                                                    setAdminTagMsg(""); setAdminTagsDirty(true);
-                                                  }}
-                                                  placeholder={TAG_PLACEHOLDERS[i] || "例：タグ"}
-                                                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
-                                              </div>
-                                            );
-                                          })}
+                                          {/* フェーズ3: トグル+入力欄はユーザー画面と共通（TagFields） */}
+                                          <TagFields tags={curTags} pro={personIsPro} dark lockedEditable
+                                            onChange={t => { setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: t })); setAdminTagMsg(""); setAdminTagsDirty(true); }}
+                                            onNotice={setAdminTagMsg} />
                                           <button
                                             onClick={async () => {
                                               const cleaned = [];
@@ -2303,13 +2322,7 @@
 
                                 {/* ───── タグタブ ───── */}
                                 {editTab === "tags" && (() => {
-                                  // ★ v5.9: 「all」は全体公開トグルに分離（誤操作防止）
-                                  const tagLimitHere = pro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
-                                  const allOn = userEditTags.some(t => normalizeTag(t) === "all");
-                                  const nonAllTags = userEditTags.filter(t => normalizeTag(t) !== "all");
-                                  const composeTags = (on, rest) => (on ? ["all"] : []).concat(rest);
-                                  const slotLimit = tagLimitHere - (allOn ? 1 : 0); // allが1枠使う
-                                  const savedActive = mySavedTags.slice(0, tagLimitHere);
+                                  const savedActive = mySavedTags.slice(0, pro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
                                   return (<>
                                   <p className="text-[10px] text-neutral-500">タグ（{pro ? `最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個`}・各{TAG_MAX_LEN}文字以内・全体公開も1個分）</p>
                                   <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 space-y-1">
@@ -2339,46 +2352,10 @@
                                       ● 入力中のタグはまだ保存されていません
                                     </div>
                                   )}
-                                  {/* ★ 全体公開トグル（旧「all」タグ） */}
-                                  <label className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${allOn ? 'bg-amber-50 border-amber-300' : 'bg-neutral-50 border-neutral-200'}`}>
-                                    <span className="text-[11px] text-neutral-700">
-                                      <b>🌐 全体に公開する</b>
-                                      <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると、全体公開中のすべての利用者にあなたの名刺（表示名とリンク）が表示されます{!pro && "（FREEはタグとの併用不可）"}</span>
-                                    </span>
-                                    <input type="checkbox" checked={allOn}
-                                      onChange={e => {
-                                        const on = e.target.checked;
-                                        if (on && !window.confirm("全体公開をONにすると、全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます（反映には保存が必要です）。よろしいですか？")) return;
-                                        setUserEditTags(composeTags(on, nonAllTags));
-                                        setTagSaveMsg("");
-                                      }}
-                                      className="w-5 h-5 accent-amber-500 flex-shrink-0" />
-                                  </label>
-                                  {Array.from({ length: PRO_TAG_LIMIT - (allOn ? 1 : 0) }).map((_, i) => {
-                                    const locked = i >= slotLimit;
-                                    return (
-                                      <div key={i} className={`space-y-1 ${locked ? 'opacity-40' : ''}`}>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-[9px] text-neutral-400 uppercase tracking-widest font-mono">Tag {i+1}</p>
-                                          {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-semibold">{!pro ? "PRO限定" : "全体公開で1枠使用中"}</span>}
-                                        </div>
-                                        <input type="text" value={nonAllTags[i] || ""} maxLength={TAG_MAX_LEN}
-                                          onChange={e => {
-                                            if (locked) return;
-                                            const val = e.target.value;
-                                            if (normalizeTag(val) === "all") { setTagSaveMsg("全体公開は上のスイッチで設定してください"); return; }
-                                            const rest = [...nonAllTags];
-                                            while (rest.length < PRO_TAG_LIMIT) rest.push("");
-                                            rest[i] = val;
-                                            setUserEditTags(composeTags(allOn, rest));
-                                            setTagSaveMsg("");
-                                          }}
-                                          placeholder={locked ? (!pro ? "PROプランで利用可能" : "全体公開をOFFにすると使えます") : TAG_PLACEHOLDERS[i] || "例：タグ"}
-                                          disabled={locked}
-                                          className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm disabled:bg-neutral-50 disabled:cursor-not-allowed" />
-                                      </div>
-                                    );
-                                  })}
+                                  {/* フェーズ3: トグル+入力欄は管理画面と共通（TagFields） */}
+                                  <TagFields tags={userEditTags} pro={pro} confirmAllOn
+                                    onChange={t => { setUserEditTags(t); setTagSaveMsg(""); }}
+                                    onNotice={setTagSaveMsg} />
                                   <button onClick={saveMyTags}
                                     className={`w-full py-3 rounded-2xl text-[11px] font-bold uppercase tracking-widest active:scale-95 transition-all ${tagsDirty ? 'bg-amber-500 text-white shadow-md' : 'bg-neutral-800 text-white hover:bg-black'}`}>
                                     {tagsDirty ? "● タグを保存する" : "タグを保存"}
