@@ -48,7 +48,7 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.9"; // セキュリティ強化（GitHubトークン廃止・管理パス強制変更・PINロックアウト・get_all廃止・タグ可視化・全体公開トグル・プライバシー説明）
+      const APP_VERSION = "v5.10"; // タグ仲間向け限定URL — 電話・住所はタグ用の値に差し替え（未入力なら非表示）
       const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -75,7 +75,7 @@
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
         if (Array.isArray(raw)) return { displayName: "", plan: "free", links: raw.map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
       /* ── プラン判定 ── */
@@ -1709,6 +1709,18 @@
                                               style={{fontFamily:FONT_OPTIONS[editingProfile.phoneFont??0]?.value}}
                                               className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
                                           </div>
+                                          {/* ★ v5.10: タグ仲間向けの連絡先（任意） */}
+                                          <div className="pt-1 border-t border-neutral-800 space-y-2">
+                                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest">タグ仲間に見せる連絡先（任意・空欄=非表示）</p>
+                                            <input type="text" value={editingProfile.tagAddress||""}
+                                              onChange={e => setEditingProfile(p => ({...p,tagAddress:e.target.value}))}
+                                              placeholder="タグ用 住所（例：東京都渋谷区）"
+                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                            <input type="text" value={editingProfile.tagPhone||""}
+                                              onChange={e => setEditingProfile(p => ({...p,tagPhone:e.target.value}))}
+                                              placeholder="タグ用 電話番号（例：会社代表番号）"
+                                              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
+                                          </div>
                                           <div className="pt-1 border-t border-neutral-800">
                                             <div className="flex items-center gap-2 mb-2">
                                               <p className="text-[9px] text-neutral-400 uppercase tracking-widest">アピール（4つ）</p>
@@ -2048,7 +2060,15 @@
                           </div>
                         )}
 
+                        {/* ★ v5.10: タグ仲間向け限定表示の注記（編集・タグ仲間ボタンは非表示） */}
+                        {pd._tagView && (
+                          <div className="mt-5 mx-auto max-w-sm text-[10px] text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-xl px-4 py-3 text-center">
+                            🔒 この名刺はタグ仲間向けの限定表示です（連絡先は本人が公開を選んだ項目のみ表示されます）
+                          </div>
+                        )}
+
                         {/* リンク編集ボタン（FREE/PRO共通） */}
+                        {!pd._tagView && (
                         <div className="mt-5 flex items-center justify-center gap-4">
                           <button onClick={openUserEdit} disabled={editOpening}
                             className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-full px-4 py-2 ${editOpening ? 'text-neutral-300 border-neutral-100 cursor-wait' : 'text-neutral-500 hover:text-black border-neutral-200 hover:border-black'}`}>
@@ -2065,6 +2085,7 @@
                             ☆STORE☆
                           </a>
                         </div>
+                        )}
 
                         {/* ★ v5.9: プライバシー説明（誰に何が見えるか） */}
                         <div className="mt-3 text-center">
@@ -2082,7 +2103,7 @@
                               </div>
                               <div className="text-[11px] text-neutral-600 leading-relaxed space-y-2.5">
                                 <p><b className="text-neutral-800">① この名刺ページ</b><br/>名刺のURL（またはQRコード）を知っている人だけが見られます。表示されるのは、あなたが名刺に載せた内容（表示名・リンク・プロフィール）です。利用者の一覧を外部から取得することはできません。</p>
-                                <p><b className="text-neutral-800">② タグを設定した場合</b><br/>同じタグを保存している他の利用者の「タグ仲間」画面に、あなたの<b>表示名と名刺リンク</b>が表示されることがあります（開くたびにランダムで最大5名）。タグは自分で保存しない限り公開されません。今何人に見えているかは、名刺を編集 → タグ タブでいつでも確認できます。</p>
+                                <p><b className="text-neutral-800">② タグを設定した場合</b><br/>同じタグを保存している他の利用者の「タグ仲間」画面に、あなたの<b>表示名と名刺リンク</b>が表示されることがあります（開くたびにランダムで最大5名）。タグは自分で保存しない限り公開されません。今何人に見えているかは、名刺を編集 → タグ タブでいつでも確認できます。<br/>タグ仲間に渡るのは<b>限定表示用のURL</b>で、あなたの電話番号・住所は表示されません（「タグ用 連絡先」に入力した内容だけが表示されます）。</p>
                                 <p><b className="text-neutral-800">③ 全体公開をONにした場合</b><br/>全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます。OFFにすればいつでも解除できます。</p>
                                 <p><b className="text-neutral-800">④ 見えないもの</b><br/>あなたのPIN・メールアドレスが他の利用者に表示されることはありません。PINはサーバーでのみ照合されます。</p>
                                 <p><b className="text-neutral-800">⑤ 運営（管理者）</b><br/>サイト運営者は、サポートとシステム管理のために登録データ（名刺内容・タグ・PIN）を確認できます。</p>
@@ -2252,6 +2273,25 @@
                                       placeholder="例：090-1234-5678"
                                       style={{fontFamily:FONT_OPTIONS[userEditProfile.phoneFont??0]?.value}}
                                       className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                  </div>
+                                  {/* ★ v5.10: タグ仲間向けの連絡先（任意） */}
+                                  <div className="border-t border-neutral-100 pt-3 space-y-2">
+                                    <p className="text-[9px] text-neutral-500 uppercase tracking-widest">タグ仲間に見せる連絡先（任意）</p>
+                                    <p className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100">タグ仲間からあなたの名刺を開いた人には、上の電話番号・住所の代わりに<b>ここに入力した内容だけ</b>が表示されます。<b>空欄ならその項目は表示されません</b>。QRコードやURLを直接渡した相手には、これまで通り上の連絡先が表示されます</p>
+                                    <div>
+                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">タグ用 住所</p>
+                                      <input type="text" value={userEditProfile.tagAddress||""}
+                                        onChange={e => setUserEditProfile(p => ({...p,tagAddress:e.target.value}))}
+                                        placeholder="例：東京都渋谷区（市区まで等。空欄=非表示）"
+                                        className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">タグ用 電話番号</p>
+                                      <input type="tel" value={userEditProfile.tagPhone||""}
+                                        onChange={e => setUserEditProfile(p => ({...p,tagPhone:e.target.value}))}
+                                        placeholder="例：会社の代表番号（空欄=非表示）"
+                                        className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm" />
+                                    </div>
                                   </div>
                                   {/* アピール */}
                                   <div className="border-t border-neutral-100 pt-3">

@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v3.0
+ * デジタル名刺 - Google Apps Script バックエンド v3.1
+ *   - v3.1: タグ用限定URL（tagPublicId）— タグ仲間には電話番号・住所を
+ *     タグ用の値に差し替えて表示（未入力なら非表示）。initSheets() 再実行が必要
  * セキュリティ強化版:
  *   - PIN・adminPass はブラウザに送らない
  *   - verify_pin でサーバー側PIN検証 → セッショントークン発行（試行回数制限あり）
@@ -45,23 +47,24 @@ const PIN_LOCK_SECONDS  = 15 * 60;      // ロックアウト時間（15分）
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // users シート（pin・plusG・publicId・tags列を追加）
+  // users シート（pin・plusG・publicId・tags・tagPublicId列を追加）
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt"]);
-    us.getRange(1,1,1,11).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId"]);
+    us.getRange(1,1,1,12).setFontWeight("bold");
   } else {
     // 既存シートに足りない列があれば追加
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags","tagsUpdatedAt"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
   }
 
-  // 既存ユーザーにpublicIdを発行（未設定の行のみ）
+  // 既存ユーザーにpublicId / tagPublicId を発行（未設定の行のみ）
   migratePublicIds();
+  migrateTagPublicIds();
 
   // config シート（初期パスワードはハッシュで保存。初回ログイン時に強制変更される）
   let cs = ss.getSheetByName(SHEET_CONFIG);
@@ -454,15 +457,32 @@ function rowToPublicUser(row, t) {
   };
 }
 
-// ── 単一ユーザー取得（name または publicId で検索）────────────────
+// ── 単一ユーザー取得（name / publicId / tagPublicId で検索）────────
+// ★ v3.1: tagPublicId（タグ仲間向け限定URL）で開かれた場合は、
+//   電話番号・住所をタグ用の値に差し替え（未入力なら非表示）。
+//   内部名・本来のpublicIdは返さない（限定URLから本来URLに辿れないように）。
 function getUserPublic(id) {
   const t = getUsersTable();
   for (let i = 1; i < t.rows.length; i++) {
     const row = t.rows[i];
     if (!row[0]) continue;
     const pubId = t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "";
+    const tagId = t.colTagPublicId >= 0 ? String(row[t.colTagPublicId] || "") : "";
     if (row[0] === id || (pubId && pubId === id)) {
-      return { name: row[0], data: rowToPublicUser(row, t) };
+      return { name: row[0], data: rowToPublicUser(row, t) }; // フル表示
+    }
+    if (tagId && tagId === id) {
+      const d = rowToPublicUser(row, t);
+      if (d.profile) {
+        d.profile = Object.assign({}, d.profile);
+        d.profile.phone   = String(d.profile.tagPhone || "");   // 未入力 = 非表示
+        d.profile.address = String(d.profile.tagAddress || "");
+        delete d.profile.tagPhone;
+        delete d.profile.tagAddress;
+      }
+      d.publicId = tagId;   // 本来のpublicIdは渡さない
+      d._tagView = true;    // フロントで「限定表示」と判定
+      return { name: tagId, data: d }; // 内部名も渡さない
     }
   }
   return null;
@@ -510,6 +530,7 @@ function adminCreateUser(name) {
   const publicId = generatePublicId(existing);
   // PIN空欄（ユーザーが初回設定）、publicId発行、tags空
   t.sheet.appendRow([name, "", "", "[]", "free", "", "", false, publicId, "[]"]);
+  ensureTagPublicId(name); // ★ タグ用IDも発行
 }
 
 // ── 管理者: フル保存 ─────────────────────────────────────────────
@@ -541,6 +562,7 @@ function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin,
     ? new Set(t.rows.slice(1).map(r => String(r[t.colPublicId] || "")).filter(Boolean))
     : new Set();
   sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson, pin ? String(pin) : "", plusGVal, generatePublicId(existing), "[]"]);
+  ensureTagPublicId(name); // ★ タグ用IDも発行
 }
 
 // ── 管理者: プランtoggle ─────────────────────────────────────────
@@ -808,7 +830,8 @@ function getUsersTable() {
     sheet, rows,
     colPublicId:     header.indexOf("publicId"), // 0-based, -1なら列なし
     colTags:         header.indexOf("tags"),
-    colTagsUpdated:  header.indexOf("tagsUpdatedAt")
+    colTagsUpdated:  header.indexOf("tagsUpdatedAt"),
+    colTagPublicId:  header.indexOf("tagPublicId")
   };
 }
 
@@ -862,6 +885,48 @@ function migratePublicIds() {
       const id = generatePublicId(existing);
       existing.add(id);
       t.sheet.getRange(i + 1, t.colPublicId + 1).setValue(id);
+    }
+  }
+}
+
+// ★ v3.1: タグ用ID（zt+数字9桁）。タグ仲間向け限定URLに使用
+function generateTagPublicId(existingSet) {
+  for (let a = 0; a < 20; a++) {
+    const bytes = secureRandomBytes(18);
+    let id = "zt";
+    for (let i = 0; i < bytes.length && id.length < 11; i++) {
+      if (bytes[i] < 250) id += String(bytes[i] % 10);
+    }
+    if (id.length < 11) continue;
+    if (!existingSet || !existingSet.has(id)) return id;
+  }
+  return "zt" + Date.now();
+}
+
+// tagPublicId未設定の全ユーザー行に発行（initSheetsから呼ばれる）
+function migrateTagPublicIds() {
+  const t = getUsersTable();
+  if (t.colTagPublicId < 0) return;
+  const existing = new Set(t.rows.slice(1).map(r => String(r[t.colTagPublicId] || "")).filter(Boolean));
+  for (let i = 1; i < t.rows.length; i++) {
+    if (!t.rows[i][0]) continue;
+    if (!t.rows[i][t.colTagPublicId]) {
+      const id = generateTagPublicId(existing);
+      existing.add(id);
+      t.sheet.getRange(i + 1, t.colTagPublicId + 1).setValue(id);
+    }
+  }
+}
+
+// 新規ユーザー作成直後にtagPublicIdを発行（appendRowは列位置が異なるため後から設定）
+function ensureTagPublicId(name) {
+  const t = getUsersTable();
+  if (t.colTagPublicId < 0) return;
+  const existing = new Set(t.rows.slice(1).map(r => String(r[t.colTagPublicId] || "")).filter(Boolean));
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name && !t.rows[i][t.colTagPublicId]) {
+      t.sheet.getRange(i + 1, t.colTagPublicId + 1).setValue(generateTagPublicId(existing));
+      return;
     }
   }
 }
@@ -944,7 +1009,9 @@ function getMyTagCounts(name) {
   return counts;
 }
 
-// 同じタグを持つユーザー一覧（displayName + publicId のみ返す）
+// 同じタグを持つユーザー一覧（displayName + タグ用ID のみ返す）
+// ★ v3.1: タグ仲間には本来のpublicIdではなくtagPublicId（限定URL）を渡す。
+//   電話番号・住所はタグ用の値だけが見える（未入力なら非表示）
 function findUsersByTag(tag, excludeName) {
   const t = getUsersTable();
   const result = [];
@@ -955,9 +1022,11 @@ function findUsersByTag(tag, excludeName) {
     const plan = row[4] || "free";
     const tags = activeTags(parseJson(row[t.colTags], []), plan);
     if (!tags.includes(tag)) continue;
+    const tagId = t.colTagPublicId >= 0 ? String(row[t.colTagPublicId] || "") : "";
     result.push({
       displayName: row[1] || "",
-      publicId: String(row[t.colPublicId] || "")
+      // tagPublicId未発行（initSheets未実行）の間のみ旧publicIdにフォールバック
+      publicId: tagId || String(row[t.colPublicId] || "")
     });
   }
   return result;
