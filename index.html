@@ -48,15 +48,13 @@
       const { motion, AnimatePresence } = window.Motion;
       const { useState, useEffect, useRef } = React;
 
-      const APP_VERSION = "v5.8"; // タグ変更24時間制限 + 仕様説明の表示
-      const GH_REPO = "furetomojapan/meishi";
+      const APP_VERSION = "v5.9"; // セキュリティ強化（GitHubトークン廃止・管理パス強制変更・PINロックアウト・get_all廃止・タグ可視化・全体公開トグル・プライバシー説明）
+      const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
       const GAS_READY = !GAS_URL.includes("YOUR_SCRIPT_ID");
-      // GAS未設定時のフォールバック（旧GitHub方式）
-      const GH_FILE = "urls.json";
-      const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main/${GH_FILE}`;
-      const GH_API  = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
+      // ★ v5.9: 旧GitHub書き込み方式（トークンをブラウザ保存→リポジトリ直接書き込み）は完全廃止。
+      //   書き込みは全てGAS経由。
       const getSiteBase = () => window.location.origin + window.location.pathname;
 
       /* ── データ正規化 ── */
@@ -88,7 +86,7 @@
       const FREE_TAG_LIMIT  = 1;
       const PRO_TAG_LIMIT   = 5;
       const TAG_MAX_LEN     = 20;
-      const TAG_PLACEHOLDERS = ["例：all", "例：飲食", "例：トヨタ", "例：DIY", "例：渋谷（地域）"];
+      const TAG_PLACEHOLDERS = ["例：飲食", "例：トヨタ", "例：DIY", "例：渋谷（地域）", "例：釣り"]; // ★ v5.9: 「all」は全体公開トグルに分離
       // Fisher-Yates シャッフル（マッチ一覧のランダム表示用）
       const shuffleArr = (arr) => {
         const a = [...arr];
@@ -765,7 +763,11 @@
         const [isAdminMode, setIsAdminMode] = useState(false);
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
-        const [adminPassLocal, setAdminPassLocal] = useState(() => localStorage.getItem('meisi_admin_pass') || "");
+        // ★ v5.9: 管理パスワードは sessionStorage（タブを閉じると消える — 共有PC対策）
+        const [adminPassLocal, setAdminPassLocal] = useState(() => sessionStorage.getItem('meisi_admin_pass') || "");
+        const [mustChangePass, setMustChangePass] = useState(false); // 初期パスワード強制変更
+        const [tagCounts, setTagCounts] = useState({});   // タグごとの「見えている人数」
+        const [showPrivacy, setShowPrivacy] = useState(false); // プライバシー説明モーダル
         const [pinAuthToken, setPinAuthToken] = useState(null);
 
         const [error, setError] = useState("");
@@ -779,8 +781,6 @@
         const [editingUrls, setEditingUrls] = useState([
           { url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }, { url:"", label:"", _custom:false }
         ]);
-        const [githubToken, setGithubToken] = useState(() => localStorage.getItem('meisi_gh_token') || "");
-        const [tokenInput, setTokenInput] = useState("");
         const [toast, setToast] = useState("");
         const [newPassInput, setNewPassInput] = useState("");
         const [passMsg, setPassMsg] = useState("");
@@ -870,7 +870,39 @@
           setMeta('meta[name="twitter:image"]', 'content', imgUrl);
         };
 
+        // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）
+        //   id は内部名 / publicId のどちらでもGAS側で解決される
+        const fetchUser = (id) => {
+          if (!GAS_READY || !id) return;
+          fetch(`${GAS_URL}?action=get_user&id=${encodeURIComponent(id)}&t=${Date.now()}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(res => {
+              if (!res || !res.user || !res.name) return;
+              setUrlsData(prev => {
+                const cur = prev[res.name] || {};
+                const merged = { ...prev, [res.name]: {
+                  ...res.user,
+                  // ローカルで確認済みのhasPinSet/publicIdは保持（通信遅延・未反映対策）
+                  hasPinSet: res.user.hasPinSet || cur.hasPinSet || false,
+                  publicId:  res.user.publicId || cur.publicId || ""
+                }};
+                try { localStorage.setItem('meisi_urls_data', JSON.stringify(merged)); } catch {}
+                return merged;
+              });
+              // publicIdでアクセスされた場合は内部名に解決
+              setVariablePart(prev => (prev === id && res.name !== id) ? res.name : prev);
+            })
+            .catch(() => {
+              try { const s = localStorage.getItem('meisi_urls_data'); if (s) setUrlsData(JSON.parse(s)); } catch {}
+            });
+        };
+
         useEffect(() => {
+          // ★ v5.9: 旧GitHub方式の残骸（トークン・平文管理パス）をブラウザから掃除
+          try {
+            localStorage.removeItem('meisi_gh_token');
+            localStorage.removeItem('meisi_admin_pass');
+          } catch {}
           // ?new=1 をURLから削除（バナー表示後に不要）
           if (new URLSearchParams(window.location.search).get('new') === '1') {
             const params = new URLSearchParams(window.location.search);
@@ -881,63 +913,16 @@
           loadNamesData(null).then(names => setRegisteredNames(names));
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
-          if (hash || qid) setVariablePart(hash || qid);
-          else setIsAdminMode(true); // カードID指定なし → ボタンを押さずに管理者画面へ自動移行
-          window.addEventListener('hashchange', () => { const h = window.location.hash.slice(1); if (h) setVariablePart(h); });
-          // GitHub から取得してマージ（localStorageを優先・上書きしない）
-          if (GAS_READY) {
-            // ── GASバックエンドから全データ取得 ──
-            fetch(`${GAS_URL}?action=get_all&t=${Date.now()}`)
-              .then(r => r.ok ? r.json() : null)
-              .then(res => {
-                if (!res) return;
-                // ユーザーデータ — ローカル変更（plan等）を優先してマージ
-                if (res.users) {
-                  setUrlsData(prev => {
-                    // prevのplanが既にproなら、GASの古いデータで上書きしない
-                    const merged = { ...res.users };
-                    Object.keys(prev).forEach(k => {
-                      if (!merged[k]) return;
-                      // planを保持
-                      if (prev[k]?.plan === "pro" && res.users[k]?.plan !== "pro") {
-                        merged[k] = { ...merged[k], plan: prev[k].plan };
-                      }
-                      // hasPinSet: ローカルでtrueが確認済みなら保持（GAS未再デプロイ対策）
-                      if (prev[k]?.hasPinSet && !merged[k]?.hasPinSet) {
-                        merged[k] = { ...merged[k], hasPinSet: true };
-                      }
-                      // publicId: GAS未再デプロイでも保持
-                      if (prev[k]?.publicId && !merged[k]?.publicId) {
-                        merged[k] = { ...merged[k], publicId: prev[k].publicId };
-                      }
-                    });
-                    localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
-                    // GASユーザーリストでregisteredNamesも更新
-                    loadNamesData(merged).then(names => setRegisteredNames(names));
-                    return merged;
-                  });
-                }
-                // adminPassはGASから送られなくなった(v2.0セキュリティ対応)
-              })
-              .catch(() => {
-                // GAS失敗時はlocalStorageから復元
-                try { const s = localStorage.getItem('meisi_urls_data'); if (s) setUrlsData(JSON.parse(s)); } catch {}
-              });
+          if (hash || qid) {
+            setVariablePart(hash || qid);
+            fetchUser(hash || qid); // 表示するカードのデータだけ取得
           } else {
-            // ── フォールバック: 旧GitHub方式 ──
-            fetch(`${GH_RAW}?t=${Date.now()}`)
-              .then(r => r.ok ? r.json() : null)
-              .then(ghData => {
-                if (!ghData) return;
-                // adminPassはGASから受け取らない
-                let local = {};
-                try { const s = localStorage.getItem('meisi_urls_data'); local = s ? JSON.parse(s) : {}; } catch {}
-                const merged = { ...ghData, ...local };
-                setUrlsData(merged);
-                localStorage.setItem('meisi_urls_data', JSON.stringify(merged));
-              })
-              .catch(() => {});
+            setIsAdminMode(true); // カードID指定なし → ボタンを押さずに管理者画面へ自動移行
           }
+          window.addEventListener('hashchange', () => {
+            const h = window.location.hash.slice(1);
+            if (h) { setVariablePart(h); fetchUser(h); }
+          });
         }, []);
 
         useEffect(() => {
@@ -953,6 +938,18 @@
           const entry = Object.entries(urlsData).find(([k, v]) => v?.publicId && v.publicId === variablePart);
           if (entry) setVariablePart(entry[0]);
         }, [variablePart, urlsData]);
+
+        // ★ v5.9: 全ユーザーデータは管理者認証後にのみ取得（旧 get_all の代替）
+        const fetchAllUsers = async (pass) => {
+          if (!GAS_READY) return;
+          try {
+            const r = await gasPost({ action:"admin_get_all", adminPass: pass });
+            if (r.success && r.users) {
+              setUrlsData(prev => ({ ...prev, ...r.users }));
+              loadNamesData(r.users).then(names => setRegisteredNames(names));
+            }
+          } catch {}
+        };
 
         const fetchAllPins = async (pass) => {
           if (!GAS_READY) return;
@@ -977,15 +974,15 @@
             const r = await gasPost({ action:"verify_admin", password:clean });
             if (r.success) {
               setIsLoggedIn(true); setAdminPassLocal(clean);
-              localStorage.setItem('meisi_admin_pass', clean);
+              sessionStorage.setItem('meisi_admin_pass', clean); // ★ タブを閉じると消える
               setError(""); setPasswordInput("");
+              setMustChangePass(!!r.mustChange); // ★ 初期パスワードなら強制変更
+              fetchAllUsers(clean);
               fetchAllPins(clean);
               fetchAllTags(clean);
             } else { setError("正しいコードを入力してください"); setPasswordInput(""); }
           } else {
-            const stored = localStorage.getItem('meisi_admin_pass') || 'admin123';
-            if (clean === stored) { setIsLoggedIn(true); setAdminPassLocal(clean); setError(""); setPasswordInput(""); }
-            else { setError("正しいコードを入力してください"); setPasswordInput(""); }
+            setError("サーバー未設定のためログインできません"); setPasswordInput("");
           }
         };
 
@@ -1020,25 +1017,32 @@
             } else { showToast("saved_local"); }
           } catch { showToast("error"); }
         };
-        const saveToken = () => { localStorage.setItem('meisi_gh_token', tokenInput); setGithubToken(tokenInput); setTokenInput(""); };
-
-        /* ── パスワード変更（GitHub + localStorage に保存） ── */
+        /* ── 管理パスワード変更（GASにハッシュ保存・8文字以上） ── */
         const changePassword = async () => {
           const newPass = newPassInput.trim();
           if (!newPass) return;
-          localStorage.setItem('meisi_admin_pass', newPass);
-          setAdminPassLocal(newPass);
+          if (newPass.length < 8) { setPassMsg("8文字以上にしてください"); setTimeout(() => setPassMsg(""), 3000); return false; }
+          if (newPass === "admin123") { setPassMsg("初期パスワードは使用できません"); setTimeout(() => setPassMsg(""), 3000); return false; }
           try {
             if (GAS_READY) {
               const r = await gasPost({ action:"save_admin_pass", currentPass: adminPassLocal, password: newPass });
-              showToast(r.success ? "saved" : "error");
-            } else {
-              showToast("saved_local");
+              if (r.success) {
+                setAdminPassLocal(newPass);
+                sessionStorage.setItem('meisi_admin_pass', newPass);
+                setMustChangePass(false);
+                showToast("saved");
+                setPassMsg("✓ 変更しました（全デバイスに反映）");
+                setNewPassInput("");
+                setTimeout(() => setPassMsg(""), 3000);
+                return true;
+              } else {
+                setPassMsg(r.error || "エラーが発生しました");
+                setTimeout(() => setPassMsg(""), 4000);
+                return false;
+              }
             }
           } catch { showToast("error"); }
-          setPassMsg("✓ 変更しました（全デバイスに反映）");
-          setNewPassInput("");
-          setTimeout(() => setPassMsg(""), 3000);
+          return false;
         };
 
 
@@ -1072,7 +1076,10 @@
           }
           // 保存前の確認（毎回表示）
           if (cleaned.length > 0) {
-            if (!window.confirm("タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。\n保存後24時間はタグを変更できません（削除はいつでも可能）。よろしいですか？")) return;
+            const allWarn = cleaned.includes("all")
+              ? "【全体公開ON】全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます。\n"
+              : "";
+            if (!window.confirm(allWarn + "タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。\n保存後24時間はタグを変更できません（削除はいつでも可能）。よろしいですか？")) return;
           } else if (mySavedTags.length > 0) {
             if (!window.confirm("タグをすべて削除しますか？（削除はいつでも可能です）")) return;
           }
@@ -1084,6 +1091,7 @@
               setMySavedTags(r.tags || []);
               setUserEditTags(r.tags || []);
               setTagNextChange(r.nextChangeAt || 0);
+              setTagCounts(r.counts || {});
               setShowCardTags(false); setCardTagMatches(null); // 次回開いた時に再取得
               setTagSaveMsg("✓ タグを保存しました。カード画面の「タグ仲間」ボタンから確認できます");
               setTimeout(() => setTagSaveMsg(""), 5000);
@@ -1101,7 +1109,7 @@
           if (!tok || !GAS_READY) return null;
           try {
             const r = await gasPost({ action:"get_my_tags", name:variablePart, token:tok });
-            if (r.success) return { token: tok, tags: r.tags || [], nextChangeAt: r.nextChangeAt || 0 };
+            if (r.success) return { token: tok, tags: r.tags || [], nextChangeAt: r.nextChangeAt || 0, counts: r.counts || {} };
           } catch { return null; } // 通信エラー時はトークンを消さない
           localStorage.removeItem(tokenKey(variablePart)); // 無効・期限切れ
           return null;
@@ -1165,6 +1173,7 @@
             if (st) {
               setPinAuthToken(st.token);
               setMySavedTags(st.tags); setUserEditTags(st.tags); setTagNextChange(st.nextChangeAt || 0);
+              setTagCounts(st.counts || {});
               gasPost({ action:"get_my_pin", name:variablePart, token:st.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
               openUserEditDirect();
               setEditOpening(false);
@@ -1172,23 +1181,14 @@
             }
           } catch {}
           setPinModalPurpose("edit");
-          try {
-            const r = await gasPost({ action:"check_pin_set", name:variablePart });
-            if (r.hasPinSet) {
-              // PIN設定済み → 認証モーダル
-              setPinInput(""); setPinError(""); setPinBusy(false); setShowPinModal(true);
-            } else {
-              // PIN未設定 → 初回設定モーダル
-              setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setPinBusy(false); setShowPinSetup(true);
-            }
-          } catch {
-            // GAS通信失敗時はローカル状態で判断
-            const pd = getPersonData(urlsData, variablePart);
-            if (pd?.hasPinSet) {
-              setPinInput(""); setPinError(""); setPinBusy(false); setShowPinModal(true);
-            } else {
-              setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setPinBusy(false); setShowPinSetup(true);
-            }
+          // ★ v5.9: check_pin_set（無認証の存在オラクル）は廃止。
+          //   get_user で取得済みの hasPinSet で判断。古い場合も set_initial_pin が
+          //   「既に設定済み」を返し認証モーダルへ自動で切り替わるため安全。
+          const pd = getPersonData(urlsData, variablePart);
+          if (pd?.hasPinSet) {
+            setPinInput(""); setPinError(""); setPinBusy(false); setShowPinModal(true);
+          } else {
+            setPinSetupInput(""); setPinSetupConfirm(""); setPinSetupMsg(""); setPinBusy(false); setShowPinSetup(true);
           }
           setEditOpening(false);
         };
@@ -1213,18 +1213,13 @@
                 gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
                 // 自分のタグを取得
                 gasPost({ action:"get_my_tags", name:variablePart, token:r.token }).then(tr => {
-                  if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); setTagNextChange(tr.nextChangeAt || 0); }
+                  if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); setTagNextChange(tr.nextChangeAt || 0); setTagCounts(tr.counts || {}); }
                 });
                 openUserEditDirect();
               }
-            } else { setPinError("PINが違います"); setPinInput(""); }
+            } else { setPinError(r.error || "PINが違います"); setPinInput(""); } // ★ ロックアウト等のメッセージも表示
           } else {
-            // fallback: local check
-            const pd = getPersonData(urlsData, variablePart);
-            if (pd?.pin && pin === pd.pin) {
-              setShowPinModal(false); setPinInput(""); setPinError("");
-              openUserEditDirect();
-            } else { setPinError("PINが違います"); setPinInput(""); }
+            setPinError("サーバー未設定のため認証できません"); setPinInput("");
           }
           } catch { setPinError("通信エラーが発生しました"); }
           setPinBusy(false);
@@ -1393,6 +1388,23 @@
                       </div>
                     ) : (
                       <div className="w-full px-6 md:px-8">
+                        {/* ★ v5.9: 初期パスワード(admin123)のまま → 強制変更モーダル */}
+                        {mustChangePass && (
+                          <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+                            <div className="w-full max-w-sm bg-neutral-900 border border-amber-500/40 rounded-2xl p-6 space-y-4">
+                              <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">⚠️ パスワード変更が必要です</p>
+                              <p className="text-[11px] text-neutral-300 leading-relaxed">初期パスワード（admin123）のままでは管理画面を利用できません。新しいパスワード（8文字以上）を設定してください。</p>
+                              <input type="password" value={newPassInput} onChange={e => setNewPassInput(e.target.value)}
+                                placeholder="新しいパスワード（8文字以上）" autoFocus
+                                className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-amber-500 text-sm text-white placeholder:text-neutral-600" />
+                              {passMsg && <p className={`text-[10px] ${passMsg.startsWith("✓") ? 'text-green-400' : 'text-red-400'}`}>{passMsg}</p>}
+                              <button onClick={changePassword} disabled={newPassInput.trim().length < 8}
+                                className="w-full py-3 bg-amber-500 text-black rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-amber-400 transition-all disabled:opacity-30">変更して続行</button>
+                              <button onClick={() => { setMustChangePass(false); setIsLoggedIn(false); setAdminPassLocal(""); sessionStorage.removeItem('meisi_admin_pass'); }}
+                                className="w-full text-[10px] text-neutral-600 hover:text-neutral-400 uppercase tracking-widest">ログアウト</button>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center mb-6 px-2">
                           <div className="flex items-center gap-2">
                             <h2 className="text-xs font-semibold text-white uppercase tracking-widest">Library</h2>
@@ -1801,15 +1813,34 @@
                                         {adminEditTab === "tags" && (() => {
                                           const curTags = adminAllTags[editingUrlsName] || [];
                                           const userTagLimit = personIsPro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
+                                          // ★ v5.9: 「all」は全体公開トグルに分離（ユーザー画面と同仕様）
+                                          const aAllOn = curTags.some(t => normalizeTag(t) === "all");
+                                          const aNonAll = curTags.filter(t => normalizeTag(t) !== "all");
+                                          const aCompose = (on, rest) => (on ? ["all"] : []).concat(rest);
+                                          const aSlotLimit = userTagLimit - (aAllOn ? 1 : 0);
                                           return (<>
                                           <p className="text-[9px] text-neutral-400 uppercase tracking-widest">
-                                            タグ（{personIsPro ? `PRO: 最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個有効`}・各{TAG_MAX_LEN}文字以内）
+                                            タグ（{personIsPro ? `PRO: 最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個有効`}・各{TAG_MAX_LEN}文字以内・全体公開も1個分）
                                           </p>
                                           <div className="text-[10px] bg-blue-500/10 text-blue-300 px-3 py-2 rounded-xl border border-blue-500/20 space-y-1">
                                             <p>同じタグを設定しているユーザー同士で、お互いの名刺（表示名とリンク）が見え合います</p>
-                                            <p>例：<b>all</b>（全員に公開）、業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）</p>
-                                            <p>※ <b>all</b> は全員に公開したい人が共通で使うタグです（all と入力した人同士で見え合います）</p>
+                                            <p>例：業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）、地域（<b>渋谷</b>）</p>
+                                            <p>※ 全体公開（旧 all タグ）は下のスイッチで設定します</p>
                                           </div>
+                                          {/* ★ 全体公開トグル */}
+                                          <label className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${aAllOn ? 'bg-amber-500/10 border-amber-500/40' : 'bg-neutral-800 border-neutral-700'}`}>
+                                            <span className="text-[11px] text-neutral-300">
+                                              <b>🌐 全体に公開する</b>
+                                              <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると全体公開中の全利用者にこのユーザーの名刺が表示されます</span>
+                                            </span>
+                                            <input type="checkbox" checked={aAllOn}
+                                              onChange={e => {
+                                                const on = e.target.checked;
+                                                setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: aCompose(on, aNonAll) }));
+                                                setAdminTagMsg(""); setAdminTagsDirty(true);
+                                              }}
+                                              className="w-5 h-5 accent-amber-500 flex-shrink-0" />
+                                          </label>
                                           <div className="text-[10px] bg-neutral-800 text-neutral-400 px-3 py-2 rounded-xl border border-neutral-700">
                                             ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。一番下のSaveボタンでは保存されません。ユーザーのタグ変更は24時間に1回ですが、<b>管理者の保存は制限対象外</b>です
                                           </div>
@@ -1818,18 +1849,26 @@
                                               ● 入力中のタグはまだ保存されていません
                                             </div>
                                           )}
-                                          {!personIsPro && <div className="text-[10px] bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20">FREEプランは1つ目のタグのみマッチ対象になります</div>}
-                                          {Array.from({ length: PRO_TAG_LIMIT }).map((_, i) => {
-                                            const inactive = i >= userTagLimit;
+                                          {!personIsPro && <div className="text-[10px] bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20">FREEプランは1つ目のタグのみマッチ対象になります（全体公開も1個分）</div>}
+                                          {Array.from({ length: PRO_TAG_LIMIT - (aAllOn ? 1 : 0) }).map((_, i) => {
+                                            const inactive = i >= aSlotLimit;
                                             return (
                                               <div key={i} className={`space-y-1 ${inactive ? 'opacity-40' : ''}`}>
                                                 <div className="flex items-center gap-2">
                                                   <p className="text-[9px] text-neutral-300 uppercase tracking-widest">Tag {i+1}</p>
-                                                  {inactive && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO限定（保存可・無効）</span>}
+                                                  {inactive && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{!personIsPro ? "PRO限定（保存可・無効）" : "全体公開で1枠使用中"}</span>}
                                                 </div>
-                                                <input type="text" value={curTags[i] || ""} maxLength={TAG_MAX_LEN}
-                                                  onChange={e => { const val = e.target.value; setAdminAllTags(prev => { const n = { ...prev }; const arr = [...(n[editingUrlsName] || [])]; while (arr.length < PRO_TAG_LIMIT) arr.push(""); arr[i] = val; n[editingUrlsName] = arr; return n; }); setAdminTagMsg(""); setAdminTagsDirty(true); }}
-                                                  placeholder={TAG_PLACEHOLDERS[i]}
+                                                <input type="text" value={aNonAll[i] || ""} maxLength={TAG_MAX_LEN}
+                                                  onChange={e => {
+                                                    const val = e.target.value;
+                                                    if (normalizeTag(val) === "all") { setAdminTagMsg("全体公開は上のスイッチで設定してください"); return; }
+                                                    const rest = [...aNonAll];
+                                                    while (rest.length < PRO_TAG_LIMIT) rest.push("");
+                                                    rest[i] = val;
+                                                    setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: aCompose(aAllOn, rest) }));
+                                                    setAdminTagMsg(""); setAdminTagsDirty(true);
+                                                  }}
+                                                  placeholder={TAG_PLACEHOLDERS[i] || "例：タグ"}
                                                   className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-500 text-xs text-white placeholder:text-neutral-600" />
                                               </div>
                                             );
@@ -1876,21 +1915,9 @@
                           </div>
                           );})()}
 
-                        {/* GitHub Token */}
-                        <div className="mt-8 border-t border-neutral-800 pt-6">
-                          <p className="text-[9px] text-neutral-300 uppercase tracking-widest mb-3">GitHub Token</p>
-                          <div className="flex gap-2">
-                            <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)}
-                              placeholder={githubToken ? "●●●●●●●●（設定済み）" : "ghp_xxxxxxxxxxxx"}
-                              className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:outline-none focus:border-neutral-600 text-xs text-white placeholder:text-neutral-300 font-mono" />
-                            <button onClick={saveToken} disabled={!tokenInput}
-                              className="px-5 py-3 bg-neutral-800 text-neutral-300 rounded-xl text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30">Save</button>
-                          </div>
-                        </div>
-
                         {/* パスワード変更 */}
-                        <div className="mt-6 border-t border-neutral-800 pt-6">
-                          <p className="text-[9px] text-neutral-300 uppercase tracking-widest mb-3">管理パスワード変更</p>
+                        <div className="mt-8 border-t border-neutral-800 pt-6">
+                          <p className="text-[9px] text-neutral-300 uppercase tracking-widest mb-3">管理パスワード変更（8文字以上）</p>
                           <div className="flex gap-2">
                             <input type="password" value={newPassInput} onChange={e => setNewPassInput(e.target.value)}
                               placeholder="新しいパスワード"
@@ -2037,6 +2064,31 @@
                             ☆STORE☆
                           </a>
                         </div>
+
+                        {/* ★ v5.9: プライバシー説明（誰に何が見えるか） */}
+                        <div className="mt-3 text-center">
+                          <button onClick={() => setShowPrivacy(true)}
+                            className="text-[10px] text-neutral-400 underline underline-offset-2 hover:text-black transition-colors">
+                            🔒 プライバシー — あなたの情報は誰に見える？
+                          </button>
+                        </div>
+                        {showPrivacy && (
+                          <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPrivacy(false)}>
+                            <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-neutral-800">🔒 誰に何が見えるか</h3>
+                                <button onClick={() => setShowPrivacy(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
+                              </div>
+                              <div className="text-[11px] text-neutral-600 leading-relaxed space-y-2.5">
+                                <p><b className="text-neutral-800">① この名刺ページ</b><br/>名刺のURL（またはQRコード）を知っている人だけが見られます。表示されるのは、あなたが名刺に載せた内容（表示名・リンク・プロフィール）です。利用者の一覧を外部から取得することはできません。</p>
+                                <p><b className="text-neutral-800">② タグを設定した場合</b><br/>同じタグを保存している他の利用者の「タグ仲間」画面に、あなたの<b>表示名と名刺リンク</b>が表示されることがあります（開くたびにランダムで最大5名）。タグは自分で保存しない限り公開されません。今何人に見えているかは、名刺を編集 → タグ タブでいつでも確認できます。</p>
+                                <p><b className="text-neutral-800">③ 全体公開をONにした場合</b><br/>全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます。OFFにすればいつでも解除できます。</p>
+                                <p><b className="text-neutral-800">④ 見えないもの</b><br/>あなたのPIN・メールアドレスが他の利用者に表示されることはありません。PINはサーバーでのみ照合されます。</p>
+                                <p><b className="text-neutral-800">⑤ 運営（管理者）</b><br/>サイト運営者は、サポートとシステム管理のために登録データ（名刺内容・タグ・PIN）を確認できます。</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* タグ仲間の名刺一覧（カード画面・編集パネル不要） */}
                         {showCardTags && cardTagMatches && (
@@ -2405,14 +2457,30 @@
                                 </>)}
 
                                 {/* ───── タグタブ ───── */}
-                                {editTab === "tags" && (<>
-                                  <p className="text-[10px] text-neutral-500">タグ（{pro ? `最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個`}・各{TAG_MAX_LEN}文字以内）</p>
+                                {editTab === "tags" && (() => {
+                                  // ★ v5.9: 「all」は全体公開トグルに分離（誤操作防止）
+                                  const tagLimitHere = pro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
+                                  const allOn = userEditTags.some(t => normalizeTag(t) === "all");
+                                  const nonAllTags = userEditTags.filter(t => normalizeTag(t) !== "all");
+                                  const composeTags = (on, rest) => (on ? ["all"] : []).concat(rest);
+                                  const slotLimit = tagLimitHere - (allOn ? 1 : 0); // allが1枠使う
+                                  const savedActive = mySavedTags.slice(0, tagLimitHere);
+                                  return (<>
+                                  <p className="text-[10px] text-neutral-500">タグ（{pro ? `最大${PRO_TAG_LIMIT}個` : `FREE: ${FREE_TAG_LIMIT}個`}・各{TAG_MAX_LEN}文字以内・全体公開も1個分）</p>
                                   <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 space-y-1">
                                     <p>同じタグを設定している他のユーザーと、お互いの名刺（表示名とリンク）が見え合うようになります</p>
-                                    <p>例：<b>all</b>（全員に公開）、業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）</p>
-                                    <p>※ <b>all</b> は全員に公開したい人が共通で使うタグです（all と入力した人同士で名刺が見え合います）</p>
+                                    <p>例：業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）、地域（<b>渋谷</b>）</p>
                                     <p>※ タグ仲間には、同じタグの人の中から開くたびにランダムで最大5名まで表示されます</p>
                                   </div>
+                                  {/* ★ あなたのタグが今誰に見えているか（透明性） */}
+                                  {savedActive.length > 0 && (
+                                    <div className="text-[10px] bg-green-50 text-green-700 px-3 py-2 rounded-xl border border-green-100 space-y-0.5">
+                                      <p className="font-semibold">👀 あなたの名刺が見えている人</p>
+                                      {savedActive.map(t => (
+                                        <p key={t}>{normalizeTag(t) === "all" ? "🌐 全体公開" : `# ${t}`} … 今 <b>{tagCounts[normalizeTag(t)] ?? "–"}</b> 人に見えています</p>
+                                      ))}
+                                    </div>
+                                  )}
                                   <div className="text-[10px] bg-neutral-100 text-neutral-600 px-3 py-2 rounded-xl border border-neutral-200">
                                     ⚠️ タグは下の<b>「タグを保存」</b>ボタンでのみ保存されます。画面下のSAVEボタンでは保存されません。保存後<b>24時間</b>はタグを変更できません（削除はいつでも可能）
                                   </div>
@@ -2426,17 +2494,41 @@
                                       ● 入力中のタグはまだ保存されていません
                                     </div>
                                   )}
-                                  {Array.from({ length: PRO_TAG_LIMIT }).map((_, i) => {
-                                    const locked = !pro && i >= FREE_TAG_LIMIT;
+                                  {/* ★ 全体公開トグル（旧「all」タグ） */}
+                                  <label className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${allOn ? 'bg-amber-50 border-amber-300' : 'bg-neutral-50 border-neutral-200'}`}>
+                                    <span className="text-[11px] text-neutral-700">
+                                      <b>🌐 全体に公開する</b>
+                                      <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると、全体公開中のすべての利用者にあなたの名刺（表示名とリンク）が表示されます{!pro && "（FREEはタグとの併用不可）"}</span>
+                                    </span>
+                                    <input type="checkbox" checked={allOn}
+                                      onChange={e => {
+                                        const on = e.target.checked;
+                                        if (on && !window.confirm("全体公開をONにすると、全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます（反映には保存が必要です）。よろしいですか？")) return;
+                                        setUserEditTags(composeTags(on, nonAllTags));
+                                        setTagSaveMsg("");
+                                      }}
+                                      className="w-5 h-5 accent-amber-500 flex-shrink-0" />
+                                  </label>
+                                  {Array.from({ length: PRO_TAG_LIMIT - (allOn ? 1 : 0) }).map((_, i) => {
+                                    const locked = i >= slotLimit;
                                     return (
                                       <div key={i} className={`space-y-1 ${locked ? 'opacity-40' : ''}`}>
                                         <div className="flex items-center gap-2">
                                           <p className="text-[9px] text-neutral-400 uppercase tracking-widest font-mono">Tag {i+1}</p>
-                                          {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-semibold">PRO限定</span>}
+                                          {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-semibold">{!pro ? "PRO限定" : "全体公開で1枠使用中"}</span>}
                                         </div>
-                                        <input type="text" value={userEditTags[i] || ""} maxLength={TAG_MAX_LEN}
-                                          onChange={e => { if (locked) return; const val = e.target.value; setUserEditTags(prev => { const n = [...prev]; while (n.length < PRO_TAG_LIMIT) n.push(""); n[i] = val; return n; }); setTagSaveMsg(""); }}
-                                          placeholder={locked ? "PROプランで利用可能" : TAG_PLACEHOLDERS[i]}
+                                        <input type="text" value={nonAllTags[i] || ""} maxLength={TAG_MAX_LEN}
+                                          onChange={e => {
+                                            if (locked) return;
+                                            const val = e.target.value;
+                                            if (normalizeTag(val) === "all") { setTagSaveMsg("全体公開は上のスイッチで設定してください"); return; }
+                                            const rest = [...nonAllTags];
+                                            while (rest.length < PRO_TAG_LIMIT) rest.push("");
+                                            rest[i] = val;
+                                            setUserEditTags(composeTags(allOn, rest));
+                                            setTagSaveMsg("");
+                                          }}
+                                          placeholder={locked ? (!pro ? "PROプランで利用可能" : "全体公開をOFFにすると使えます") : TAG_PLACEHOLDERS[i] || "例：タグ"}
                                           disabled={locked}
                                           className="w-full px-3 py-2.5 bg-yellow-200 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm disabled:bg-neutral-50 disabled:cursor-not-allowed" />
                                       </div>
@@ -2447,7 +2539,8 @@
                                     {tagsDirty ? "● タグを保存する" : "タグを保存"}
                                   </button>
                                   {tagSaveMsg && <p className={`text-[10px] mt-1 ${tagSaveMsg.startsWith("✓") ? 'text-green-500' : 'text-red-500'}`}>{tagSaveMsg}</p>}
-                                </>)}
+                                  </>);
+                                })()}
 
                               </div>{/* /スクロール領域 */}
 
