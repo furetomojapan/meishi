@@ -1061,8 +1061,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <p className="text-[10px] text-neutral-400 text-center mb-2">この名刺を保護する6桁のPINを設定してください。確認欄に6桁入力すると自動で進みます</p>
                               <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 mb-4 text-left space-y-0.5">
                                 <p>・PINは<b>あなたの名刺を編集するための鍵</b>です（閲覧には不要）</p>
-                                <p>・覚えやすい番号でOK。メモしても構いません</p>
-                                <p>・忘れても大丈夫：管理者がリセットでき、新しいPINを設定し直せます</p>
+                                <p>・<b>忘れないように必ず控えてください</b>（メモ・スマホのメモ帳など）</p>
+                                <p>・万一忘れた場合は、管理者に連絡してリセットしてもらう必要があります</p>
                               </div>
                               <div className={pinBusy ? 'opacity-40 pointer-events-none' : ''}>
                                 <input
