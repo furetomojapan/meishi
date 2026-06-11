@@ -1043,6 +1043,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   className="w-full py-3.5 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-95 transition-all disabled:opacity-30 mt-1">
                                   {pinBusy ? "確認中…" : "確認"}
                                 </button>
+                                <p className="text-[9px] text-neutral-400 text-center mt-2">
+                                  PINを忘れた場合は <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-black">STORES</a> から「PINリセット」をお申し込みください（300円）
+                                </p>
                                 <button onClick={() => setShowPinModal(false)} disabled={pinBusy}
                                   className="w-full mt-2 py-2 text-[10px] text-neutral-400 hover:text-black transition-colors disabled:opacity-30">
                                   キャンセル
@@ -1062,7 +1065,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 mb-4 text-left space-y-0.5">
                                 <p>・PINは<b>あなたの名刺を編集するための鍵</b>です（閲覧には不要）</p>
                                 <p>・<b>忘れないように必ず控えてください</b>（メモ・スマホのメモ帳など）</p>
-                                <p>・万一忘れた場合は、管理者によるリセット<b>（有料）</b>が必要になります</p>
+                                <p>・万一忘れた場合は、管理者によるリセット<b>（有料・300円）</b>が必要になります</p>
                               </div>
                               <div className={pinBusy ? 'opacity-40 pointer-events-none' : ''}>
                                 <input
