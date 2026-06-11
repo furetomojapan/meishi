@@ -18,6 +18,18 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [mustChangePass, setMustChangePass] = useState(false); // 初期パスワード強制変更
         const [tagCounts, setTagCounts] = useState({});   // タグごとの「見えている人数」
         const [showPrivacy, setShowPrivacy] = useState(false); // プライバシー説明モーダル
+        // ★ v5.14: 文字サイズ拡大（見る人側の設定・端末に記憶。座談会Cさん課題）
+        const UI_ZOOMS = [1, 1.15, 1.3];
+        const UI_ZOOM_LABELS = ["標準", "大", "特大"];
+        const [uiZoomIdx, setUiZoomIdx] = useState(() => {
+          const v = parseInt(localStorage.getItem('meisi_ui_zoom') || "0", 10);
+          return v >= 0 && v < 3 ? v : 0;
+        });
+        const cycleUiZoom = () => setUiZoomIdx(prev => {
+          const next = (prev + 1) % UI_ZOOMS.length;
+          localStorage.setItem('meisi_ui_zoom', String(next));
+          return next;
+        });
         const [pinAuthToken, setPinAuthToken] = useState(null);
 
         const [error, setError] = useState("");
@@ -524,7 +536,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         };
 
         return (
-          <div className="min-h-screen p-4 sm:p-8 md:p-12">
+          <div className="min-h-screen p-4 sm:p-8 md:p-12" style={{ zoom: UI_ZOOMS[uiZoomIdx] }}>
             <Toast status={toast} />
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1142,11 +1154,15 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                         </div>
                         )}
 
-                        {/* ★ v5.9: プライバシー説明（誰に何が見えるか） */}
-                        <div className="mt-3 text-center">
+                        {/* ★ v5.9: プライバシー説明 / v5.14: 文字サイズ切替 */}
+                        <div className="mt-3 flex items-center justify-center gap-4">
+                          <button onClick={cycleUiZoom}
+                            className={`flex items-center gap-1 text-[10px] border rounded-full px-3 py-1.5 transition-colors ${uiZoomIdx > 0 ? 'border-black text-black font-bold' : 'border-neutral-200 text-neutral-400 hover:text-black hover:border-black'}`}>
+                            <span className="text-[12px]">あ</span> 文字サイズ: {UI_ZOOM_LABELS[uiZoomIdx]}
+                          </button>
                           <button onClick={() => setShowPrivacy(true)}
                             className="text-[10px] text-neutral-400 underline underline-offset-2 hover:text-black transition-colors">
-                            🔒 プライバシー — あなたの情報は誰に見える？
+                            🔒 プライバシー
                           </button>
                         </div>
                         {showPrivacy && (
