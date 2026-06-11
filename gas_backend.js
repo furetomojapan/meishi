@@ -1,16 +1,21 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v2.0
+ * デジタル名刺 - Google Apps Script バックエンド v3.0
  * セキュリティ強化版:
  *   - PIN・adminPass はブラウザに送らない
- *   - verify_pin でサーバー側PIN検証 → セッショントークン発行
+ *   - verify_pin でサーバー側PIN検証 → セッショントークン発行（試行回数制限あり）
  *   - 全書き込みアクションに認証必須
+ *   - 管理パスワードは SHA-256 ハッシュで保存（平文は初回認証時に自動移行）
+ *   - 初期パスワード admin123 はログイン時に強制変更
+ *   - 全件取得(get_all)を廃止 → get_user（単一ユーザー）+ admin_get_all（管理者専用）
+ *   - ライセンスキーは公開APIから出さない
  *
  * 【再デプロイ手順】
  * 1. スプレッドシート → 拡張機能 → Apps Script
  * 2. このコードで全体置き換え
  * 3. デプロイ → 既存のデプロイを管理 → 編集（鉛筆）→ バージョン: 新バージョン → デプロイ
  * 4. URLは変わらないのでindex.htmlの書き換え不要
- * 5. initSheets() を1回手動実行（sessionsシートを追加するため）
+ * 5. initSheets() を1回手動実行
+ * ※ v3.0 は index.html v5.9 とセットでデプロイすること（旧フロントは get_all 廃止で動かない）
  */
 
 const SHEET_USERS         = "users";
@@ -18,14 +23,23 @@ const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
 const SHEET_SESSIONS      = "sessions";
 const SHEET_REGISTRATIONS = "registrations";
-const SESSION_TTL_MS      = 60 * 60 * 1000; // 60分
+const SESSION_TTL_MS      = 30 * 24 * 60 * 60 * 1000; // 30日（端末記憶用）
 const ADMIN_EMAIL         = "furetomojapan@gmail.com";
 const SITE_URL            = "https://furetomojapan.github.io/meishi/";
 
 // タグ機能
-const FREE_TAG_LIMIT = 1;
-const PRO_TAG_LIMIT  = 5;
-const TAG_MAX_LEN    = 20;
+const FREE_TAG_LIMIT  = 1;
+const PRO_TAG_LIMIT   = 5;
+const TAG_MAX_LEN     = 20;
+const TAG_COOLDOWN_MS = 24 * 60 * 60 * 1000; // タグ変更は24時間に1回（全削除は対象外）
+
+// リンク上限（プラン判定はサーバー権威 — クライアントの値は信用しない）
+const FREE_LINK_LIMIT = 1;
+const PRO_LINK_LIMIT  = 5;
+
+// PIN総当たり対策
+const PIN_MAX_ATTEMPTS  = 5;            // 連続失敗の上限
+const PIN_LOCK_SECONDS  = 15 * 60;      // ロックアウト時間（15分）
 
 // ── シート初期化 ──────────────────────────────────────────────────
 function initSheets() {
@@ -35,12 +49,12 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags"]);
-    us.getRange(1,1,1,10).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt"]);
+    us.getRange(1,1,1,11).setFontWeight("bold");
   } else {
     // 既存シートに足りない列があれば追加
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
@@ -49,21 +63,20 @@ function initSheets() {
   // 既存ユーザーにpublicIdを発行（未設定の行のみ）
   migratePublicIds();
 
-  // config シート
+  // config シート（初期パスワードはハッシュで保存。初回ログイン時に強制変更される）
   let cs = ss.getSheetByName(SHEET_CONFIG);
   if (!cs) {
     cs = ss.insertSheet(SHEET_CONFIG);
     cs.appendRow(["key","value"]);
-    cs.appendRow(["adminPass","admin123"]);
+    cs.appendRow(["adminPass", "sha256:" + sha256Hex("admin123")]);
     cs.getRange(1,1,1,2).setFontWeight("bold");
   }
 
-  // licenses シート
+  // licenses シート（キーはシート上でのみ管理 — 公開APIには出さない）
   let ls = ss.getSheetByName(SHEET_LICENSE);
   if (!ls) {
     ls = ss.insertSheet(SHEET_LICENSE);
     ls.appendRow(["licenseKey","plan","note","issuedAt"]);
-    ls.appendRow(["MEISI-DEMO-PRO1-2026","pro","デモ用PROキー","2026-06-07"]);
     ls.getRange(1,1,1,4).setFontWeight("bold");
   }
 
@@ -85,18 +98,21 @@ function initSheets() {
 }
 
 // ── GET ───────────────────────────────────────────────────────────
+// ★ v3.0: 全件取得(get_all)は廃止。公開GETは「単一ユーザー取得」のみ。
+//   - 名刺は公開物だが「全件を一覧で吸い出せる」状態を塞ぐ
+//   - ライセンスキーは一切返さない
 function doGet(e) {
-  const action = e.parameter.action || "get_all";
+  const action = e.parameter.action || "get_user";
   let result;
   try {
-    if (action === "get_all") {
-      result = {
-        users:    getAllUsersPublic(), // ★ PIN除去
-        config:   getConfigPublic(),  // ★ adminPass除去
-        licenses: getLicenses()
-      };
-    } else if (action === "get_licenses") {
-      result = getLicenses();
+    if (action === "get_user") {
+      const id = String(e.parameter.id || "").trim();
+      if (!id) {
+        result = { error: "id required" };
+      } else {
+        const u = getUserPublic(id); // name または publicId で検索
+        result = u ? { name: u.name, user: u.data } : { error: "not found" };
+      }
     } else {
       result = { error: "unknown action" };
     }
@@ -118,8 +134,17 @@ function doPost(e) {
       // ── ユーザー操作（PINトークン必須）──────────────────────────
 
       case "verify_pin": {
-        if (!checkPin(p.name, p.pin))
-          return jsonResponse({ success: false, error: "PIN不正" });
+        // ★ 総当たり対策: 連続失敗でロックアウト
+        if (isPinLocked(p.name))
+          return jsonResponse({ success: false, error: "試行回数が上限に達しました。15分ほど待ってからもう一度お試しください" });
+        if (!checkPin(p.name, p.pin)) {
+          const left = recordPinFailure(p.name);
+          const msg = left > 0
+            ? "PINが違います（あと" + left + "回失敗するとロックされます）"
+            : "試行回数が上限に達しました。15分ほど待ってからもう一度お試しください";
+          return jsonResponse({ success: false, error: msg });
+        }
+        clearPinFailures(p.name);
         const token = createSession(p.name);
         return jsonResponse({ success: true, token });
       }
@@ -128,7 +153,11 @@ function doPost(e) {
         // plan・plusG・pinは変更不可
         if (!validateSession(p.name, p.token))
           return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
-        saveUserProfile(p.name, p.displayName, p.links, p.profile);
+        // ★ リンク上限はサーバー側プランで強制（クライアント判定を信用しない）
+        const linkLimit = getUserPlan(p.name) === "pro" ? PRO_LINK_LIMIT : FREE_LINK_LIMIT;
+        const links = (Array.isArray(p.links) ? p.links : []).slice(0, linkLimit);
+        if (!saveUserProfile(p.name, p.displayName, links, p.profile))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
         return jsonResponse({ success: true });
       }
 
@@ -141,11 +170,8 @@ function doPost(e) {
         return jsonResponse({ success: true });
       }
 
-      case "check_pin_set": {
-        // 認証不要 — PINの有無だけ返す（値は返さない）
-        const hasPinSet = !!(getUserPin(p.name));
-        return jsonResponse({ success: true, hasPinSet });
-      }
+      // ★ v3.0: check_pin_set は廃止（無認証の存在オラクル対策）。
+      //   PINの有無は get_user の hasPinSet を使用。
 
       case "get_my_pin": {
         if (!validateSession(p.name, p.token))
@@ -164,6 +190,8 @@ function doPost(e) {
         // PINが未設定のユーザーだけが使えるアクション（初回設定用）
         if (!p.name || !p.pin || !/^\d{6}$/.test(String(p.pin)))
           return jsonResponse({ success: false, error: "6桁の数字で入力してください" });
+        if (!userExists(p.name))
+          return jsonResponse({ success: false, error: "ユーザーが見つかりません。ページを再読み込みしてください" });
         const currentPin = getUserPin(p.name);
         if (currentPin) return jsonResponse({ success: false, error: "PINは既に設定されています" });
         setUserPin(p.name, String(p.pin));
@@ -180,15 +208,35 @@ function doPost(e) {
         const limit = plan === "pro" ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
         const r = sanitizeTags(p.tags, limit);
         if (r.error) return jsonResponse({ success: false, error: r.error });
+        const nowMs = Date.now();
+        // 24時間クールダウン（タグありの保存のみ。全削除はいつでも可能）
+        if (r.tags.length > 0) {
+          const last = getTagsUpdatedAt(p.name);
+          if (last && (nowMs - last) < TAG_COOLDOWN_MS) {
+            const hoursLeft = Math.ceil((TAG_COOLDOWN_MS - (nowMs - last)) / (60 * 60 * 1000));
+            return jsonResponse({
+              success: false,
+              error: "タグは保存後24時間変更できません。次に変更できるのは約" + hoursLeft + "時間後です（削除はいつでも可能）",
+              nextChangeAt: last + TAG_COOLDOWN_MS
+            });
+          }
+        }
         if (!setUserTags(p.name, r.tags))
           return jsonResponse({ success: false, error: "ユーザーが見つかりません" });
-        return jsonResponse({ success: true, tags: r.tags });
+        if (r.tags.length > 0) setTagsUpdatedAt(p.name, nowMs);
+        const last2 = getTagsUpdatedAt(p.name);
+        const next  = last2 ? last2 + TAG_COOLDOWN_MS : 0;
+        return jsonResponse({ success: true, tags: r.tags, nextChangeAt: next > Date.now() ? next : 0,
+          counts: getMyTagCounts(p.name) }); // ★ 透明性: タグごとの「見えている人数」
       }
 
       case "get_my_tags": {
         if (!validateSession(p.name, p.token))
           return jsonResponse({ success: false, error: "セッション無効または期限切れ" });
-        return jsonResponse({ success: true, tags: getUserTags(p.name) });
+        const lastUpd = getTagsUpdatedAt(p.name);
+        const nextChg = lastUpd ? lastUpd + TAG_COOLDOWN_MS : 0;
+        return jsonResponse({ success: true, tags: getUserTags(p.name), nextChangeAt: nextChg > Date.now() ? nextChg : 0,
+          counts: getMyTagCounts(p.name) }); // ★ 透明性: タグごとの「見えている人数」
       }
 
       case "get_users_by_tag": {
@@ -227,7 +275,16 @@ function doPost(e) {
       }
 
       case "verify_admin": {
-        return jsonResponse({ success: checkAdminPass(p.password) });
+        const ok = checkAdminPass(p.password);
+        // ★ 初期パスワードのままならログイン成功でも強制変更を要求
+        const mustChange = ok && String(p.password) === "admin123";
+        return jsonResponse({ success: ok, mustChange });
+      }
+
+      case "admin_get_all": {
+        // ★ 全件データは管理者専用（旧 get_all の代替）
+        if (!checkAdminPass(p.adminPass)) return authError();
+        return jsonResponse({ success: true, users: getAllUsersAdmin(), licenses: getLicenses() });
       }
 
       case "admin_create_user": {
@@ -289,7 +346,12 @@ function doPost(e) {
         // 現在のパスワードで認証してから変更
         if (!checkAdminPass(p.currentPass))
           return jsonResponse({ success: false, error: "現在のパスワードが違います" });
-        setConfig("adminPass", p.password);
+        const np = String(p.password || "");
+        if (np.length < 8)
+          return jsonResponse({ success: false, error: "パスワードは8文字以上にしてください" });
+        if (np === "admin123")
+          return jsonResponse({ success: false, error: "初期パスワードは使用できません" });
+        setConfig("adminPass", "sha256:" + sha256Hex(np)); // ★ ハッシュで保存
         return jsonResponse({ success: true });
       }
 
@@ -378,37 +440,44 @@ function doPost(e) {
   }
 }
 
-// ── ユーザーデータ（公開用 — PIN送らない）───────────────────────
-function getAllUsersPublic() {
-  const t     = getUsersTable();
-  const rows  = t.rows;
-  const result = {};
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row[0]) continue;
-    const name        = row[0];
-    const displayName = row[1] || "";
-    const licenseKey  = row[2] || "";
-    const links       = parseJson(row[3], []);
-    const plan        = row[4] || "free";
-    const profile     = parseJson(row[5], null);
-    const hasPinSet   = !!(row[6]);                // PINの有無だけ公開（値は送らない）★
-    const plusG       = row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1";
-    const publicId    = t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "";
-    // ★ tags は公開しない（列挙防止 — get_users_by_tag 経由のみ）
-    result[name] = { displayName, plan, plusG, licenseKey, links, profile, hasPinSet, publicId };
-  }
-  return result;
+// ── 行 → 公開用ユーザーデータ（PIN・licenseKey・tagsは送らない）──
+function rowToPublicUser(row, t) {
+  return {
+    displayName: row[1] || "",
+    links:       parseJson(row[3], []),
+    plan:        row[4] || "free",
+    profile:     parseJson(row[5], null),
+    hasPinSet:   !!(row[6]),  // PINの有無だけ（値は送らない）
+    plusG:       row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1",
+    publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : ""
+    // ★ licenseKey は公開しない / tags は get_users_by_tag 経由のみ
+  };
 }
 
-// ── コンフィグ（adminPass送らない）──────────────────────────────
-function getConfigPublic() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG);
-  const rows  = sheet.getDataRange().getValues();
+// ── 単一ユーザー取得（name または publicId で検索）────────────────
+function getUserPublic(id) {
+  const t = getUsersTable();
+  for (let i = 1; i < t.rows.length; i++) {
+    const row = t.rows[i];
+    if (!row[0]) continue;
+    const pubId = t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "";
+    if (row[0] === id || (pubId && pubId === id)) {
+      return { name: row[0], data: rowToPublicUser(row, t) };
+    }
+  }
+  return null;
+}
+
+// ── 全件取得（管理者専用 — licenseKey含む）───────────────────────
+function getAllUsersAdmin() {
+  const t = getUsersTable();
   const result = {};
-  for (let i = 1; i < rows.length; i++) {
-    if (!rows[i][0] || rows[i][0] === "adminPass") continue; // ★ adminPass除去
-    result[rows[i][0]] = rows[i][1];
+  for (let i = 1; i < t.rows.length; i++) {
+    const row = t.rows[i];
+    if (!row[0]) continue;
+    const u = rowToPublicUser(row, t);
+    u.licenseKey = row[2] || "";
+    result[row[0]] = u;
   }
   return result;
 }
@@ -424,8 +493,9 @@ function saveUserProfile(name, displayName, links, profile) {
     sheet.getRange(i+1, 2).setValue(displayName || "");  // displayName
     sheet.getRange(i+1, 4).setValue(linksJson);           // links
     sheet.getRange(i+1, 6).setValue(profileJson);         // profile
-    return;
+    return true;
   }
+  return false; // ユーザーが見つからない
 }
 
 // ── 管理者: ユーザー作成 ─────────────────────────────────────────
@@ -500,6 +570,17 @@ function adminTogglePlusG(name) {
   return false;
 }
 
+// ── ユーザー存在確認 ─────────────────────────────────────────────
+function userExists(name) {
+  if (!name) return false;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === name) return true;
+  }
+  return false;
+}
+
 // ── PIN操作 ──────────────────────────────────────────────────────
 function getUserPin(name) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
@@ -534,26 +615,56 @@ function deleteUser(name) {
   }
 }
 
-// ── セッション管理 ───────────────────────────────────────────────
-function generatePin() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+// ── PIN総当たり対策（CacheServiceで失敗回数を追跡）────────────────
+function isPinLocked(name) {
+  if (!name) return false;
+  return !!CacheService.getScriptCache().get("pinlock_" + name);
 }
 
+function recordPinFailure(name) {
+  if (!name) return 0;
+  const cache = CacheService.getScriptCache();
+  const key = "pinfail_" + name;
+  const n = parseInt(cache.get(key) || "0", 10) + 1;
+  cache.put(key, String(n), PIN_LOCK_SECONDS);
+  if (n >= PIN_MAX_ATTEMPTS) {
+    cache.put("pinlock_" + name, "1", PIN_LOCK_SECONDS);
+    cache.remove(key);
+    return 0;
+  }
+  return PIN_MAX_ATTEMPTS - n; // 残り試行回数
+}
+
+function clearPinFailures(name) {
+  if (!name) return;
+  const cache = CacheService.getScriptCache();
+  cache.remove("pinfail_" + name);
+  cache.remove("pinlock_" + name);
+}
+
+// ── セッション管理 ───────────────────────────────────────────────
+// ★ Math.random は使わない（予測リスク）。UUID v4（GASの乱数源）ベース。
 function generateToken() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let t = "";
-  for (let i = 0; i < 32; i++) t += chars[Math.floor(Math.random() * chars.length)];
-  return t;
+  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+}
+
+// 暗号学的に十分なランダムバイト列（UUID+SHA-256ベース）
+function secureRandomBytes(n) {
+  let out = [];
+  while (out.length < n) {
+    const digest = Utilities.computeDigest(
+      Utilities.DigestAlgorithm.SHA_256,
+      Utilities.getUuid() + Utilities.getUuid() + Date.now()
+    );
+    for (let i = 0; i < digest.length; i++) out.push((digest[i] + 256) % 256);
+  }
+  return out.slice(0, n);
 }
 
 function createSession(name) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESSIONS);
   cleanExpiredSessions(sheet);
-  // 同一ユーザーの既存セッションを削除
-  const rows = sheet.getDataRange().getValues();
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rows[i][0] === name) sheet.deleteRow(i+1);
-  }
+  // 複数端末対応: 同一ユーザーの既存セッションは削除しない（期限切れのみ掃除）
   const token     = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   sheet.appendRow([name, token, expiresAt]);
@@ -583,10 +694,27 @@ function cleanExpiredSessions(sheet) {
 }
 
 // ── 管理者認証 ───────────────────────────────────────────────────
+// ★ ハッシュ保存（sha256:プレフィックス）。平文で保存されていた場合は
+//   認証成功時に自動でハッシュへ移行する。
+function sha256Hex(str) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(str), Utilities.Charset.UTF_8);
+  return bytes.map(b => ((b + 256) % 256).toString(16).padStart(2, "0")).join("");
+}
+
 function checkAdminPass(password) {
   if (!password) return false;
   const stored = getConfig()["adminPass"];
-  return !!stored && String(password) === String(stored);
+  if (!stored) return false;
+  const s = String(stored);
+  if (s.indexOf("sha256:") === 0) {
+    return sha256Hex(password) === s.slice(7);
+  }
+  // 旧形式（平文）— 一致したらハッシュへ自動移行
+  if (String(password) === s) {
+    setConfig("adminPass", "sha256:" + sha256Hex(password));
+    return true;
+  }
+  return false;
 }
 
 // ── コンフィグ ────────────────────────────────────────────────────
@@ -658,13 +786,15 @@ function normalizeEmail(email) {
   return cleanLocal + "@" + domain;
 }
 
-// ── ランダム英数字 n 文字 ──────────────────────────────────────────
+// ── ランダム英数字 n 文字（安全な乱数）─────────────────────────────
 function generateShortId(n) {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789"; // 36種
+  const bytes = secureRandomBytes(n * 2);
   let result = "";
-  for (let i = 0; i < n; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < bytes.length && result.length < n; i++) {
+    if (bytes[i] < 252) result += chars[bytes[i] % 36]; // 偏り除去（252=36*7）
   }
+  while (result.length < n) result += chars[secureRandomBytes(1)[0] % 36];
   return result;
 }
 
@@ -676,15 +806,46 @@ function getUsersTable() {
   const header = rows[0] || [];
   return {
     sheet, rows,
-    colPublicId: header.indexOf("publicId"), // 0-based, -1なら列なし
-    colTags:     header.indexOf("tags")
+    colPublicId:     header.indexOf("publicId"), // 0-based, -1なら列なし
+    colTags:         header.indexOf("tags"),
+    colTagsUpdated:  header.indexOf("tagsUpdatedAt")
   };
+}
+
+// タグ最終保存日時（ms）を取得。未設定・列なしは 0
+function getTagsUpdatedAt(name) {
+  const t = getUsersTable();
+  if (t.colTagsUpdated < 0) return 0;
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) {
+      const v = t.rows[i][t.colTagsUpdated];
+      if (!v) return 0;
+      const ms = new Date(v).getTime();
+      return isNaN(ms) ? 0 : ms;
+    }
+  }
+  return 0;
+}
+
+function setTagsUpdatedAt(name, ms) {
+  const t = getUsersTable();
+  if (t.colTagsUpdated < 0) return;
+  for (let i = 1; i < t.rows.length; i++) {
+    if (t.rows[i][0] === name) {
+      t.sheet.getRange(i + 1, t.colTagsUpdated + 1).setValue(new Date(ms).toISOString());
+      return;
+    }
+  }
 }
 
 function generatePublicId(existingSet) {
   for (let a = 0; a < 20; a++) {
+    const bytes = secureRandomBytes(18);
     let id = "zz";
-    for (let i = 0; i < 9; i++) id += Math.floor(Math.random() * 10);
+    for (let i = 0; i < bytes.length && id.length < 11; i++) {
+      if (bytes[i] < 250) id += String(bytes[i] % 10); // 偏り除去（250=10*25）
+    }
+    if (id.length < 11) continue;
     if (!existingSet || !existingSet.has(id)) return id;
   }
   return "zz" + Date.now(); // フォールバック
@@ -773,6 +934,14 @@ function getUserPlan(name) {
 function activeTags(tags, plan) {
   const limit = plan === "pro" ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
   return (tags || []).slice(0, limit);
+}
+
+// ★ 透明性: 自分の有効タグごとに「同じタグを持つ他ユーザー数（=自分が見えている人数）」を返す
+function getMyTagCounts(name) {
+  const myActive = activeTags(getUserTags(name), getUserPlan(name));
+  const counts = {};
+  myActive.forEach(tag => { counts[tag] = findUsersByTag(tag, name).length; });
+  return counts;
 }
 
 // 同じタグを持つユーザー一覧（displayName + publicId のみ返す）
