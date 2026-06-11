@@ -752,15 +752,9 @@
         const [isNewUser, setIsNewUser] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
-        const defaultProfile = { company:"", companyFont:0, companyFontSize:"S", companyAlign:"left", companyColor:"",
-                    title:"", titleFont:0, titleFontSize:"S", titleAlign:"left", titleColor:"",
-                    name:"", nameFont:0, nameFontSize:"M", nameAlign:"left", nameColor:"",
-                    address:"", addressFont:0, addressFontSize:"M", addressColor:"",
-                    phone:"", phoneFont:0, phoneFontSize:"M", phoneColor:"",
-                    appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], appealColors:["","","",""],
-                    bg:"1", bgBack:"", tint:"", textColor:"#ffffff" };
-        const [userEditProfile, setUserEditProfile] = useState(defaultProfile);
-        const [editingProfile, setEditingProfile] = useState(defaultProfile);
+        // フェーズ3: プロフィール初期値は normalizeProfile(null) に一本化（3重定義を解消）
+        const [userEditProfile, setUserEditProfile] = useState(() => normalizeProfile(null));
+        const [editingProfile, setEditingProfile] = useState(() => normalizeProfile(null));
         const [editTab, setEditTab] = useState("info"); // "info" | "design" | "links"
         const [editOrigJSON, setEditOrigJSON] = useState(null); // dirty tracking snapshot
         const [adminEditTab, setAdminEditTab] = useState("info"); // admin panel user tab
@@ -972,7 +966,8 @@
             .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
           setUserEditUrls(padded);
           setUserEditDisplayName(pd.displayName || "");
-          const newProf = { name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, appealFonts:[0,0,0,0], ...pd.profile, appealFonts: Array.isArray(pd.profile?.appealFonts) ? [...pd.profile.appealFonts,...[0,0,0,0]].slice(0,4) : [0,0,0,0] };
+          const newProf = normalizeProfile(pd.profile); // pd.profileは正規化済みだが防御的に再適用
+
           setUserEditProfile(newProf);
           setEditOrigJSON(JSON.stringify(newProf) + JSON.stringify(padded));
           setEditTab("info");
@@ -1433,7 +1428,7 @@
                                         const padded = [...pd.links, ...Array(PRO_LINK_LIMIT).fill(null)].slice(0, PRO_LINK_LIMIT)
                                           .map(e => e ? {url:e.url||"", label:e.label||"", _custom:!knownSNS(e.label) && e.label !== ""} : {url:"",label:"",_custom:false});
                                         setEditingUrls(padded);
-                                        setEditingProfile({ name:"", address:"", phone:"", appeals:["","","",""], bg:"1", tint:"", nameAlign:"left", appealsAlign:"left", nameFont:0, appealFonts:[0,0,0,0], ...pd.profile, appealFonts: Array.isArray(pd.profile?.appealFonts) ? [...pd.profile.appealFonts,...[0,0,0,0]].slice(0,4) : [0,0,0,0] });
+                                        setEditingProfile(normalizeProfile(pd.profile));
                                       }}
                                       className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
                                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
