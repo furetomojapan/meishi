@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.12"; // フェーズ5: GAS v4.0（PINハッシュ化・ルーティング構造化・ロック・キャッシュ）
+      export const APP_VERSION = "v5.13"; // フェーズ6: 画像軽量化・CI・PIN初回設定の説明
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

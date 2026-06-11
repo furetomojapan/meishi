@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run lint   # import漏れ等の未定義参照チェック
+      - run: npm test       # GASバックエンドのモック結合テスト（53件）
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
