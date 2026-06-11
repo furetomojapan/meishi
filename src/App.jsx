@@ -1167,7 +1167,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                         </div>
                         {showPrivacy && (
                           <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPrivacy(false)}>
-                            <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 overflow-y-auto shadow-2xl" style={{maxHeight:`calc(80vh / ${UI_ZOOMS[uiZoomIdx]})`}} onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-neutral-800">🔒 誰に何が見えるか</h3>
                                 <button onClick={() => setShowPrivacy(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
@@ -1240,7 +1240,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           <>
                             <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={closeEditSheet} />
                             <div className="fixed z-50 bg-white shadow-2xl flex flex-col"
-                              style={{bottom:0,left:0,right:0,borderRadius:'24px 24px 0 0',maxHeight:'88vh',paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
+                              style={{bottom:0,left:0,right:0,borderRadius:'24px 24px 0 0',maxHeight:`calc(88vh / ${UI_ZOOMS[uiZoomIdx]})`,paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
                               {/* ドラッグハンドル */}
                               <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
                                 <div className="w-10 h-1 bg-neutral-200 rounded-full" />
@@ -1270,8 +1270,18 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 {/* ───── 情報タブ ───── */}
                                 {editTab === "info" && (<>
                                 <p className="text-[10px] text-neutral-400">空白文字（スペース・改行）も認識します</p>
-                                {/* PIN変更 */}
-                                <div>
+                                {/* フェーズ3: 文字入力は管理者編集と共通（ProfileTextFields） */}
+                                <ProfileTextFields profile={userEditProfile} setProfile={setUserEditProfile} />
+                                {/* この端末の記憶 */}
+                                <div className="border-t border-neutral-100 pt-3">
+                                  <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest mb-1">この端末の記憶</p>
+                                  <p className="text-[10px] text-neutral-400 mb-2">PIN認証は30日間この端末に記憶され、次回からPIN入力なしで編集・タグ仲間の閲覧ができます。共有端末では下のボタンで記憶を消してください</p>
+                                  <button onClick={forgetDevice}
+                                    className="px-4 py-2 bg-neutral-100 text-neutral-600 rounded-xl text-[10px] font-bold hover:bg-red-50 hover:text-red-500 border border-neutral-200 hover:border-red-200 transition-all">この端末の記憶を消す</button>
+                                  {deviceMemMsg && <p className="text-[10px] text-green-500 mt-1">{deviceMemMsg}</p>}
+                                </div>
+                                {/* PIN変更（最下部・誤操作防止） */}
+                                <div className="border-t border-neutral-100 pt-3">
                                   <div className="flex items-center gap-2 mb-2">
                                     <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">PIN変更</p>
                                     <span className="text-[10px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">安全のためPINは表示されません</span>
@@ -1287,16 +1297,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   </div>
                                   {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
                                 </div>
-                                {/* この端末の記憶 */}
-                                <div className="border-t border-neutral-100 pt-3">
-                                  <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest mb-1">この端末の記憶</p>
-                                  <p className="text-[10px] text-neutral-400 mb-2">PIN認証は30日間この端末に記憶され、次回からPIN入力なしで編集・タグ仲間の閲覧ができます。共有端末では下のボタンで記憶を消してください</p>
-                                  <button onClick={forgetDevice}
-                                    className="px-4 py-2 bg-neutral-100 text-neutral-600 rounded-xl text-[10px] font-bold hover:bg-red-50 hover:text-red-500 border border-neutral-200 hover:border-red-200 transition-all">この端末の記憶を消す</button>
-                                  {deviceMemMsg && <p className="text-[10px] text-green-500 mt-1">{deviceMemMsg}</p>}
-                                </div>
-                                {/* フェーズ3: 文字入力は管理者編集と共通（ProfileTextFields） */}
-                                <ProfileTextFields profile={userEditProfile} setProfile={setUserEditProfile} />
                                 </>)}
 
                                 {/* ───── デザインタブ ───── */}

@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.14"; // 文字サイズ拡大オプション（標準/大/特大・端末記憶）
+      export const APP_VERSION = "v5.14.1"; // 拡大時のはみ出し補正 + 情報タブ並び替え（PIN変更を最下部へ）
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
