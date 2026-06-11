@@ -52,9 +52,7 @@
       const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
-      const GAS_READY = !GAS_URL.includes("YOUR_SCRIPT_ID");
-      // ★ v5.9: 旧GitHub書き込み方式（トークンをブラウザ保存→リポジトリ直接書き込み）は完全廃止。
-      //   書き込みは全てGAS経由。
+      // 書き込みは全てGAS経由（旧GitHub方式はv5.9で廃止、GAS_READY恒真分岐はフェーズ2で削除）
       const getSiteBase = () => window.location.origin + window.location.pathname;
 
       /* ── データ正規化 ── */
@@ -874,7 +872,7 @@
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）
         //   id は内部名 / publicId のどちらでもGAS側で解決される
         const fetchUser = (id) => {
-          if (!GAS_READY || !id) return;
+          if (!id) return;
           fetch(`${GAS_URL}?action=get_user&id=${encodeURIComponent(id)}&t=${Date.now()}`)
             .then(r => r.ok ? r.json() : null)
             .then(res => {
@@ -942,7 +940,6 @@
 
         // ★ v5.9: 全ユーザーデータは管理者認証後にのみ取得（旧 get_all の代替）
         const fetchAllUsers = async (pass) => {
-          if (!GAS_READY) return;
           try {
             const r = await gasPost({ action:"admin_get_all", adminPass: pass });
             if (r.success && r.users) {
@@ -953,7 +950,6 @@
         };
 
         const fetchAllPins = async (pass) => {
-          if (!GAS_READY) return;
           try {
             const r = await gasPost({ action:"admin_get_all_pins", adminPass: pass });
             if (r.success && r.pins) setAdminAllPins(r.pins);
@@ -961,7 +957,6 @@
         };
 
         const fetchAllTags = async (pass) => {
-          if (!GAS_READY) return;
           try {
             const r = await gasPost({ action:"admin_get_tags", adminPass: pass });
             if (r.success && r.tags) setAdminAllTags(r.tags);
@@ -971,20 +966,16 @@
         const handleLogin = async (e) => {
           e.preventDefault();
           const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-          if (GAS_READY) {
-            const r = await gasPost({ action:"verify_admin", password:clean });
-            if (r.success) {
-              setIsLoggedIn(true); setAdminPassLocal(clean);
-              sessionStorage.setItem('meisi_admin_pass', clean); // ★ タブを閉じると消える
-              setError(""); setPasswordInput("");
-              setMustChangePass(!!r.mustChange); // ★ 初期パスワードなら強制変更
-              fetchAllUsers(clean);
-              fetchAllPins(clean);
-              fetchAllTags(clean);
-            } else { setError("正しいコードを入力してください"); setPasswordInput(""); }
-          } else {
-            setError("サーバー未設定のためログインできません"); setPasswordInput("");
-          }
+          const r = await gasPost({ action:"verify_admin", password:clean });
+          if (r.success) {
+            setIsLoggedIn(true); setAdminPassLocal(clean);
+            sessionStorage.setItem('meisi_admin_pass', clean); // ★ タブを閉じると消える
+            setError(""); setPasswordInput("");
+            setMustChangePass(!!r.mustChange); // ★ 初期パスワードなら強制変更
+            fetchAllUsers(clean);
+            fetchAllPins(clean);
+            fetchAllTags(clean);
+          } else { setError("正しいコードを入力してください"); setPasswordInput(""); }
         };
 
         const selectName = (name) => { setVariablePart(name); window.location.hash = name; setIsAdminMode(false); };
@@ -996,11 +987,9 @@
           setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plan:newPlan}; return n; });
           showToast("saving", 10000);
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"admin_toggle_plan", adminPass:adminPassLocal, name });
-              if (r.success && r.plan) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plan:r.plan}; return n; });
-              showToast(r.success ? "saved" : "error");
-            } else { showToast("saved_local"); }
+            const r = await gasPost({ action:"admin_toggle_plan", adminPass:adminPassLocal, name });
+            if (r.success && r.plan) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plan:r.plan}; return n; });
+            showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
 
@@ -1011,11 +1000,9 @@
           setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plusG:newPlusG}; return n; });
           showToast("saving", 10000);
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"admin_toggle_plusg", adminPass:adminPassLocal, name });
-              if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plusG:r.plusG}; return n; });
-              showToast(r.success ? "saved" : "error");
-            } else { showToast("saved_local"); }
+            const r = await gasPost({ action:"admin_toggle_plusg", adminPass:adminPassLocal, name });
+            if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plusG:r.plusG}; return n; });
+            showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
         /* ── 管理パスワード変更（GASにハッシュ保存・8文字以上） ── */
@@ -1025,22 +1012,20 @@
           if (newPass.length < 8) { setPassMsg("8文字以上にしてください"); setTimeout(() => setPassMsg(""), 3000); return false; }
           if (newPass === "admin123") { setPassMsg("初期パスワードは使用できません"); setTimeout(() => setPassMsg(""), 3000); return false; }
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"save_admin_pass", currentPass: adminPassLocal, password: newPass });
-              if (r.success) {
-                setAdminPassLocal(newPass);
-                sessionStorage.setItem('meisi_admin_pass', newPass);
-                setMustChangePass(false);
-                showToast("saved");
-                setPassMsg("✓ 変更しました（全デバイスに反映）");
-                setNewPassInput("");
-                setTimeout(() => setPassMsg(""), 3000);
-                return true;
-              } else {
-                setPassMsg(r.error || "エラーが発生しました");
-                setTimeout(() => setPassMsg(""), 4000);
-                return false;
-              }
+            const r = await gasPost({ action:"save_admin_pass", currentPass: adminPassLocal, password: newPass });
+            if (r.success) {
+              setAdminPassLocal(newPass);
+              sessionStorage.setItem('meisi_admin_pass', newPass);
+              setMustChangePass(false);
+              showToast("saved");
+              setPassMsg("✓ 変更しました（全デバイスに反映）");
+              setNewPassInput("");
+              setTimeout(() => setPassMsg(""), 3000);
+              return true;
+            } else {
+              setPassMsg(r.error || "エラーが発生しました");
+              setTimeout(() => setPassMsg(""), 4000);
+              return false;
             }
           } catch { showToast("error"); }
           return false;
@@ -1084,7 +1069,6 @@
           } else if (mySavedTags.length > 0) {
             if (!window.confirm("タグをすべて削除しますか？（削除はいつでも可能です）")) return;
           }
-          if (!GAS_READY) { setTagSaveMsg("オフラインのため保存できません"); return; }
           setTagSaveMsg("保存中…");
           try {
             const r = await gasPost({ action:"save_tags", name:variablePart, token:pinAuthToken, tags:cleaned });
@@ -1107,7 +1091,7 @@
         const tokenKey = (name) => 'meisi_token_' + name;
         const tryStoredToken = async () => {
           const tok = localStorage.getItem(tokenKey(variablePart));
-          if (!tok || !GAS_READY) return null;
+          if (!tok) return null;
           try {
             const r = await gasPost({ action:"get_my_tags", name:variablePart, token:tok });
             if (r.success) return { token: tok, tags: r.tags || [], nextChangeAt: r.nextChangeAt || 0, counts: r.counts || {} };
@@ -1165,7 +1149,6 @@
             window.alert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
             return;
           }
-          if (!GAS_READY) { openUserEditDirect(); return; }
           if (editOpening) return;
           setEditOpening(true);
           // 端末記憶トークンがあればPIN入力をスキップ
@@ -1199,7 +1182,6 @@
           if (pin.length !== 6) return;
           setPinBusy(true);
           try {
-          if (GAS_READY) {
             const r = await gasPost({ action:"verify_pin", name:variablePart, pin });
             if (r.success) {
               localStorage.setItem(tokenKey(variablePart), r.token); // 端末に30日記憶
@@ -1219,9 +1201,6 @@
                 openUserEditDirect();
               }
             } else { setPinError(r.error || "PINが違います"); setPinInput(""); } // ★ ロックアウト等のメッセージも表示
-          } else {
-            setPinError("サーバー未設定のため認証できません"); setPinInput("");
-          }
           } catch { setPinError("通信エラーが発生しました"); }
           setPinBusy(false);
         };
@@ -1263,18 +1242,9 @@
           const newPin = pinChangeInput.trim();
           if (!/^\d{6}$/.test(newPin)) { setPinChangeMsg("6桁の数字で入力してください"); return; }
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"change_pin", name:variablePart, token:pinAuthToken, newPin });
-              if (r.success) { setMyPin(newPin); setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
-              else { setPinChangeMsg(r.error || "エラーが発生しました"); }
-            } else {
-              // fallback
-              const newData = { ...urlsData, [variablePart]: { ...urlsData[variablePart], pin: newPin } };
-              setUrlsData(newData);
-              localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
-              setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました");
-              setTimeout(()=>setPinChangeMsg(""),3000);
-            }
+            const r = await gasPost({ action:"change_pin", name:variablePart, token:pinAuthToken, newPin });
+            if (r.success) { setMyPin(newPin); setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
+            else { setPinChangeMsg(r.error || "エラーが発生しました"); }
           } catch { setPinChangeMsg("エラーが発生しました"); }
         };
 
@@ -1306,12 +1276,8 @@
           // トークンは破棄しない（端末記憶で30日有効 — 「この端末の記憶を消す」で破棄可能）
           showToast("saving", 15000);
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"save_user_profile", name:variablePart, token:pinAuthToken, displayName:effectiveDisplayName, links, profile:userEditProfile });
-              showToast(r.success ? "saved" : "error");
-            } else {
-              showToast("saved_local");
-            }
+            const r = await gasPost({ action:"save_user_profile", name:variablePart, token:pinAuthToken, displayName:effectiveDisplayName, links, profile:userEditProfile });
+            showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
 
@@ -1334,12 +1300,8 @@
           setEditingUrls([{ url:"", label:"", _custom:false }]);
           showToast("saving", 30000);
           try {
-            if (GAS_READY) {
-              const r = await gasPost({ action:"admin_save_user", adminPass:adminPassLocal, name, displayName:personObj.displayName, licenseKey:personObj.licenseKey, links:personObj.links, plan:personObj.plan, profile:personObj.profile, plusG:personObj.plusG });
-              showToast(r.success ? "saved" : "error");
-            } else {
-              showToast("saved_local");
-            }
+            const r = await gasPost({ action:"admin_save_user", adminPass:adminPassLocal, name, displayName:personObj.displayName, licenseKey:personObj.licenseKey, links:personObj.links, plan:personObj.plan, profile:personObj.profile, plusG:personObj.plusG });
+            showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
 
@@ -1442,12 +1404,8 @@
                                 setNewUserInput("");
                                 showToast("saving", 10000);
                                 try {
-                                  if (GAS_READY) {
-                                    const r = await gasPost({ action:"admin_create_user", adminPass:adminPassLocal, name:id });
-                                    showToast(r.success ? "saved" : "error");
-                                  } else {
-                                    showToast("saved_local");
-                                  }
+                                  const r = await gasPost({ action:"admin_create_user", adminPass:adminPassLocal, name:id });
+                                  showToast(r.success ? "saved" : "error");
                                 } catch { showToast("error"); }
                               }}
                               className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
@@ -1561,10 +1519,8 @@
                                         if (variablePart === name) setVariablePart(null);
                                         showToast("saving", 10000);
                                         try {
-                                          if (GAS_READY) {
-                                            const r = await gasPost({ action:"admin_delete_user", adminPass:adminPassLocal, name });
-                                            showToast(r.success ? "saved" : "error");
-                                          } else { showToast("saved_local"); }
+                                          const r = await gasPost({ action:"admin_delete_user", adminPass:adminPassLocal, name });
+                                          showToast(r.success ? "saved" : "error");
                                         } catch { showToast("error"); }
                                       }}
                                       className="px-3 rounded-2xl border border-neutral-800 text-neutral-600 hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
@@ -1621,20 +1577,11 @@
                                                 onClick={async () => {
                                                   const n2 = editingUrlsName;
                                                   try {
-                                                    if (GAS_READY) {
-                                                      const r = await gasPost({ action:"admin_set_pin", adminPass:adminPassLocal, name:n2, pin:adminPinInput });
-                                                      if (r.success) {
-                                                        setAdminAllPins(p => ({ ...p, [n2]: adminPinInput }));
-                                                        setAdminPinInput(""); setAdminPinMsg("✓ 変更しました"); setTimeout(()=>setAdminPinMsg(""),3000);
-                                                      } else { setAdminPinMsg(r.error||"エラー"); }
-                                                    } else {
-                                                      const newData = { ...urlsData, [n2]: { ...urlsData[n2], pin: adminPinInput } };
-                                                      setUrlsData(newData);
-                                                      localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
+                                                    const r = await gasPost({ action:"admin_set_pin", adminPass:adminPassLocal, name:n2, pin:adminPinInput });
+                                                    if (r.success) {
                                                       setAdminAllPins(p => ({ ...p, [n2]: adminPinInput }));
-                                                      setAdminPinInput(""); setAdminPinMsg("✓ 変更しました");
-                                                      setTimeout(()=>setAdminPinMsg(""),3000);
-                                                    }
+                                                      setAdminPinInput(""); setAdminPinMsg("✓ 変更しました"); setTimeout(()=>setAdminPinMsg(""),3000);
+                                                    } else { setAdminPinMsg(r.error||"エラー"); }
                                                   } catch { setAdminPinMsg("エラー"); }
                                                 }}
                                                 className="px-3 py-2 bg-neutral-700 text-white rounded-xl text-[10px] font-bold hover:bg-white hover:text-black transition-all disabled:opacity-30">変更</button>
@@ -1643,18 +1590,16 @@
                                                   const n2 = editingUrlsName;
                                                   if (!window.confirm(`${pd.displayName || n2} のPINをリセットしますか？\nユーザーは次回アクセス時に新しいPINを設定します。`)) return;
                                                   try {
-                                                    if (GAS_READY) {
-                                                      const r = await gasPost({ action:"admin_reset_pin", adminPass:adminPassLocal, name:n2 });
-                                                      if (r.success) {
-                                                        setAdminAllPins(p => ({ ...p, [n2]: "" }));
-                                                        setUrlsData(prev => {
-                                                          const updated = { ...prev, [n2]: { ...prev[n2], hasPinSet: false } };
-                                                          localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
-                                                          return updated;
-                                                        });
-                                                        setAdminPinMsg("✓ リセットしました"); setTimeout(()=>setAdminPinMsg(""),3000);
-                                                      } else { setAdminPinMsg(r.error||"エラー"); }
-                                                    }
+                                                    const r = await gasPost({ action:"admin_reset_pin", adminPass:adminPassLocal, name:n2 });
+                                                    if (r.success) {
+                                                      setAdminAllPins(p => ({ ...p, [n2]: "" }));
+                                                      setUrlsData(prev => {
+                                                        const updated = { ...prev, [n2]: { ...prev[n2], hasPinSet: false } };
+                                                        localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
+                                                        return updated;
+                                                      });
+                                                      setAdminPinMsg("✓ リセットしました"); setTimeout(()=>setAdminPinMsg(""),3000);
+                                                    } else { setAdminPinMsg(r.error||"エラー"); }
                                                   } catch { setAdminPinMsg("エラー"); }
                                                 }}
                                                 className="px-3 py-2 bg-red-900 text-red-300 rounded-xl text-[10px] font-bold hover:bg-red-500 hover:text-white transition-all">リセット</button>
@@ -1896,14 +1841,12 @@
                                                 seen.add(t); cleaned.push(t);
                                               }
                                               try {
-                                                if (GAS_READY) {
-                                                  const r = await gasPost({ action:"admin_save_tags", adminPass:adminPassLocal, name:editingUrlsName, tags:cleaned });
-                                                  if (r.success) {
-                                                    setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: r.tags || [] }));
-                                                    setAdminTagsDirty(false);
-                                                    setAdminTagMsg("✓ 保存しました"); setTimeout(() => setAdminTagMsg(""), 3000);
-                                                  } else { setAdminTagMsg(r.error || "エラー"); }
-                                                } else { setAdminTagMsg("オフラインのため保存できません"); }
+                                                const r = await gasPost({ action:"admin_save_tags", adminPass:adminPassLocal, name:editingUrlsName, tags:cleaned });
+                                                if (r.success) {
+                                                  setAdminAllTags(prev => ({ ...prev, [editingUrlsName]: r.tags || [] }));
+                                                  setAdminTagsDirty(false);
+                                                  setAdminTagMsg("✓ 保存しました"); setTimeout(() => setAdminTagMsg(""), 3000);
+                                                } else { setAdminTagMsg(r.error || "エラー"); }
                                               } catch { setAdminTagMsg("通信エラー"); }
                                             }}
                                             className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${adminTagsDirty ? 'bg-amber-500 text-white shadow-md hover:bg-amber-400' : 'bg-neutral-700 text-white hover:bg-white hover:text-black'}`}>
