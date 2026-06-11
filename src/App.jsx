@@ -40,7 +40,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [pinError, setPinError] = useState("");
         const [pinChangeInput, setPinChangeInput] = useState("");
         const [pinChangeMsg, setPinChangeMsg] = useState("");
-        const [myPin, setMyPin] = useState("");
         const [showPinSetup, setShowPinSetup] = useState(false);
         const [pinSetupInput, setPinSetupInput] = useState("");
         const [pinSetupConfirm, setPinSetupConfirm] = useState("");
@@ -63,7 +62,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [editTab, setEditTab] = useState("info"); // "info" | "design" | "links"
         const [editOrigJSON, setEditOrigJSON] = useState(null); // dirty tracking snapshot
         const [adminEditTab, setAdminEditTab] = useState("info"); // admin panel user tab
-        const [adminAllPins, setAdminAllPins] = useState({});
         const [adminAllTags, setAdminAllTags] = useState({});
         const [adminTagMsg, setAdminTagMsg] = useState("");
         const [adminTagsDirty, setAdminTagsDirty] = useState(false);
@@ -180,13 +178,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           } catch {}
         };
 
-        const fetchAllPins = async (pass) => {
-          try {
-            const r = await gasPost({ action:"admin_get_all_pins", adminPass: pass });
-            if (r.success && r.pins) setAdminAllPins(r.pins);
-          } catch {}
-        };
-
         const fetchAllTags = async (pass) => {
           try {
             const r = await gasPost({ action:"admin_get_tags", adminPass: pass });
@@ -204,7 +195,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             setError(""); setPasswordInput("");
             setMustChangePass(!!r.mustChange); // ★ 初期パスワードなら強制変更
             fetchAllUsers(clean);
-            fetchAllPins(clean);
             fetchAllTags(clean);
           } else { setError("正しいコードを入力してください"); setPasswordInput(""); }
         };
@@ -390,7 +380,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
               setPinAuthToken(st.token);
               setMySavedTags(st.tags); setUserEditTags(st.tags); setTagNextChange(st.nextChangeAt || 0);
               setTagCounts(st.counts || {});
-              gasPost({ action:"get_my_pin", name:variablePart, token:st.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
               openUserEditDirect();
               setEditOpening(false);
               return;
@@ -424,8 +413,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 const tr = await gasPost({ action:"get_my_tags", name:variablePart, token:r.token });
                 await loadCardTagMatches(r.token, tr.success ? (tr.tags || []) : []);
               } else {
-                // 認証済みセッションでPINを取得して表示用に保持
-                gasPost({ action:"get_my_pin", name:variablePart, token:r.token }).then(pr => { if (pr.success) setMyPin(pr.pin); });
                 // 自分のタグを取得
                 gasPost({ action:"get_my_tags", name:variablePart, token:r.token }).then(tr => {
                   if (tr.success) { setMySavedTags(tr.tags || []); setUserEditTags(tr.tags || []); setTagNextChange(tr.nextChangeAt || 0); setTagCounts(tr.counts || {}); }
@@ -448,7 +435,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             if (r.success) {
               localStorage.setItem(tokenKey(variablePart), r.token); // 端末に30日記憶
               setPinAuthToken(r.token);
-              setMyPin(pinVal); // 設定したPINを表示用に保持
               setMySavedTags([]); setUserEditTags([]);
               setShowPinSetup(false);
               setUrlsData(prev => {
@@ -475,7 +461,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           if (!/^\d{6}$/.test(newPin)) { setPinChangeMsg("6桁の数字で入力してください"); return; }
           try {
             const r = await gasPost({ action:"change_pin", name:variablePart, token:pinAuthToken, newPin });
-            if (r.success) { setMyPin(newPin); setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
+            if (r.success) { setPinChangeInput(""); setPinChangeMsg("✓ PINを変更しました"); setTimeout(()=>setPinChangeMsg(""),3000); }
             else { setPinChangeMsg(r.error || "エラーが発生しました"); }
           } catch { setPinChangeMsg("エラーが発生しました"); }
         };
@@ -694,22 +680,11 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
-                                        {(() => {
-                                          const displayPin = adminAllPins[name] || pd.pin || "";
-                                          return (
-                                            <div className="flex items-center gap-1.5 mt-1">
-                                              <span className="text-[9px] font-mono tracking-widest opacity-60">
-                                                PIN: {displayPin || "未設定"}
-                                              </span>
-                                              {displayPin && (
-                                                <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(displayPin); }}
-                                                  className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-700 hover:bg-neutral-500 text-neutral-400 hover:text-white transition-colors">
-                                                  コピー
-                                                </button>
-                                              )}
-                                            </div>
-                                          );
-                                        })()}
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[9px] font-mono tracking-widest opacity-60">
+                                            PIN: {pd.hasPinSet ? "設定済み" : "未設定"}
+                                          </span>
+                                        </div>
                                       </div>
                                       <span className="text-[9px] opacity-40 font-bold uppercase tracking-tighter">View</span>
                                     </button>
@@ -796,7 +771,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                             <div className="flex items-center gap-2 mb-2">
                                               <p className="text-[9px] text-neutral-400 uppercase tracking-widest">PIN変更（6桁）</p>
                                               <span className="text-[9px] font-mono text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
-                                                現在: {adminAllPins[editingUrlsName] || getPersonData(urlsData, editingUrlsName)?.pin || "未設定"}
+                                                現在: {getPersonData(urlsData, editingUrlsName)?.hasPinSet ? "設定済み（表示不可）" : "未設定"}
                                               </span>
                                             </div>
                                             <div className="flex gap-2">
@@ -811,7 +786,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                                   try {
                                                     const r = await gasPost({ action:"admin_set_pin", adminPass:adminPassLocal, name:n2, pin:adminPinInput });
                                                     if (r.success) {
-                                                      setAdminAllPins(p => ({ ...p, [n2]: adminPinInput }));
+                                                      setUrlsData(prev => ({ ...prev, [n2]: { ...prev[n2], hasPinSet: true } }));
                                                       setAdminPinInput(""); setAdminPinMsg("✓ 変更しました"); setTimeout(()=>setAdminPinMsg(""),3000);
                                                     } else { setAdminPinMsg(r.error||"エラー"); }
                                                   } catch { setAdminPinMsg("エラー"); }
@@ -824,7 +799,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                                   try {
                                                     const r = await gasPost({ action:"admin_reset_pin", adminPass:adminPassLocal, name:n2 });
                                                     if (r.success) {
-                                                      setAdminAllPins(p => ({ ...p, [n2]: "" }));
                                                       setUrlsData(prev => {
                                                         const updated = { ...prev, [n2]: { ...prev[n2], hasPinSet: false } };
                                                         localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
@@ -1225,7 +1199,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             if (editDirty && !window.confirm("変更を破棄して閉じますか？")) return;
                             setEditOrigJSON(null);
                             setShowUserEdit(false);
-                            setMyPin(""); // セッション終了時にPINをメモリから消去
                           };
                           const handleFooterSave = () => {
                             if (tagsDirty && !window.confirm("タグは未保存です。このSAVEボタンではタグは保存されません（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグ以外を保存して閉じますか？")) return;
@@ -1277,9 +1250,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 <div>
                                   <div className="flex items-center gap-2 mb-2">
                                     <p className="text-[10px] text-neutral-700 font-medium uppercase tracking-widest">PIN変更</p>
-                                    <span className="text-[10px] font-mono text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
-                                      現在: {myPin || "未設定"}
-                                    </span>
+                                    <span className="text-[10px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">安全のためPINは表示されません</span>
                                   </div>
                                   <div className="flex gap-2 items-center">
                                     <input type="tel" inputMode="numeric" maxLength={6}
