@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, FREE_LINK_LIMIT, PRO_LINK_LIMIT, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST } from "./lib/core";
 import { BgPicker, TintPicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
@@ -341,14 +341,14 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         };
 
         /* ── カード画面: タグ仲間の一覧（並列取得・各タグランダム5名まで） ── */
-        const TAG_FRIENDS_DISPLAY = 5;
         const loadCardTagMatches = async (token, tags) => {
           const pd = getPersonData(urlsData, variablePart);
+          const friendsLimit = isPro(pd) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE; // v5.15: プラン差別化
           const active = (tags || []).slice(0, isPro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
           const entries = await Promise.all(active.map(async (tag) => {
             try {
               const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token, tag });
-              return [tag, r.success ? shuffleArr(r.users || []).slice(0, TAG_FRIENDS_DISPLAY) : []];
+              return [tag, r.success ? shuffleArr(r.users || []).slice(0, friendsLimit) : []];
             } catch { return [tag, []]; }
           }));
           setCardTagMatches(Object.fromEntries(entries));
@@ -1174,7 +1174,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               </div>
                               <div className="text-[11px] text-neutral-600 leading-relaxed space-y-2.5">
                                 <p><b className="text-neutral-800">① この名刺ページ</b><br/>名刺のURL（またはQRコード）を知っている人だけが見られます。表示されるのは、あなたが名刺に載せた内容（表示名・リンク・プロフィール）です。利用者の一覧を外部から取得することはできません。</p>
-                                <p><b className="text-neutral-800">② タグを設定した場合</b><br/>同じタグを保存している他の利用者の「タグ仲間」画面に、あなたの<b>表示名と名刺リンク</b>が表示されることがあります（開くたびにランダムで最大5名）。タグは自分で保存しない限り公開されません。今何人に見えているかは、名刺を編集 → タグ タブでいつでも確認できます。<br/>タグ仲間に渡るのは<b>限定表示用のURL</b>で、あなたの電話番号・住所は表示されません（「タグ用 連絡先」に入力した内容だけが表示されます）。</p>
+                                <p><b className="text-neutral-800">② タグを設定した場合</b><br/>同じタグを保存している他の利用者の「タグ仲間」画面に、あなたの<b>表示名と名刺リンク</b>が表示されることがあります（開くたびにランダムで最大5〜8名）。タグは自分で保存しない限り公開されません。今何人に見えているかは、名刺を編集 → タグ タブでいつでも確認できます。<br/>タグ仲間に渡るのは<b>限定表示用のURL</b>で、あなたの電話番号・住所は表示されません（「タグ用 連絡先」に入力した内容だけが表示されます）。</p>
                                 <p><b className="text-neutral-800">③ 全体公開をONにした場合</b><br/>全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます。OFFにすればいつでも解除できます。</p>
                                 <p><b className="text-neutral-800">④ 見えないもの</b><br/>あなたのPIN・メールアドレスが他の利用者に表示されることはありません。PINはサーバーでのみ照合されます。</p>
                                 <p><b className="text-neutral-800">⑤ 運営（管理者）</b><br/>サイト運営者は、サポートとシステム管理のために登録データ（名刺内容・タグ・PIN）を確認できます。</p>
@@ -1190,7 +1190,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <p className="text-[10px] text-neutral-700 font-semibold uppercase tracking-widest">タグ仲間の名刺</p>
                               <button onClick={() => setShowCardTags(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
                             </div>
-                            <p className="text-[10px] text-neutral-400">同じタグを設定している人の中から、開くたびにランダムで最大{TAG_FRIENDS_DISPLAY}名まで表示されます（毎回顔ぶれが変わります）</p>
+                            <p className="text-[10px] text-neutral-400">同じタグを設定している人の中から、開くたびにランダムで最大{isPro(getPersonData(urlsData, variablePart)) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE}名まで表示されます（毎回顔ぶれが変わります）{!isPro(getPersonData(urlsData, variablePart)) && <span className="text-amber-600">　✦ PROなら最大{TAG_FRIENDS_PRO}名表示</span>}</p>
                             {Object.keys(cardTagMatches).length === 0 && (
                               <p className="text-[10px] text-neutral-400">タグが設定されていません。「名刺を編集」のタグタブから設定できます</p>
                             )}
@@ -1496,7 +1496,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <div className="text-[10px] bg-blue-50 text-blue-600 px-3 py-2 rounded-xl border border-blue-100 space-y-1">
                                     <p>同じタグを設定している他のユーザーと、お互いの名刺（表示名とリンク）が見え合うようになります</p>
                                     <p>例：業界（<b>飲食</b>）、会社名（<b>トヨタ</b>）、趣味（<b>DIY</b>）、地域（<b>渋谷</b>）</p>
-                                    <p>※ タグ仲間には、同じタグの人の中から開くたびにランダムで最大5名まで表示されます</p>
+                                    <p>※ タグ仲間には、同じタグの人の中から開くたびにランダムで最大{TAG_FRIENDS_FREE}名（PROは{TAG_FRIENDS_PRO}名）まで表示されます</p>
                                   </div>
                                   {/* ★ あなたのタグが今誰に見えているか（透明性） */}
                                   {savedActive.length > 0 && (

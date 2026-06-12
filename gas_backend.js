@@ -1,5 +1,6 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.0（フェーズ5: 再構築）
+ * デジタル名刺 - Google Apps Script バックエンド v4.1
+ *   - v4.1: PROリンク上限 5→8
  *
  * v4.0 の変更点:
  *   - ルーティングテーブル化: 全アクションに認証種別(none/session/admin)と
@@ -35,7 +36,7 @@ const TAG_MAX_LEN     = 20;
 const TAG_COOLDOWN_MS = 24 * 60 * 60 * 1000; // タグ変更は24時間に1回（全削除は対象外）
 
 const FREE_LINK_LIMIT = 1;
-const PRO_LINK_LIMIT  = 5;
+const PRO_LINK_LIMIT  = 8; // v4.1: 5→8（プラン差別化）
 
 const PIN_MAX_ATTEMPTS = 5;        // 連続失敗の上限
 const PIN_LOCK_SECONDS = 15 * 60;  // ロックアウト時間（15分）

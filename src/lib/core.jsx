@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.14.1"; // 拡大時のはみ出し補正 + 情報タブ並び替え（PIN変更を最下部へ）
+      export const APP_VERSION = "v5.15"; // PROリンク上限8件 + タグ仲間表示 FREE5名/PRO8名
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -31,7 +31,9 @@
       export const isPro = (personData) => personData?.plan === "pro";
       export const isPlusG = (personData) => isPro(personData) && personData?.plusG === true;
       export const FREE_LINK_LIMIT = 1;
-      export const PRO_LINK_LIMIT  = 5;
+      export const PRO_LINK_LIMIT  = 8; // v5.15: 5→8（座談会D課題・プラン差別化）
+      export const TAG_FRIENDS_FREE = 5; // タグ仲間の表示人数（ランダム）
+      export const TAG_FRIENDS_PRO  = 8;
       export const FREE_TAG_LIMIT  = 1;
       export const PRO_TAG_LIMIT   = 5;
       export const TAG_MAX_LEN     = 20;
