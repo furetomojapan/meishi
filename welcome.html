@@ -6,32 +6,89 @@
   <title>デジタル名刺 — 新規登録</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background: #fafaf9; font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: linear-gradient(160deg, #fff7ed 0%, #fef3f2 35%, #eff6ff 70%, #f0fdfa 100%);
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 0.8s linear infinite; }
+
+    /* ふわふわ浮かぶ装飾シェイプ */
+    @keyframes float1 { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-18px) rotate(2deg); } }
+    @keyframes float2 { 0%,100% { transform: translateY(0) rotate(8deg); } 50% { transform: translateY(14px) rotate(0deg); } }
+    @keyframes float3 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .float-1 { animation: float1 7s ease-in-out infinite; }
+    .float-2 { animation: float2 9s ease-in-out infinite; }
+    .float-3 { animation: float3 6s ease-in-out infinite; }
+
+    /* 名刺カードのゆらゆら */
+    @keyframes cardSway { 0%,100% { transform: rotate(-2.5deg) translateY(0); } 50% { transform: rotate(-1deg) translateY(-6px); } }
+    .card-sway { animation: cardSway 5s ease-in-out infinite; }
+
+    /* ふんわり登場 */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp 0.6s ease-out both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+
+    /* 成功チェックマークのポップ */
+    @keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+    .pop-in { animation: popIn 0.45s cubic-bezier(.34,1.56,.64,1) both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .float-1, .float-2, .float-3, .card-sway, .fade-up, .pop-in { animation: none; }
+    }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center px-6">
+<body class="min-h-screen relative overflow-x-hidden">
 
-  <div class="w-full max-w-sm">
+  <!-- 背景の装飾シェイプ -->
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden">
+    <div class="float-1 absolute -top-10 -left-10 w-48 h-48 bg-amber-200/40 rounded-[40%]"></div>
+    <div class="float-2 absolute top-1/3 -right-14 w-56 h-56 bg-sky-200/40 rounded-[45%]"></div>
+    <div class="float-3 absolute bottom-10 left-1/4 w-32 h-32 bg-rose-200/40 rounded-[42%]"></div>
+    <div class="float-2 absolute bottom-1/4 -left-12 w-40 h-40 bg-teal-200/30 rounded-[48%]"></div>
+  </div>
 
-    <!-- ロゴ / タイトル -->
-    <div class="text-center mb-10">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-black rounded-2xl mb-4">
+  <div class="relative w-full max-w-sm mx-auto px-6 py-10">
+
+    <!-- ヒーロー -->
+    <div class="text-center mb-8 fade-up">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-rose-400 to-orange-400 rounded-2xl mb-4 shadow-lg shadow-rose-200">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
           <rect x="2" y="4" width="20" height="16" rx="2"/>
           <path d="M8 10h8M8 14h4"/>
         </svg>
       </div>
-      <h1 class="text-xl font-bold tracking-tight">デジタル名刺</h1>
-      <p class="text-xs text-neutral-500 mt-1">無料で始めるスマート名刺</p>
+      <h1 class="text-2xl font-extrabold tracking-tight text-neutral-800">デジタル名刺</h1>
+      <p class="text-sm text-neutral-500 mt-2 leading-relaxed">スマホでサッと渡せる、<br>あなただけの名刺をつくろう 🎉</p>
+    </div>
+
+    <!-- 名刺カードのイメージ（CSS描画） -->
+    <div class="fade-up delay-1 mb-8 px-4" aria-hidden="true">
+      <div class="card-sway bg-white rounded-2xl shadow-xl shadow-orange-100 border border-orange-100 p-5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-300 to-teal-300 flex items-center justify-center text-white text-lg font-bold">★</div>
+          <div>
+            <div class="h-3 w-24 bg-neutral-200 rounded-full mb-2"></div>
+            <div class="h-2 w-16 bg-neutral-100 rounded-full"></div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <div class="h-7 w-7 rounded-lg bg-rose-100"></div>
+          <div class="h-7 w-7 rounded-lg bg-amber-100"></div>
+          <div class="h-7 w-7 rounded-lg bg-sky-100"></div>
+          <div class="h-7 flex-1 rounded-lg bg-gradient-to-r from-orange-100 to-rose-100"></div>
+        </div>
+      </div>
     </div>
 
     <!-- フォームカード -->
-    <div id="form-card" class="bg-white rounded-3xl shadow-sm border border-neutral-100 p-8">
-      <h2 class="text-base font-bold mb-1">新規登録</h2>
+    <div id="form-card" class="fade-up delay-2 bg-white/90 backdrop-blur rounded-3xl shadow-lg shadow-sky-100/60 border border-white p-8">
+      <h2 class="text-base font-bold mb-1 text-neutral-800">新規登録</h2>
       <p class="text-xs text-neutral-500 mb-3">メールアドレスを入力すると、<br>あなた専用の名刺URLをお送りします。</p>
-      <p class="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-6">✦ 今なら登録から7日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
+      <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-6">✦ 今なら登録から7日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
 
       <div class="space-y-3">
         <input
@@ -40,13 +97,13 @@
           inputmode="email"
           placeholder="your@email.com"
           autocomplete="email"
-          class="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:border-black text-sm transition-colors"
+          class="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-sm transition-all"
         />
         <p id="error-msg" class="text-xs text-red-500 hidden px-1"></p>
         <button
           id="submit-btn"
           onclick="handleSubmit()"
-          class="w-full py-3.5 bg-black text-white rounded-2xl text-sm font-bold tracking-wide hover:bg-neutral-800 active:scale-95 transition-all">
+          class="w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
           登録してURLを受け取る
         </button>
       </div>
@@ -57,9 +114,25 @@
       </p>
     </div>
 
+    <!-- 3つの特徴 -->
+    <div class="fade-up delay-3 grid grid-cols-3 gap-3 mt-8 text-center">
+      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
+        <div class="text-xl mb-1">🆓</div>
+        <p class="text-[10px] font-bold text-neutral-700 leading-tight">無料で<br>始められる</p>
+      </div>
+      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
+        <div class="text-xl mb-1">📱</div>
+        <p class="text-[10px] font-bold text-neutral-700 leading-tight">スマホで<br>サッとシェア</p>
+      </div>
+      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
+        <div class="text-xl mb-1">✨</div>
+        <p class="text-[10px] font-bold text-neutral-700 leading-tight">7日間<br>PROお試し</p>
+      </div>
+    </div>
+
     <!-- 送信中 -->
-    <div id="loading-card" class="hidden bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 text-center">
-      <svg class="spinner w-8 h-8 mx-auto mb-4 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <div id="loading-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
+      <svg class="spinner w-8 h-8 mx-auto mb-4 text-rose-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
       </svg>
@@ -67,17 +140,17 @@
     </div>
 
     <!-- 成功 -->
-    <div id="success-card" class="hidden bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 text-center">
-      <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <div id="success-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
+      <div class="pop-in w-14 h-14 bg-gradient-to-br from-teal-300 to-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-teal-100">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
-      <h2 class="text-base font-bold mb-2">登録完了！</h2>
+      <h2 class="text-base font-bold mb-2 text-neutral-800">登録完了！🎉</h2>
       <p class="text-xs text-neutral-500 mb-5 leading-relaxed">
         メールアドレス宛に<br>名刺URLをお送りしました。<br>
         <span class="text-neutral-400">（スパムフォルダもご確認ください）</span>
       </p>
       <a id="card-link" href="#" target="_blank"
-        class="inline-block w-full py-3.5 bg-black text-white rounded-2xl text-sm font-bold tracking-wide hover:bg-neutral-800 active:scale-95 transition-all">
+        class="inline-block w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
         名刺を開く →
       </a>
       <p class="text-[10px] text-neutral-400 mt-4">初回アクセス時に6桁のPINの設定が必要です</p>
@@ -92,6 +165,11 @@
     function show(id) {
       ["form-card","loading-card","success-card"].forEach(c => {
         document.getElementById(c).classList.toggle("hidden", c !== id);
+      });
+      // フォーム以外の表示中はLP装飾（カードイメージ・特徴）を隠す
+      const showDeco = id === "form-card";
+      document.querySelectorAll(".fade-up.delay-1, .fade-up.delay-3").forEach(el => {
+        el.classList.toggle("hidden", !showDeco);
       });
     }
 
