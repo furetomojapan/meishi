@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>デジタル名刺 — スマホでサッと渡せる、あなただけの名刺</title>
-  <meta name="description" content="メールアドレスだけで1分登録。A面/B面の2面カード・SNSリンクまとめ・タグ仲間とつながる、無料で始めるデジタル名刺。" />
+  <meta name="description" content="目の前の人にはQRをかざすだけ。メールアドレスだけで1分登録、A面/B面の2面カード・SNSリンクまとめ・タグ仲間とつながる、無料で始めるデジタル名刺。" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -90,12 +90,12 @@
       <div class="text-center md:text-left">
         <p class="inline-block text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1 mb-4">メールだけ・1分で登録 🎉</p>
         <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4">
-          スマホでサッと渡せる、<br>
-          <span class="bg-gradient-to-r from-rose-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">あなただけの</span>名刺
+          目の前のあの人に、<br>
+          <span class="bg-gradient-to-r from-rose-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">QRをかざすだけ</span>。
         </h1>
         <p class="text-sm md:text-base text-neutral-500 leading-relaxed mb-7">
-          SNSリンクも自己紹介も、URLひとつにぎゅっとまとめて。<br class="hidden md:inline">
-          紙の名刺が切れる心配はもうありません。
+          その場でサッと渡せるデジタル名刺。SNSリンクも自己紹介も、<br class="hidden md:inline">
+          URLひとつにぎゅっとまとめて。紙の名刺が切れる心配はもうありません。
         </p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
           <a href="#register" class="px-7 py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
@@ -130,7 +130,31 @@
                     <div class="w-8 h-8 rounded-lg bg-sky-100"></div>
                     <div class="w-8 h-8 rounded-lg bg-teal-100"></div>
                   </div>
-                  <div class="w-full h-8 rounded-xl bg-gradient-to-r from-orange-100 to-rose-100"></div>
+                  <div class="flex items-center gap-2 w-full">
+                    <div class="w-11 h-11 shrink-0 rounded-md border border-neutral-200 bg-white p-1 text-neutral-700">
+                      <!-- QRコード風パターン -->
+                      <svg viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="w-full h-full">
+                        <path d="M0 0h3v3H0zM1 1h1v1H1zM8 0h3v3H8zM9 1h1v1H9zM0 8h3v3H0zM1 9h1v1H1z" fill-rule="evenodd"/>
+                        <rect x="4" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/>
+                        <rect x="4" y="2" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/>
+                        <rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+                        <rect x="4" y="4" width="2" height="1"/><rect x="7" y="4" width="1" height="1"/>
+                        <rect x="9" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/>
+                        <rect x="3" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/>
+                        <rect x="8" y="5" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/>
+                        <rect x="0" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/>
+                        <rect x="7" y="6" width="2" height="1"/><rect x="5" y="7" width="1" height="1"/>
+                        <rect x="9" y="7" width="1" height="1"/><rect x="4" y="8" width="1" height="1"/>
+                        <rect x="6" y="8" width="1" height="1"/><rect x="8" y="8" width="2" height="1"/>
+                        <rect x="4" y="9" width="1" height="1"/><rect x="7" y="9" width="1" height="1"/>
+                        <rect x="5" y="10" width="2" height="1"/><rect x="9" y="10" width="1" height="1"/>
+                      </svg>
+                    </div>
+                    <div class="flex-1">
+                      <div class="h-2 w-full bg-gradient-to-r from-orange-100 to-rose-100 rounded-full mb-1.5"></div>
+                      <p class="text-[8px] text-neutral-400 font-bold leading-tight">QRをかざして<br>その場で名刺交換</p>
+                    </div>
+                  </div>
                   <p class="mt-auto text-[9px] text-neutral-300 font-bold">おもて面</p>
                 </div>
                 <!-- B面 -->
@@ -173,7 +197,7 @@
         <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
           <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-sky-400 to-teal-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-sky-100">3</div>
           <h3 class="font-bold mb-2">書いてシェア</h3>
-          <p class="text-xs text-neutral-500 leading-relaxed">プロフィールとリンクを書いたら、URLを送るだけ。その場でサッと渡せます。</p>
+          <p class="text-xs text-neutral-500 leading-relaxed">プロフィールとリンクを書いたら、目の前の人にはQRを見せて、遠くの人にはURLを送るだけ。</p>
         </div>
       </div>
     </section>
@@ -183,6 +207,13 @@
       <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">名刺なのに、名刺以上。</h2>
       <p class="reveal text-center text-sm text-neutral-500 mb-10">渡して終わりじゃない。つながりが広がるデジタル名刺の機能たち。</p>
       <div class="grid sm:grid-cols-2 gap-5">
+        <div class="reveal sm:col-span-2 bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50 rounded-3xl border-2 border-rose-100 p-6 md:p-8 shadow-sm md:flex md:items-center md:gap-6">
+          <div class="text-4xl mb-3 md:mb-0 shrink-0">📲</div>
+          <div>
+            <h3 class="font-extrabold text-lg mb-2">QRで、その場で名刺交換</h3>
+            <p class="text-xs md:text-sm text-neutral-500 leading-relaxed">画面にQRコードを表示して、目の前の人にスマホをかざしてもらうだけ。相手はカメラで読み取るだけで、アプリのインストールも登録も不要。紙の名刺と同じ「その場で渡せる」体験を、もっと身軽に。</p>
+          </div>
+        </div>
         <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
           <div class="text-2xl mb-3">🔄</div>
           <h3 class="font-bold mb-2">A面 / B面の2面カード</h3>
@@ -280,7 +311,7 @@
             紙の名刺と何が違いますか？
             <svg class="faq-arrow w-4 h-4 text-neutral-400 shrink-0 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </summary>
-          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">URLを送るだけで渡せるので、在庫切れや刷り直しがありません。内容はいつでも編集でき、SNSリンクのまとめや、同じタグをつけた仲間とのつながりなど、紙にはできない広がりがあります。</p>
+          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">QRを見せれば紙と同じようにその場で渡せて、在庫切れや刷り直しがありません。内容はいつでも編集でき、SNSリンクのまとめや、同じタグをつけた仲間とのつながりなど、紙にはできない広がりがあります。</p>
         </details>
         <details class="reveal bg-white/85 backdrop-blur rounded-2xl border border-white shadow-sm">
           <summary class="flex items-center justify-between px-5 py-4 cursor-pointer text-sm font-bold list-none">
