@@ -43,11 +43,11 @@ npm run build    # 本番ビルド（dist/）
 Pages の Source は「GitHub Actions」（リポジトリ Settings → Pages）。
 
 ### GAS（バックエンド）— 自動デプロイ
- を変更して  に push すると、GitHub Actions（gas-deploy.yml）が clasp で Apps Script に反映し、本番デプロイを新バージョンに更新する。ワークフローが  で反映確認まで行う。
+`gas_backend.js` を変更して `main` に push すると、GitHub Actions（gas-deploy.yml）が clasp で Apps Script に反映し、本番デプロイを新バージョンに更新する。ワークフローが `?action=version` で反映確認まで行う。
 
-- 認証: リポジトリSecret （furetomojapanアカウントのOAuthトークン。無効化は https://myaccount.google.com/permissions ）
-- マニフェスト: （公開設定を含むため変更注意）
-- **シート列が増える変更のみ**、Apps Script エディタで  を1回手動実行が必要
+- 認証: リポジトリSecret `CLASPRC_JSON`（furetomojapanアカウントのOAuthトークン。無効化は https://myaccount.google.com/permissions ）
+- マニフェスト: `gas/appsscript.json`（公開設定を含むため変更注意）
+- **シート列が増える変更のみ**、Apps Script エディタで `initSheets()` を1回手動実行が必要
 
 ### ロールバック
 - フロント: `git revert` して push（基準点タグ: `v5.10-stable`）
