@@ -564,10 +564,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                   <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
                   <div className="flex flex-wrap gap-2">
-                    <motion.a href="https://laxuz.xyz/portfolio/" target="_blank" rel="noopener noreferrer"
+                    <motion.a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
                       whileHover={{scale:1.05}} whileTap={{scale:0.95}}
                       className="px-4 py-2 bg-black text-white rounded-full text-xs font-medium shadow-lg hover:shadow-xl transition-all">
-                      私も名刺を作りたい！
+                      私もデジタル名刺を作りたい！
                     </motion.a>
                     <motion.a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
                       whileHover={{scale:1.05}} whileTap={{scale:0.95}}

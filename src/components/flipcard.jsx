@@ -101,23 +101,15 @@ import { URLRow } from "./pickers";
               </AnimatePresence>
             </div>
 
-            {/* A面/B面 ボタン */}
+            {/* A面/B面 ボタン（v5.18.1: スリム化 — 高さ約1/3・ラベルのみ） */}
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button onClick={() => setFlipped(false)}
-                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${!flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
-                <span className="flex flex-col items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={!flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/></svg>
-                  <span className="text-[10px] font-normal opacity-60">おもて面</span>
-                  <span className="text-2xl font-bold">A面</span>
-                </span>
+                className={`py-2 rounded-2xl text-sm font-bold tracking-wide transition-all duration-300 ${!flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
+                A面
               </button>
               <button onClick={() => setFlipped(true)}
-                className={`relative py-5 rounded-2xl font-semibold tracking-wide transition-all duration-300 ${flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
-                <span className="flex flex-col items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={flipped ? 'opacity-60' : 'opacity-30'}><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
-                  <span className="text-[10px] font-normal opacity-60">うら面</span>
-                  <span className="text-2xl font-bold">B面</span>
-                </span>
+                className={`py-2 rounded-2xl text-sm font-bold tracking-wide transition-all duration-300 ${flipped ? 'bg-black text-white shadow-2xl scale-[1.02]' : 'bg-white text-neutral-400 shadow-md hover:shadow-lg hover:text-black border border-neutral-100'}`}>
+                B面
               </button>
             </div>
 
