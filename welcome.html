@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>デジタル名刺 — 新規登録</title>
+  <title>デジタル名刺 — スマホでサッと渡せる、あなただけの名刺</title>
+  <meta name="description" content="メールアドレスだけで1分登録。A面/B面の2面カード・SNSリンクまとめ・タグ仲間とつながる、無料で始めるデジタル名刺。" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -21,143 +22,363 @@
     .float-2 { animation: float2 9s ease-in-out infinite; }
     .float-3 { animation: float3 6s ease-in-out infinite; }
 
-    /* 名刺カードのゆらゆら */
-    @keyframes cardSway { 0%,100% { transform: rotate(-2.5deg) translateY(0); } 50% { transform: rotate(-1deg) translateY(-6px); } }
-    .card-sway { animation: cardSway 5s ease-in-out infinite; }
-
-    /* ふんわり登場 */
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-    .fade-up { animation: fadeUp 0.6s ease-out both; }
-    .delay-1 { animation-delay: 0.1s; }
-    .delay-2 { animation-delay: 0.2s; }
-    .delay-3 { animation-delay: 0.3s; }
+    /* ふんわり登場（スクロール連動） */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .reveal.shown { opacity: 1; transform: translateY(0); }
 
     /* 成功チェックマークのポップ */
     @keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
     .pop-in { animation: popIn 0.45s cubic-bezier(.34,1.56,.64,1) both; }
 
+    /* スマホモックの中で A面/B面 が自動で裏返る */
+    .flip-scene { perspective: 1200px; }
+    @keyframes cardFlip {
+      0%, 38%   { transform: rotateY(0deg); }
+      50%, 88%  { transform: rotateY(180deg); }
+      100%      { transform: rotateY(360deg); }
+    }
+    .flip-card { transform-style: preserve-3d; animation: cardFlip 8s ease-in-out infinite; }
+    .flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .flip-back { transform: rotateY(180deg); }
+
+    @keyframes phoneSway { 0%,100% { transform: rotate(-1.5deg) translateY(0); } 50% { transform: rotate(0.5deg) translateY(-8px); } }
+    .phone-sway { animation: phoneSway 6s ease-in-out infinite; }
+
+    /* FAQ アコーディオンの矢印 */
+    details[open] .faq-arrow { transform: rotate(180deg); }
+    .faq-arrow { transition: transform 0.25s ease; }
+    details summary::-webkit-details-marker { display: none; }
+
     @media (prefers-reduced-motion: reduce) {
-      .float-1, .float-2, .float-3, .card-sway, .fade-up, .pop-in { animation: none; }
+      .float-1, .float-2, .float-3, .flip-card, .phone-sway, .pop-in { animation: none; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      html { scroll-behavior: auto; }
     }
   </style>
 </head>
-<body class="min-h-screen relative overflow-x-hidden">
+<body class="min-h-screen relative overflow-x-hidden text-neutral-800">
 
   <!-- 背景の装飾シェイプ -->
-  <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden">
-    <div class="float-1 absolute -top-10 -left-10 w-48 h-48 bg-amber-200/40 rounded-[40%]"></div>
-    <div class="float-2 absolute top-1/3 -right-14 w-56 h-56 bg-sky-200/40 rounded-[45%]"></div>
-    <div class="float-3 absolute bottom-10 left-1/4 w-32 h-32 bg-rose-200/40 rounded-[42%]"></div>
-    <div class="float-2 absolute bottom-1/4 -left-12 w-40 h-40 bg-teal-200/30 rounded-[48%]"></div>
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+    <div class="float-1 absolute -top-10 -left-10 w-48 h-48 md:w-72 md:h-72 bg-amber-200/40 rounded-[40%]"></div>
+    <div class="float-2 absolute top-1/3 -right-14 w-56 h-56 md:w-80 md:h-80 bg-sky-200/40 rounded-[45%]"></div>
+    <div class="float-3 absolute bottom-10 left-1/4 w-32 h-32 md:w-52 md:h-52 bg-rose-200/40 rounded-[42%]"></div>
+    <div class="float-2 absolute bottom-1/4 -left-12 w-40 h-40 md:w-64 md:h-64 bg-teal-200/30 rounded-[48%]"></div>
   </div>
 
-  <div class="relative w-full max-w-sm mx-auto px-6 py-10">
+  <!-- 固定ヘッダー -->
+  <header class="sticky top-0 z-40 bg-white/70 backdrop-blur-md border-b border-white/60">
+    <div class="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2.5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-gradient-to-br from-rose-400 to-orange-400 rounded-xl shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h4"/>
+          </svg>
+        </span>
+        <span class="font-extrabold tracking-tight">デジタル名刺</span>
+      </a>
+      <a href="#register" class="px-4 py-2 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-full text-xs font-bold shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+        無料ではじめる
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
 
     <!-- ヒーロー -->
-    <div class="text-center mb-8 fade-up">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-rose-400 to-orange-400 rounded-2xl mb-4 shadow-lg shadow-rose-200">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <rect x="2" y="4" width="20" height="16" rx="2"/>
-          <path d="M8 10h8M8 14h4"/>
-        </svg>
+    <section class="max-w-5xl mx-auto px-6 pt-12 md:pt-20 pb-16 grid md:grid-cols-2 gap-12 items-center">
+      <div class="text-center md:text-left">
+        <p class="inline-block text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1 mb-4">メールだけ・1分で登録 🎉</p>
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4">
+          スマホでサッと渡せる、<br>
+          <span class="bg-gradient-to-r from-rose-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">あなただけの</span>名刺
+        </h1>
+        <p class="text-sm md:text-base text-neutral-500 leading-relaxed mb-7">
+          SNSリンクも自己紹介も、URLひとつにぎゅっとまとめて。<br class="hidden md:inline">
+          紙の名刺が切れる心配はもうありません。
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+          <a href="#register" class="px-7 py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+            無料で名刺をつくる →
+          </a>
+          <a href="#features" class="px-7 py-3.5 bg-white/80 backdrop-blur border border-neutral-200 rounded-2xl text-sm font-bold text-neutral-600 hover:bg-white active:scale-95 transition-all">
+            できることを見る
+          </a>
+        </div>
+        <p class="text-[11px] text-amber-700 mt-5">✦ 今なら登録から7日間、PROプランと＋G機能を無料でお試しいただけます</p>
       </div>
-      <h1 class="text-2xl font-extrabold tracking-tight text-neutral-800">デジタル名刺</h1>
-      <p class="text-sm text-neutral-500 mt-2 leading-relaxed">スマホでサッと渡せる、<br>あなただけの名刺をつくろう 🎉</p>
-    </div>
 
-    <!-- 名刺カードのイメージ（CSS描画） -->
-    <div class="fade-up delay-1 mb-8 px-4" aria-hidden="true">
-      <div class="card-sway bg-white rounded-2xl shadow-xl shadow-orange-100 border border-orange-100 p-5">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-300 to-teal-300 flex items-center justify-center text-white text-lg font-bold">★</div>
-          <div>
-            <div class="h-3 w-24 bg-neutral-200 rounded-full mb-2"></div>
-            <div class="h-2 w-16 bg-neutral-100 rounded-full"></div>
+      <!-- スマホモックアップ（A面/B面が自動で裏返る） -->
+      <div class="flex justify-center" aria-hidden="true">
+        <div class="phone-sway relative w-[230px] h-[460px] bg-neutral-900 rounded-[2.4rem] shadow-2xl shadow-orange-200/70 p-2.5">
+          <div class="absolute top-2.5 left-1/2 -translate-x-1/2 w-20 h-5 bg-neutral-900 rounded-b-2xl z-10"></div>
+          <div class="w-full h-full bg-gradient-to-b from-orange-50 to-rose-50 rounded-[2rem] overflow-hidden flex flex-col items-center pt-12 px-4">
+            <div class="flex gap-1.5 mb-3">
+              <span class="px-3 py-1 bg-neutral-800 text-white text-[9px] font-bold rounded-full">A面</span>
+              <span class="px-3 py-1 bg-white text-neutral-400 text-[9px] font-bold rounded-full border border-neutral-200">B面</span>
+            </div>
+            <div class="flip-scene w-full">
+              <div class="flip-card relative w-full h-[270px]">
+                <!-- A面 -->
+                <div class="flip-face absolute inset-0 bg-white rounded-2xl shadow-lg border border-orange-100 p-4 flex flex-col items-center">
+                  <div class="w-16 h-16 rounded-full bg-gradient-to-br from-sky-300 to-teal-300 flex items-center justify-center text-white text-2xl font-bold mb-3">★</div>
+                  <div class="h-3 w-24 bg-neutral-200 rounded-full mb-2"></div>
+                  <div class="h-2 w-16 bg-neutral-100 rounded-full mb-4"></div>
+                  <div class="flex gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-rose-100"></div>
+                    <div class="w-8 h-8 rounded-lg bg-amber-100"></div>
+                    <div class="w-8 h-8 rounded-lg bg-sky-100"></div>
+                    <div class="w-8 h-8 rounded-lg bg-teal-100"></div>
+                  </div>
+                  <div class="w-full h-8 rounded-xl bg-gradient-to-r from-orange-100 to-rose-100"></div>
+                  <p class="mt-auto text-[9px] text-neutral-300 font-bold">おもて面</p>
+                </div>
+                <!-- B面 -->
+                <div class="flip-face flip-back absolute inset-0 bg-white rounded-2xl shadow-lg border border-sky-100 p-4 flex flex-col">
+                  <div class="h-2.5 w-20 bg-neutral-200 rounded-full mb-3"></div>
+                  <div class="space-y-2 mb-4">
+                    <div class="h-2 w-full bg-neutral-100 rounded-full"></div>
+                    <div class="h-2 w-5/6 bg-neutral-100 rounded-full"></div>
+                    <div class="h-2 w-4/6 bg-neutral-100 rounded-full"></div>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <span class="px-2.5 py-1 bg-sky-50 text-sky-500 text-[9px] font-bold rounded-full border border-sky-100">#DIY</span>
+                    <span class="px-2.5 py-1 bg-rose-50 text-rose-500 text-[9px] font-bold rounded-full border border-rose-100">#釣り</span>
+                    <span class="px-2.5 py-1 bg-amber-50 text-amber-600 text-[9px] font-bold rounded-full border border-amber-100">#渋谷</span>
+                  </div>
+                  <p class="mt-auto text-[9px] text-neutral-300 font-bold text-center">うら面</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="flex gap-2">
-          <div class="h-7 w-7 rounded-lg bg-rose-100"></div>
-          <div class="h-7 w-7 rounded-lg bg-amber-100"></div>
-          <div class="h-7 w-7 rounded-lg bg-sky-100"></div>
-          <div class="h-7 flex-1 rounded-lg bg-gradient-to-r from-orange-100 to-rose-100"></div>
+      </div>
+    </section>
+
+    <!-- 3ステップ -->
+    <section class="max-w-5xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">はじめかたは、かんたん3ステップ</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">むずかしい設定はありません。メールアドレスだけで今日からスタート。</p>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-rose-100">1</div>
+          <h3 class="font-bold mb-2">メールで登録</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">メールアドレスを入力すると、あなた専用の名刺URLが届きます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-amber-100">2</div>
+          <h3 class="font-bold mb-2">PINを設定</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">初回アクセス時に6桁のPINを設定。あなたの名刺はあなただけが編集できます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-sky-400 to-teal-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-sky-100">3</div>
+          <h3 class="font-bold mb-2">書いてシェア</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">プロフィールとリンクを書いたら、URLを送るだけ。その場でサッと渡せます。</p>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- フォームカード -->
-    <div id="form-card" class="fade-up delay-2 bg-white/90 backdrop-blur rounded-3xl shadow-lg shadow-sky-100/60 border border-white p-8">
-      <h2 class="text-base font-bold mb-1 text-neutral-800">新規登録</h2>
-      <p class="text-xs text-neutral-500 mb-3">メールアドレスを入力すると、<br>あなた専用の名刺URLをお送りします。</p>
-      <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-6">✦ 今なら登録から7日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
+    <!-- 機能 -->
+    <section id="features" class="max-w-5xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">名刺なのに、名刺以上。</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">渡して終わりじゃない。つながりが広がるデジタル名刺の機能たち。</p>
+      <div class="grid sm:grid-cols-2 gap-5">
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+          <div class="text-2xl mb-3">🔄</div>
+          <h3 class="font-bold mb-2">A面 / B面の2面カード</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">おもて面はきちんと、うら面は自由に。仕事用と趣味用、ひとつの名刺で2つの顔を使い分けられます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+          <div class="text-2xl mb-3">🔗</div>
+          <h3 class="font-bold mb-2">SNSリンクまとめ</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">Instagram・X・YouTubeなど、あなたのSNSやサイトへのリンクを名刺にまとめて掲載できます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+          <div class="text-2xl mb-3">🏷️</div>
+          <h3 class="font-bold mb-2">タグで仲間とつながる</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">「#DIY」「#釣り」など共通のタグをつけた仲間の名刺が表示され、新しいつながりが生まれます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+          <div class="text-2xl mb-3">🎨</div>
+          <h3 class="font-bold mb-2">テーマカラーで自分らしく</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">名刺のテーマカラーを選んで、あなたの雰囲気にぴったりの1枚に。PROなら全色＋背景画像（＋G）も。</p>
+        </div>
+      </div>
+    </section>
 
+    <!-- 中間CTA -->
+    <section class="max-w-5xl mx-auto px-6 py-10">
+      <div class="reveal bg-gradient-to-r from-rose-400 via-orange-400 to-amber-400 rounded-3xl p-8 md:p-10 text-center shadow-xl shadow-orange-200/60">
+        <h2 class="text-white text-xl md:text-2xl font-extrabold tracking-tight mb-2">まずは無料でつくってみよう</h2>
+        <p class="text-white/85 text-xs md:text-sm mb-6">登録は1分。7日間のPROお試しつき。</p>
+        <a href="#register" class="inline-block px-8 py-3.5 bg-white text-rose-500 rounded-2xl text-sm font-extrabold tracking-wide shadow-md hover:bg-rose-50 active:scale-95 transition-all">
+          無料で名刺をつくる →
+        </a>
+      </div>
+    </section>
+
+    <!-- プラン比較 -->
+    <section class="max-w-5xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">プラン</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">まずはFREEで十分。もっと楽しみたくなったらPROへ。</p>
+      <div class="reveal max-w-2xl mx-auto bg-white/90 backdrop-blur rounded-3xl border border-white shadow-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-neutral-100">
+              <th class="text-left px-5 py-4 text-xs text-neutral-400 font-bold w-2/5"></th>
+              <th class="px-3 py-4 font-extrabold text-neutral-600">FREE</th>
+              <th class="px-3 py-4">
+                <span class="inline-block px-3 py-1 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-full font-extrabold text-xs shadow-sm">PRO</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="text-center">
+            <tr class="border-b border-neutral-50">
+              <td class="text-left px-5 py-3.5 text-xs font-bold text-neutral-600">リンク掲載数</td>
+              <td class="py-3.5 text-neutral-500">1個</td>
+              <td class="py-3.5 font-bold text-rose-500">8個</td>
+            </tr>
+            <tr class="border-b border-neutral-50">
+              <td class="text-left px-5 py-3.5 text-xs font-bold text-neutral-600">タグ登録数</td>
+              <td class="py-3.5 text-neutral-500">1個</td>
+              <td class="py-3.5 font-bold text-rose-500">5個</td>
+            </tr>
+            <tr class="border-b border-neutral-50">
+              <td class="text-left px-5 py-3.5 text-xs font-bold text-neutral-600">タグ仲間の表示</td>
+              <td class="py-3.5 text-neutral-500">5人</td>
+              <td class="py-3.5 font-bold text-rose-500">8人</td>
+            </tr>
+            <tr class="border-b border-neutral-50">
+              <td class="text-left px-5 py-3.5 text-xs font-bold text-neutral-600">テーマカラー</td>
+              <td class="py-3.5 text-neutral-500">基本3色</td>
+              <td class="py-3.5 font-bold text-rose-500">全色</td>
+            </tr>
+            <tr>
+              <td class="text-left px-5 py-3.5 text-xs font-bold text-neutral-600">背景画像など（＋G機能）</td>
+              <td class="py-3.5 text-neutral-300">—</td>
+              <td class="py-3.5 font-bold text-rose-500">＋Gで対応</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="text-[11px] text-amber-700 bg-amber-50 border-t border-amber-100 px-5 py-3 text-center">✦ 登録から7日間はPROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="max-w-2xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-10">よくある質問</h2>
       <div class="space-y-3">
-        <input
-          id="email-input"
-          type="email"
-          inputmode="email"
-          placeholder="your@email.com"
-          autocomplete="email"
-          class="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-sm transition-all"
-        />
-        <p id="error-msg" class="text-xs text-red-500 hidden px-1"></p>
-        <button
-          id="submit-btn"
-          onclick="handleSubmit()"
-          class="w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
-          登録してURLを受け取る
-        </button>
+        <details class="reveal bg-white/85 backdrop-blur rounded-2xl border border-white shadow-sm group">
+          <summary class="flex items-center justify-between px-5 py-4 cursor-pointer text-sm font-bold list-none">
+            無料で使えますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400 shrink-0 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">基本機能は無料でお使いいただけます。登録から7日間はPROプランと＋G機能を無料でお試しでき、期限後は自動的にFREEプランになります（料金は発生しません）。</p>
+        </details>
+        <details class="reveal bg-white/85 backdrop-blur rounded-2xl border border-white shadow-sm">
+          <summary class="flex items-center justify-between px-5 py-4 cursor-pointer text-sm font-bold list-none">
+            紙の名刺と何が違いますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400 shrink-0 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">URLを送るだけで渡せるので、在庫切れや刷り直しがありません。内容はいつでも編集でき、SNSリンクのまとめや、同じタグをつけた仲間とのつながりなど、紙にはできない広がりがあります。</p>
+        </details>
+        <details class="reveal bg-white/85 backdrop-blur rounded-2xl border border-white shadow-sm">
+          <summary class="flex items-center justify-between px-5 py-4 cursor-pointer text-sm font-bold list-none">
+            登録に必要なものは？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400 shrink-0 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">メールアドレスだけです。登録するとあなた専用の名刺URLが届き、初回アクセス時に6桁のPINを設定して使いはじめられます。</p>
+        </details>
+        <details class="reveal bg-white/85 backdrop-blur rounded-2xl border border-white shadow-sm">
+          <summary class="flex items-center justify-between px-5 py-4 cursor-pointer text-sm font-bold list-none">
+            機種変更しても使えますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400 shrink-0 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <p class="px-5 pb-4 text-xs text-neutral-500 leading-relaxed">名刺URLとPINがあれば、どのスマホ・PCからでもアクセスできます。URLとPINはご自身で大切に保管してください。</p>
+        </details>
       </div>
+    </section>
 
-      <p class="text-[10px] text-neutral-400 text-center mt-5 leading-relaxed">
-        登録後、入力したアドレスにURLをお送りします。<br>
-        スパムフォルダもご確認ください。
-      </p>
+    <!-- 登録フォーム -->
+    <section id="register" class="max-w-5xl mx-auto px-6 py-14 scroll-mt-20">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">さあ、あなたの名刺をつくろう</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">登録は1分。今日からURLひとつで自己紹介。</p>
+
+      <div class="max-w-sm mx-auto">
+        <!-- フォームカード -->
+        <div id="form-card" class="reveal bg-white/90 backdrop-blur rounded-3xl shadow-lg shadow-sky-100/60 border border-white p-8">
+          <h3 class="text-base font-bold mb-1 text-neutral-800">新規登録</h3>
+          <p class="text-xs text-neutral-500 mb-3">メールアドレスを入力すると、<br>あなた専用の名刺URLをお送りします。</p>
+          <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-6">✦ 今なら登録から7日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
+
+          <div class="space-y-3">
+            <input
+              id="email-input"
+              type="email"
+              inputmode="email"
+              placeholder="your@email.com"
+              autocomplete="email"
+              class="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-sm transition-all"
+            />
+            <p id="error-msg" class="text-xs text-red-500 hidden px-1"></p>
+            <button
+              id="submit-btn"
+              onclick="handleSubmit()"
+              class="w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+              登録してURLを受け取る
+            </button>
+          </div>
+
+          <p class="text-[10px] text-neutral-400 text-center mt-5 leading-relaxed">
+            登録後、入力したアドレスにURLをお送りします。<br>
+            スパムフォルダもご確認ください。
+          </p>
+        </div>
+
+        <!-- 送信中 -->
+        <div id="loading-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
+          <svg class="spinner w-8 h-8 mx-auto mb-4 text-rose-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <p class="text-sm text-neutral-500">登録中...</p>
+        </div>
+
+        <!-- 成功 -->
+        <div id="success-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
+          <div class="pop-in w-14 h-14 bg-gradient-to-br from-teal-300 to-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-teal-100">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 class="text-base font-bold mb-2 text-neutral-800">登録完了！🎉</h3>
+          <p class="text-xs text-neutral-500 mb-5 leading-relaxed">
+            メールアドレス宛に<br>名刺URLをお送りしました。<br>
+            <span class="text-neutral-400">（スパムフォルダもご確認ください）</span>
+          </p>
+          <a id="card-link" href="#" target="_blank"
+            class="inline-block w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+            名刺を開く →
+          </a>
+          <p class="text-[10px] text-neutral-400 mt-4">初回アクセス時に6桁のPINの設定が必要です</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- フッター -->
+  <footer class="border-t border-white/60 bg-white/50 backdrop-blur mt-6">
+    <div class="max-w-5xl mx-auto px-6 py-8 text-center">
+      <div class="flex items-center justify-center gap-2 mb-3">
+        <span class="inline-flex items-center justify-center w-7 h-7 bg-gradient-to-br from-rose-400 to-orange-400 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h4"/>
+          </svg>
+        </span>
+        <span class="text-sm font-extrabold tracking-tight text-neutral-700">デジタル名刺</span>
+      </div>
+      <p class="text-[10px] text-neutral-400">— XYZ Digital Card プロジェクト</p>
     </div>
-
-    <!-- 3つの特徴 -->
-    <div class="fade-up delay-3 grid grid-cols-3 gap-3 mt-8 text-center">
-      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
-        <div class="text-xl mb-1">🆓</div>
-        <p class="text-[10px] font-bold text-neutral-700 leading-tight">無料で<br>始められる</p>
-      </div>
-      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
-        <div class="text-xl mb-1">📱</div>
-        <p class="text-[10px] font-bold text-neutral-700 leading-tight">スマホで<br>サッとシェア</p>
-      </div>
-      <div class="bg-white/80 backdrop-blur rounded-2xl border border-white p-3 shadow-sm">
-        <div class="text-xl mb-1">✨</div>
-        <p class="text-[10px] font-bold text-neutral-700 leading-tight">7日間<br>PROお試し</p>
-      </div>
-    </div>
-
-    <!-- 送信中 -->
-    <div id="loading-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
-      <svg class="spinner w-8 h-8 mx-auto mb-4 text-rose-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-      </svg>
-      <p class="text-sm text-neutral-500">登録中...</p>
-    </div>
-
-    <!-- 成功 -->
-    <div id="success-card" class="hidden bg-white/90 backdrop-blur rounded-3xl shadow-lg border border-white p-8 text-center">
-      <div class="pop-in w-14 h-14 bg-gradient-to-br from-teal-300 to-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-teal-100">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <h2 class="text-base font-bold mb-2 text-neutral-800">登録完了！🎉</h2>
-      <p class="text-xs text-neutral-500 mb-5 leading-relaxed">
-        メールアドレス宛に<br>名刺URLをお送りしました。<br>
-        <span class="text-neutral-400">（スパムフォルダもご確認ください）</span>
-      </p>
-      <a id="card-link" href="#" target="_blank"
-        class="inline-block w-full py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
-        名刺を開く →
-      </a>
-      <p class="text-[10px] text-neutral-400 mt-4">初回アクセス時に6桁のPINの設定が必要です</p>
-      <p class="text-[10px] text-neutral-400 mt-1">— XYZ Digital Card プロジェクト</p>
-    </div>
-
-  </div>
+  </footer>
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -165,11 +386,6 @@
     function show(id) {
       ["form-card","loading-card","success-card"].forEach(c => {
         document.getElementById(c).classList.toggle("hidden", c !== id);
-      });
-      // フォーム以外の表示中はLP装飾（カードイメージ・特徴）を隠す
-      const showDeco = id === "form-card";
-      document.querySelectorAll(".fade-up.delay-1, .fade-up.delay-3").forEach(el => {
-        el.classList.toggle("hidden", !showDeco);
       });
     }
 
@@ -219,6 +435,17 @@
     document.getElementById("email-input").addEventListener("keydown", e => {
       if (e.key === "Enter") handleSubmit();
     });
+
+    // スクロール連動のふんわり表示
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add("shown");
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
   </script>
 
 </body>
