@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
@@ -235,6 +235,15 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           try {
             const r = await gasPost({ action:"admin_toggle_plusg", adminPass:adminPassLocal, name });
             if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plusG:r.plusG}; return n; });
+            showToast(r.success ? "saved" : "error");
+          } catch { showToast("error"); }
+        };
+        /* ── トライアル付与/終了（v5.17: days>0=付与・延長 / 0=終了） ── */
+        const setTrial = async (name, days) => {
+          showToast("saving", 10000);
+          try {
+            const r = await gasPost({ action:"admin_set_trial", adminPass:adminPassLocal, name, days });
+            if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), trialEnd:r.trialEnd||0}; return n; });
             showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
@@ -716,6 +725,16 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider transition-all ${pd.plusG ? 'bg-red-500 border-red-500 text-white hover:bg-red-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-red-400 hover:text-red-400'}`}>
                                       +G
                                     </button>
+                                    {/* トライアル付与/終了（v5.17） */}
+                                    {(() => { const d = trialDaysLeft(pd); return (
+                                      <button onClick={() => {
+                                        if (d > 0) { if (window.confirm(`「${pd.displayName || name}」のPRO+＋Gお試しを終了しますか？`)) setTrial(name, 0); }
+                                        else if (window.confirm(`「${pd.displayName || name}」に7日間のPRO+＋Gお試しを付与しますか？`)) setTrial(name, 7);
+                                      }}
+                                        className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${d > 0 ? 'bg-emerald-500 border-emerald-500 text-black hover:bg-emerald-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-emerald-400 hover:text-emerald-400'}`}>
+                                        {d > 0 ? `試${d}日` : '試用'}
+                                      </button>
+                                    ); })()}
                                     <button
                                       onClick={() => {
                                         if (editingUrlsName === name) { setEditingUrlsName(null); return; }
@@ -754,7 +773,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   </div>
 
                                   {editingUrlsName === name && (() => {
-                                    const personIsPro = isPro(pd);
+                                    const personIsPro = isPro(pd) || trialDaysLeft(pd) > 0; // v5.17: お試し中はPRO扱い
                                     const AP = ({label, children}) => (
                                       <div className="flex items-center justify-between gap-2 mt-1.5">
                                         <span className="text-[8px] text-neutral-500 w-9 flex-shrink-0">{label}</span>
@@ -766,7 +785,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       {/* ヘッダー */}
                                       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
                                         <span className={`text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${personIsPro ? 'bg-amber-400 text-black' : 'bg-neutral-700 text-neutral-400'}`}>
-                                          {personIsPro ? '✦ PRO' : 'FREE'}
+                                          {isPro(pd) ? '✦ PRO' : trialDaysLeft(pd) > 0 ? `✦ PRO+＋Gお試し中・残り${trialDaysLeft(pd)}日` : 'FREE'}
                                         </span>
                                         {!personIsPro && <span className="text-[9px] text-neutral-500">PROボタンでアップグレード可能</span>}
                                       </div>
@@ -1262,7 +1281,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-sm font-semibold text-neutral-800">名刺を編集</h3>
                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${pro ? 'bg-amber-400 text-black' : 'bg-neutral-200 text-neutral-500'}`}>
-                                    {pro ? "✦ PRO" : "FREE"}
+                                    {pro ? (trialDaysLeft(pd) > 0 ? `✦ PRO+＋Gお試し中・残り${trialDaysLeft(pd)}日` : "✦ PRO") : "FREE"}
                                   </span>
                                   {editDirty && <span className="text-[9px] text-amber-500 font-bold animate-pulse">● 未保存</span>}
                                 </div>

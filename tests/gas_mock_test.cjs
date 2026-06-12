@@ -171,6 +171,43 @@ t("自己登録成功", r.success === true && !!r.userId);
 t("24h重複拒否", POST({ action: "self_register", email: "test@example.com" }).code === "DUPLICATE");
 t("不正メール拒否", POST({ action: "self_register", email: "bad" }).success === false);
 
+// ── トライアル（v4.6: 新規登録7日間PRO+＋G・期限後は非表示でデータ保持）──
+const regId = r.userId;
+const regRow = () => sheets.users.rows.find(x => x[0] === regId);
+const trialCol = sheets.users.rows[0].indexOf("trialEnd");
+t("trialEnd列あり", trialCol >= 0);
+t("自己登録でtrialEnd≈7日後", Math.abs(new Date(String(regRow()[trialCol])).getTime() - (Date.now() + 7 * 86400000)) < 60000);
+r = GET({ action: "get_user", id: regId });
+t("トライアル中: 実効pro+＋G+trialEnd", r.user.plan === "pro" && r.user.plusG === true && r.user.trialEnd > Date.now());
+r = POST({ action: "set_initial_pin", name: regId, pin: "888888" });
+const regToken = r.token;
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [{url:"https://1"},{url:"https://2"},{url:"https://3"}], profile: { themeColor: "purple" } });
+t("トライアル中: リンク複数保存可", JSON.parse(regRow()[3]).length === 3);
+t("トライアル中: PRO限定テーマ色OK", JSON.parse(regRow()[5]).themeColor === "purple");
+// 期限切れにする
+regRow()[trialCol] = new Date(Date.now() - 1000).toISOString();
+r = GET({ action: "get_user", id: regId });
+t("期限後: 実効free+＋G無効", r.user.plan === "free" && r.user.plusG === false && !r.user.trialEnd);
+t("期限後: リンクはFREE上限のみ返す", r.user.links.length === 1);
+t("期限後: PRO限定テーマ色は非表示", String((r.user.profile || {}).themeColor || "") === "");
+t("期限後: シート上はデータ保持", JSON.parse(regRow()[3]).length === 3 && JSON.parse(regRow()[5]).themeColor === "purple");
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [{url:"https://new1"}], profile: { themeColor: "" } });
+t("期限後の保存: 隠しリンク温存", (() => { const L = JSON.parse(regRow()[3]); return L.length === 3 && L[0].url === "https://new1" && L[1].url === "https://2"; })());
+t("期限後の保存: PRO色温存", JSON.parse(regRow()[5]).themeColor === "purple");
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [{url:"https://new1"}], profile: { themeColor: "blue" } });
+t("期限後: FREE色の明示選択は上書き", JSON.parse(regRow()[5]).themeColor === "blue");
+r = POST({ action: "admin_get_all", adminPass: AP });
+t("admin_get_all: 生plan+全リンク返却", r.users[regId].plan === "free" && r.users[regId].links.length === 3);
+r = POST({ action: "admin_set_trial", adminPass: AP, name: regId, days: 7 });
+t("admin_set_trial付与", r.success === true && r.trialEnd > Date.now());
+t("付与後: 実効pro", GET({ action: "get_user", id: regId }).user.plan === "pro");
+t("admin_set_trial終了", POST({ action: "admin_set_trial", adminPass: AP, name: regId, days: 0 }).success === true
+  && GET({ action: "get_user", id: regId }).user.plan === "free");
+t("admin_set_trial認証必須", POST({ action: "admin_set_trial", name: regId, days: 7 }).success === false);
+
 // ── PINリセットの徹底（v4.2バグ修正） ──
 r = POST({ action: "verify_pin", name: "taro", pin: "222222" });
 const taroToken2 = r.token;

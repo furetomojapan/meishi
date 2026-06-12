@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.16"; // テーマカラー復活（カード画面全体・FREE2色/PRO全8色 — 座談会D課題）
+      export const APP_VERSION = "v5.17"; // 新規登録者に7日間PRO+＋G無料トライアル
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -24,12 +24,17 @@
       export const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
       /* ── プラン判定 ── */
       export const isPro = (personData) => personData?.plan === "pro";
       export const isPlusG = (personData) => isPro(personData) && personData?.plusG === true;
+      // v5.17: PRO+＋Gトライアル — サーバーが期限内のみ trialEnd(ms) を返す（planはpro扱いで返る）
+      export const trialDaysLeft = (personData) => {
+        const end = personData?.trialEnd || 0;
+        return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
+      };
       export const FREE_LINK_LIMIT = 1;
       export const PRO_LINK_LIMIT  = 8; // v5.15: 5→8（座談会D課題・プラン差別化）
       export const TAG_FRIENDS_FREE = 5; // タグ仲間の表示人数（ランダム）
