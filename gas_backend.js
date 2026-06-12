@@ -1,5 +1,6 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.6
+ * デジタル名刺 - Google Apps Script バックエンド v4.7
+ *   - v4.7: 独自背景画像を専用列（frontImage/backImage）に分離 — 画像ごとに5万文字を確保し高画質化
  *   - v4.6: 新規登録者に7日間PRO+＋G無料トライアル（trialEnd列・期限後は非表示でデータ保持）
  *   - v4.5: テーマカラー（カード画面全体）— FREEのPRO限定色をサーバー側で矯正
  *   - v4.4: clasp + GitHub Actions による自動デプロイに移行（手動貼り替え廃止）
@@ -24,7 +25,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.6"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.7"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -57,6 +58,27 @@ function clampThemeColor(profile, isProPlan) {
   const fixed = JSON.parse(JSON.stringify(profile));
   fixed.themeColor = "";
   return fixed;
+}
+
+// v4.7: 独自背景画像（＋G）— 専用列に保存。1セル5万文字（Sheetsの上限）まで
+const IMAGE_MAX_CHARS = 50000;
+// 不正なスキームは "" に矯正。大きすぎる場合は null を返す（呼び出し側でエラーに）
+function sanitizeImageUrl(v) {
+  const s = String(v || "");
+  if (!s) return "";
+  if (!/^data:image\/(webp|jpeg|png|gif);base64,/.test(s) && !/^https:\/\//.test(s)) return "";
+  if (s.length > IMAGE_MAX_CHARS) return null;
+  return s;
+}
+// profileから画像を分離（profileのコピーを返す。front/backがnull=サイズ超過）
+function splitProfileImages(profile) {
+  if (!profile || typeof profile !== "object") return { profile, front: "", back: "" };
+  const p = JSON.parse(JSON.stringify(profile));
+  const front = sanitizeImageUrl(p.frontImageUrl);
+  const back  = sanitizeImageUrl(p.backImageUrl);
+  delete p.frontImageUrl;
+  delete p.backImageUrl;
+  return { profile: p, front, back };
 }
 
 const PIN_MAX_ATTEMPTS = 5;        // 連続失敗の上限
@@ -181,6 +203,9 @@ const ROUTES = {
     // plan・plusG・pinは変更不可。リンク上限・テーマカラーはサーバー側プランで強制
     const f = findUserRow(p.name);
     if (!f) return { success: false, error: "ユーザーが見つかりません", code: "NOT_FOUND" };
+    // v4.7: 画像サイズ検証（通常はフロント側で収まるよう圧縮済み）
+    if (p.profile && (sanitizeImageUrl(p.profile.frontImageUrl) === null || sanitizeImageUrl(p.profile.backImageUrl) === null))
+      return { success: false, error: "画像データが大きすぎます。画像をアップロードし直してください", code: "VALIDATION" };
     const isProPlan = getUserPlan(p.name) === "pro"; // v4.6: トライアル中もpro
     const linkLimit = isProPlan ? PRO_LINK_LIMIT : FREE_LINK_LIMIT;
     let links = (Array.isArray(p.links) ? p.links : []).slice(0, linkLimit);
@@ -287,6 +312,8 @@ const ROUTES = {
   }},
 
   admin_save_user: { auth: "admin", write: true, handler: (p) => {
+    if (p.profile && (sanitizeImageUrl(p.profile.frontImageUrl) === null || sanitizeImageUrl(p.profile.backImageUrl) === null))
+      return { success: false, error: "画像データが大きすぎます", code: "VALIDATION" }; // v4.7
     adminSaveUser(p.name, p.displayName, p.licenseKey, p.links, p.plan, p.profile, p.pin, p.plusG);
     return { success: true };
   }},
@@ -332,11 +359,11 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd"]);
-    us.getRange(1,1,1,13).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage"]);
+    us.getRange(1,1,1,15).setFontWeight("bold");
   } else {
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
@@ -389,7 +416,9 @@ function getUsersTable() {
     colTags:        header.indexOf("tags"),
     colTagsUpdated: header.indexOf("tagsUpdatedAt"),
     colTagPublicId: header.indexOf("tagPublicId"),
-    colTrialEnd:    header.indexOf("trialEnd") // v4.6
+    colTrialEnd:    header.indexOf("trialEnd"),   // v4.6
+    colFrontImage:  header.indexOf("frontImage"), // v4.7
+    colBackImage:   header.indexOf("backImage")   // v4.7
   };
   return _cache.usersTable;
 }
@@ -421,6 +450,17 @@ function setTrialEnd(name, ms) {
   return true;
 }
 
+// v4.7: 専用列の画像をprofileに注入（列が空なら旧形式=profile内埋め込みをそのまま使用）
+function injectImages(profile, row, t) {
+  const fi = t.colFrontImage >= 0 ? String(row[t.colFrontImage] || "") : "";
+  const bi = t.colBackImage  >= 0 ? String(row[t.colBackImage]  || "") : "";
+  if (!fi && !bi) return profile;
+  const p = Object.assign({}, profile || {});
+  if (fi) p.frontImageUrl = fi;
+  if (bi) p.backImageUrl  = bi;
+  return p;
+}
+
 // ── 行 → 公開用ユーザーデータ（PIN・licenseKey・tagsは送らない）──
 // v4.6: トライアル中は実効プランpro+＋G扱い。期限後はPRO限定データを
 // 非表示にして返す（シート上のデータは保持 — PRO購入で復活）
@@ -436,7 +476,7 @@ function rowToPublicUser(row, t) {
     links,
     plan,
     trialEnd:    onTrial ? trialEnd : 0,
-    profile:     clampThemeColor(parseJson(row[5], null), isProEff),
+    profile:     clampThemeColor(injectImages(parseJson(row[5], null), row, t), isProEff),
     hasPinSet:   !!(row[6]),
     plusG:       onTrial ? true : (row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1"),
     publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : ""
@@ -485,7 +525,7 @@ function getAllUsersAdmin() {
     u.plan     = row[4] || "free";
     u.plusG    = row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1";
     u.links    = parseJson(row[3], []);
-    u.profile  = parseJson(row[5], null);
+    u.profile  = injectImages(parseJson(row[5], null), row, t); // v4.7: 画像列も注入
     u.trialEnd = rowTrialEndMs(row, t);
     u.licenseKey = row[2] || "";
     result[row[0]] = u;
@@ -494,12 +534,22 @@ function getAllUsersAdmin() {
 }
 
 // ── プロフィール保存（plan/plusG/pin変更不可）─────────────────────
+// v4.7: 画像列がある場合はprofileから画像を分離して専用列へ（自動移行）。
+// 列がまだない場合（initSheets未実行）は従来通りprofile内に埋め込み保存
 function saveUserProfile(name, displayName, links, profile) {
   const f = findUserRow(name);
   if (!f) return false;
+  let prof = profile;
+  const hasImgCols = f.t.colFrontImage >= 0 && f.t.colBackImage >= 0;
+  if (hasImgCols) {
+    const sp = splitProfileImages(profile);
+    prof = sp.profile;
+    f.t.sheet.getRange(f.idx, f.t.colFrontImage + 1).setValue(sp.front || "");
+    f.t.sheet.getRange(f.idx, f.t.colBackImage  + 1).setValue(sp.back  || "");
+  }
   f.t.sheet.getRange(f.idx, 2).setValue(displayName || "");
   f.t.sheet.getRange(f.idx, 4).setValue(JSON.stringify(links || []));
-  f.t.sheet.getRange(f.idx, 6).setValue(profile ? JSON.stringify(profile) : "");
+  f.t.sheet.getRange(f.idx, 6).setValue(prof ? JSON.stringify(prof) : "");
   invalidateUsersCache();
   return true;
 }
@@ -521,9 +571,17 @@ function adminCreateUser(name, trialEndMs) {
 // ── 管理者: フル保存 ─────────────────────────────────────────────
 function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin, plusG) {
   const linksJson   = JSON.stringify(links || []);
-  const profileJson = profile ? JSON.stringify(profile) : "";
+  const t0 = getUsersTable();
+  const hasImgCols = t0.colFrontImage >= 0 && t0.colBackImage >= 0; // v4.7
+  const sp = hasImgCols ? splitProfileImages(profile) : { profile, front: "", back: "" };
+  const profileJson = sp.profile ? JSON.stringify(sp.profile) : "";
   const planVal     = plan || "free";
   const plusGVal    = plusG === true || plusG === "true" || plusG === 1;
+  const setImages = (idx, t) => {
+    if (!hasImgCols) return;
+    t.sheet.getRange(idx, t.colFrontImage + 1).setValue(sp.front || "");
+    t.sheet.getRange(idx, t.colBackImage  + 1).setValue(sp.back  || "");
+  };
   const f = findUserRow(name);
   if (f) {
     const currentPin = String(f.row[6] || "");
@@ -534,6 +592,7 @@ function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin,
     f.t.sheet.getRange(f.idx, 1, 1, 8).setValues([[
       name, displayName || "", licenseKey || "", linksJson, planVal, profileJson, pinVal, plusGVal
     ]]);
+    setImages(f.idx, f.t);
     invalidateUsersCache();
     return;
   }
@@ -544,6 +603,9 @@ function adminSaveUser(name, displayName, licenseKey, links, plan, profile, pin,
     : new Set();
   t.sheet.appendRow([name, displayName||"", licenseKey||"", linksJson, planVal, profileJson,
     pin ? hashPin(name, String(pin)) : "", plusGVal, generatePublicId(existing), "[]"]);
+  invalidateUsersCache();
+  const nf = findUserRow(name);
+  if (nf) setImages(nf.idx, nf.t);
   invalidateUsersCache();
   ensureTagPublicId(name);
 }

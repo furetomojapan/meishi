@@ -1336,6 +1336,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   {/* 独自背景画像（+G） */}
                                   {(() => {
                                     const canUpload = isPlusG(getPersonData(urlsData, variablePart));
+                                    // v5.18: 高画質化 — 800px・WebP（非対応ならJPEG）・画質を自動段階調整。
+                                    // 保存先（専用セル・上限5万文字）に収まる最高画質を選ぶ
                                     const compressImage = (file) => new Promise((resolve, reject) => {
                                       const reader = new FileReader();
                                       reader.onerror = () => reject(new Error('read error'));
@@ -1343,13 +1345,22 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                         const img = new Image();
                                         img.onerror = () => reject(new Error('image error'));
                                         img.onload = () => {
-                                          const MAX_W = 400, MAX_H = 235;
-                                          const ratio = Math.min(MAX_W / img.width, MAX_H / img.height, 1);
-                                          const canvas = document.createElement('canvas');
-                                          canvas.width = Math.round(img.width * ratio);
-                                          canvas.height = Math.round(img.height * ratio);
-                                          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                                          resolve(canvas.toDataURL('image/jpeg', 0.4));
+                                          const IMG_MAX_CHARS = 47000; // サーバー上限5万文字に対し余裕を持たせる
+                                          const webpOk = document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0;
+                                          const type = webpOk ? 'image/webp' : 'image/jpeg';
+                                          const MAX_W = 800, MAX_H = 470;
+                                          for (const scale of [1, 0.75, 0.5]) {
+                                            const ratio = Math.min(MAX_W / img.width, MAX_H / img.height, 1) * scale;
+                                            const canvas = document.createElement('canvas');
+                                            canvas.width = Math.max(1, Math.round(img.width * ratio));
+                                            canvas.height = Math.max(1, Math.round(img.height * ratio));
+                                            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                                            for (const q of [0.85, 0.75, 0.65, 0.55, 0.45]) {
+                                              const dataUrl = canvas.toDataURL(type, q);
+                                              if (dataUrl.length <= IMG_MAX_CHARS) { resolve(dataUrl); return; }
+                                            }
+                                          }
+                                          reject(new Error('too large'));
                                         };
                                         img.src = ev.target.result;
                                       };

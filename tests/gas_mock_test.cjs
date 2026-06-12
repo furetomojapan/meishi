@@ -208,6 +208,43 @@ t("admin_set_trial終了", POST({ action: "admin_set_trial", adminPass: AP, name
   && GET({ action: "get_user", id: regId }).user.plan === "free");
 t("admin_set_trial認証必須", POST({ action: "admin_set_trial", name: regId, days: 7 }).success === false);
 
+// ── 独自背景画像（v4.7: 専用列に分離・高画質化）──
+const imgCols = { f: sheets.users.rows[0].indexOf("frontImage"), b: sheets.users.rows[0].indexOf("backImage") };
+t("画像列あり", imgCols.f >= 0 && imgCols.b >= 0);
+const IMG = "data:image/webp;base64," + "A".repeat(2000);
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [], profile: { themeColor: "blue", frontImageUrl: IMG } });
+t("画像は専用列に保存", String(regRow()[imgCols.f]) === IMG);
+t("profile列に画像は残らない", !JSON.parse(regRow()[5]).frontImageUrl);
+r = GET({ action: "get_user", id: regId });
+t("get_user: 画像をprofileに注入", r.user.profile.frontImageUrl === IMG);
+r = POST({ action: "admin_get_all", adminPass: AP });
+t("admin_get_all: 画像注入", r.users[regId].profile.frontImageUrl === IMG);
+// 削除
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [], profile: { themeColor: "blue", frontImageUrl: "" } });
+t("画像削除で列クリア", String(regRow()[imgCols.f]) === "");
+// 旧形式（profile内埋め込み）フォールバック
+regRow()[5] = JSON.stringify({ themeColor: "", backImageUrl: "data:image/jpeg;base64,LEGACY" });
+r = GET({ action: "get_user", id: regId });
+t("旧形式: 埋め込み画像を返す", r.user.profile.backImageUrl === "data:image/jpeg;base64,LEGACY");
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [], profile: { themeColor: "", backImageUrl: "data:image/jpeg;base64,LEGACY" } });
+t("旧形式: 保存で専用列へ自動移行", String(regRow()[imgCols.b]) === "data:image/jpeg;base64,LEGACY" && !JSON.parse(regRow()[5]).backImageUrl);
+// バリデーション
+r = POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [], profile: { frontImageUrl: "data:image/webp;base64," + "B".repeat(50001) } });
+t("サイズ超過は拒否", r.code === "VALIDATION");
+POST({ action: "save_user_profile", name: regId, token: regToken, displayName: "新規",
+  links: [], profile: { frontImageUrl: "javascript:alert(1)" } });
+t("不正スキームは矯正", String(regRow()[imgCols.f]) === "");
+// 管理者保存でも分離
+POST({ action: "admin_save_user", adminPass: AP, name: regId, displayName: "新規", links: [],
+  plan: "free", profile: { themeColor: "", frontImageUrl: IMG } });
+t("admin保存: 画像を専用列へ", String(regRow()[imgCols.f]) === IMG && !JSON.parse(regRow()[5]).frontImageUrl);
+t("admin保存: サイズ超過拒否", POST({ action: "admin_save_user", adminPass: AP, name: regId, displayName: "新規",
+  links: [], plan: "free", profile: { frontImageUrl: "data:image/png;base64," + "C".repeat(50001) } }).code === "VALIDATION");
+
 // ── PINリセットの徹底（v4.2バグ修正） ──
 r = POST({ action: "verify_pin", name: "taro", pin: "222222" });
 const taroToken2 = r.token;

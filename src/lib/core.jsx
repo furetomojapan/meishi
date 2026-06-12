@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.17"; // 新規登録者に7日間PRO+＋G無料トライアル
+      export const APP_VERSION = "v5.18"; // 独自背景画像の高画質化（800px・WebP・専用列保存）
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
