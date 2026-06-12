@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.18.1"; // A面/B面ボタンのスリム化・「私もデジタル名刺を作りたい！」→welcome.html
+      export const APP_VERSION = "v5.19"; // 確認ポップアップを独自モーダル化（「○○.github.io の内容」表示を排除）
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

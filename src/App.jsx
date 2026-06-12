@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { appConfirm, appAlert, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
@@ -308,9 +309,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             const allWarn = cleaned.includes("all")
               ? "【全体公開ON】全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます。\n"
               : "";
-            if (!window.confirm(allWarn + "タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。\n保存後24時間はタグを変更できません（削除はいつでも可能）。よろしいですか？")) return;
+            if (!(await appConfirm(allWarn + "タグを保存すると、同じタグを設定している他のユーザーに、あなたの表示名と名刺リンクが公開されます。\n保存後24時間はタグを変更できません（削除はいつでも可能）。よろしいですか？"))) return;
           } else if (mySavedTags.length > 0) {
-            if (!window.confirm("タグをすべて削除しますか？（削除はいつでも可能です）")) return;
+            if (!(await appConfirm("タグをすべて削除しますか？（削除はいつでも可能です）"))) return;
           }
           setTagSaveMsg("保存中…");
           try {
@@ -367,7 +368,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           if (cardTagBusy) return;
           if (showCardTags) { setShowCardTags(false); return; } // 開いていれば閉じる
           if (/^zz\d{9}$/.test(variablePart) && !urlsData[variablePart]) {
-            window.alert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
+            appAlert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
             return;
           }
           setCardTagBusy(true);
@@ -389,7 +390,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           // publicId（zz+9桁）が内部名に未解決のまま編集に入ると、存在しないID宛に
           // PIN設定・保存が走ってしまうためブロック
           if (/^zz\d{9}$/.test(variablePart) && !urlsData[variablePart]) {
-            window.alert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
+            appAlert("データを読み込んでいます。数秒待ってからもう一度お試しください。");
             return;
           }
           if (editOpening) return;
@@ -553,6 +554,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         return (
           <div className="min-h-screen p-4 sm:p-8 md:p-12" style={{ zoom: UI_ZOOMS[uiZoomIdx], ...(cardTheme ? { background: cardTheme.pageBg } : {}) }}>
             <Toast status={toast} />
+            <DialogHost /> {/* v5.19: 独自確認ダイアログ（ブラウザ標準confirmのサイト名表示を排除） */}
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -727,9 +729,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     </button>
                                     {/* トライアル付与/終了（v5.17） */}
                                     {(() => { const d = trialDaysLeft(pd); return (
-                                      <button onClick={() => {
-                                        if (d > 0) { if (window.confirm(`「${pd.displayName || name}」のPRO+＋Gお試しを終了しますか？`)) setTrial(name, 0); }
-                                        else if (window.confirm(`「${pd.displayName || name}」に7日間のPRO+＋Gお試しを付与しますか？`)) setTrial(name, 7);
+                                      <button onClick={async () => {
+                                        if (d > 0) { if (await appConfirm(`「${pd.displayName || name}」のPRO+＋Gお試しを終了しますか？`)) setTrial(name, 0); }
+                                        else if (await appConfirm(`「${pd.displayName || name}」に7日間のPRO+＋Gお試しを付与しますか？`)) setTrial(name, 7);
                                       }}
                                         className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${d > 0 ? 'bg-emerald-500 border-emerald-500 text-black hover:bg-emerald-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-emerald-400 hover:text-emerald-400'}`}>
                                         {d > 0 ? `試${d}日` : '試用'}
@@ -753,7 +755,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     {/* 削除ボタン */}
                                     <button
                                       onClick={async () => {
-                                        if (!window.confirm(`「${pd.displayName || name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
+                                        if (!(await appConfirm(`「${pd.displayName || name}」を削除しますか？\nこの操作は元に戻せません。`))) return;
                                         const newData = { ...urlsData };
                                         delete newData[name];
                                         setUrlsData(newData);
@@ -832,7 +834,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                               <button
                                                 onClick={async () => {
                                                   const n2 = editingUrlsName;
-                                                  if (!window.confirm(`${pd.displayName || n2} のPINをリセットしますか？\nユーザーは次回アクセス時に新しいPINを設定します。`)) return;
+                                                  if (!(await appConfirm(`${pd.displayName || n2} のPINをリセットしますか？\nユーザーは次回アクセス時に新しいPINを設定します。`))) return;
                                                   try {
                                                     const r = await gasPost({ action:"admin_reset_pin", adminPass:adminPassLocal, name:n2 });
                                                     if (r.success) {
@@ -1249,14 +1251,14 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           // タグの未保存判定（タグは「タグを保存」ボタンでのみ保存される）
                           const tagLimit = pro ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
                           const tagsDirty = JSON.stringify(userEditTags.slice(0, tagLimit).map(normalizeTag).filter(Boolean)) !== JSON.stringify(mySavedTags.slice(0, tagLimit));
-                          const closeEditSheet = () => {
-                            if (tagsDirty && !window.confirm("タグが未保存です（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグの変更を破棄して閉じますか？")) return;
-                            if (editDirty && !window.confirm("変更を破棄して閉じますか？")) return;
+                          const closeEditSheet = async () => {
+                            if (tagsDirty && !(await appConfirm("タグが未保存です（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグの変更を破棄して閉じますか？"))) return;
+                            if (editDirty && !(await appConfirm("変更を破棄して閉じますか？"))) return;
                             setEditOrigJSON(null);
                             setShowUserEdit(false);
                           };
-                          const handleFooterSave = () => {
-                            if (tagsDirty && !window.confirm("タグは未保存です。このSAVEボタンではタグは保存されません（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグ以外を保存して閉じますか？")) return;
+                          const handleFooterSave = async () => {
+                            if (tagsDirty && !(await appConfirm("タグは未保存です。このSAVEボタンではタグは保存されません（タグは「タグ」タブの『タグを保存』ボタンで保存します）。\nタグ以外を保存して閉じますか？"))) return;
                             saveUserLinks();
                           };
                           const PRow = ({label, children}) => (

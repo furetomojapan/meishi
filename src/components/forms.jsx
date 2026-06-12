@@ -1,4 +1,5 @@
 import { FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, TAG_PLACEHOLDERS, normalizeTag, FONT_OPTIONS } from "../lib/core";
+import { appConfirm } from "../lib/dialog";
 
       export function TagFields({ tags, onChange, pro, dark, lockedEditable, confirmAllOn, onNotice }) {
         const allOn = (tags || []).some(t => normalizeTag(t) === "all");
@@ -18,9 +19,9 @@ import { FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, TAG_PLACEHOLDERS, normalize
               <span className="block text-[10px] text-neutral-500 mt-0.5">ONにすると、全体公開中のすべての利用者にこの名刺（表示名とリンク）が表示されます{!pro && "（FREEはタグとの併用不可）"}</span>
             </span>
             <input type="checkbox" checked={allOn}
-              onChange={e => {
+              onChange={async e => {
                 const on = e.target.checked;
-                if (on && confirmAllOn && !window.confirm("全体公開をONにすると、全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます（反映には保存が必要です）。よろしいですか？")) return;
+                if (on && confirmAllOn && !(await appConfirm("全体公開をONにすると、全体公開中のすべての利用者にあなたの表示名と名刺リンクが表示されます（反映には保存が必要です）。よろしいですか？"))) return;
                 onChange(compose(on, nonAll));
               }}
               className="w-5 h-5 accent-amber-500 flex-shrink-0" />
