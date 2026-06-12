@@ -1,5 +1,6 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.2
+ * デジタル名刺 - Google Apps Script バックエンド v4.3
+ *   - v4.3: ?action=version でデプロイ中のバージョンを確認可能に
  *   - v4.2: PINリセット/管理者PIN変更時にその人の端末記憶（セッション）も無効化
  *   - v4.1: PROリンク上限 5→8
  *
@@ -22,6 +23,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
+const BACKEND_VERSION = "v4.3"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -54,7 +56,9 @@ function doGet(e) {
   let result;
   try {
     const action = e.parameter.action || "get_user";
-    if (action === "get_user") {
+    if (action === "version") {
+      result = { version: BACKEND_VERSION }; // デプロイ確認用
+    } else if (action === "get_user") {
       const id = String(e.parameter.id || "").trim();
       if (!id) {
         result = { error: "id required", code: "BAD_REQUEST" };
