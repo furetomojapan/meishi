@@ -47,7 +47,8 @@ Pages の Source は「GitHub Actions」（リポジトリ Settings → Pages）
 2. `gas_backend.js` の内容で全置き換え
 3. **まずテスト用デプロイに反映**して docs/smoke_test.md を実施
 4. 問題なければ「デプロイ → デプロイを管理 → 編集 → 新バージョン」で本番デプロイ
-5. シート列が増わる変更のときは `initSheets()` を1回手動実行
+5. シート列が増える変更のときは `initSheets()` を1回手動実行
+6. **反映確認**: ブラウザで `本番URL?action=version` を開き、バージョン番号が一致するか確認（複数デプロイがある場合、更新対象を間違えやすいため必須）
 
 ### ロールバック
 - フロント: `git revert` して push（基準点タグ: `v5.10-stable`）
