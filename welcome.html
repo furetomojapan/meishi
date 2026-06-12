@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>デジタル名刺 — スマホでサッと渡せる、あなただけの名刺</title>
+  <title>XYZ Digital Card — スマホでサッと渡せるデジタル名刺</title>
   <meta name="description" content="目の前の人にはQRをかざすだけ。メールアドレスだけで1分登録、A面/B面の2面カード・SNSリンクまとめ・タグ仲間とつながる、無料で始めるデジタル名刺。" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -75,7 +75,7 @@
             <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h4"/>
           </svg>
         </span>
-        <span class="font-extrabold tracking-tight">デジタル名刺</span>
+        <span class="font-extrabold tracking-tight">XYZ Digital Card</span>
       </a>
       <a href="#register" class="px-4 py-2 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-full text-xs font-bold shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
         無料ではじめる
@@ -94,8 +94,9 @@
           <span class="bg-gradient-to-r from-rose-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">QRをかざすだけ</span>。
         </h1>
         <p class="text-sm md:text-base text-neutral-500 leading-relaxed mb-7">
-          その場でサッと渡せるデジタル名刺。SNSリンクも自己紹介も、<br class="hidden md:inline">
-          URLひとつにぎゅっとまとめて。紙の名刺が切れる心配はもうありません。
+          その場でサッと渡せるデジタル名刺。<br>
+          SNSリンクも自己紹介も、URLひとつにぎゅっとまとめて。<br>
+          紙の名刺が切れる心配はもうありません。
         </p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
           <a href="#register" class="px-7 py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
@@ -206,33 +207,54 @@
     <section id="features" class="max-w-5xl mx-auto px-6 py-14">
       <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">名刺なのに、名刺以上。</h2>
       <p class="reveal text-center text-sm text-neutral-500 mb-10">渡して終わりじゃない。つながりが広がるデジタル名刺の機能たち。</p>
-      <div class="grid sm:grid-cols-2 gap-5">
-        <div class="reveal sm:col-span-2 bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50 rounded-3xl border-2 border-rose-100 p-6 md:p-8 shadow-sm md:flex md:items-center md:gap-6">
+      <div class="grid gap-5">
+        <!-- QR 大カード -->
+        <div class="reveal bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50 rounded-3xl border-2 border-rose-100 p-6 md:p-8 shadow-sm md:flex md:items-center md:gap-6">
           <div class="text-4xl mb-3 md:mb-0 shrink-0">📲</div>
           <div>
             <h3 class="font-extrabold text-lg mb-2">QRで、その場で名刺交換</h3>
-            <p class="text-xs md:text-sm text-neutral-500 leading-relaxed">画面にQRコードを表示して、目の前の人にスマホをかざしてもらうだけ。相手はカメラで読み取るだけで、アプリのインストールも登録も不要。紙の名刺と同じ「その場で渡せる」体験を、もっと身軽に。</p>
+            <p class="text-xs md:text-sm text-neutral-500 leading-relaxed">
+              画面にQRコードを表示して、かざしてもらうだけ。<br>
+              相手はカメラで読み取るだけ。アプリも登録も不要。<br>
+              「その場で渡せる」を、もっと身軽に。
+            </p>
           </div>
         </div>
-        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
-          <div class="text-2xl mb-3">🔄</div>
-          <h3 class="font-bold mb-2">A面 / B面の2面カード</h3>
-          <p class="text-xs text-neutral-500 leading-relaxed">おもて面はきちんと、うら面は自由に。仕事用と趣味用、ひとつの名刺で2つの顔を使い分けられます。</p>
+        <!-- タグ 大カード -->
+        <div class="reveal bg-gradient-to-r from-sky-50 via-teal-50 to-emerald-50 rounded-3xl border-2 border-sky-100 p-6 md:p-8 shadow-sm md:flex md:items-center md:gap-6">
+          <div class="text-4xl mb-3 md:mb-0 shrink-0">🏷️</div>
+          <div>
+            <h3 class="font-extrabold text-lg mb-2">タグで、新しい出会いが生まれる</h3>
+            <p class="text-xs md:text-sm text-neutral-500 leading-relaxed mb-3">
+              同じタグをつけた仲間の名刺が、あなたの名刺に表示される。<br>
+              趣味でも、仕事でも、地域でも。<br>
+              名刺交換のその先に、新しいつながりを。
+            </p>
+            <div class="flex flex-wrap gap-1.5" aria-hidden="true">
+              <span class="px-2.5 py-1 bg-white text-sky-500 text-[10px] font-bold rounded-full border border-sky-200">#DIY</span>
+              <span class="px-2.5 py-1 bg-white text-teal-500 text-[10px] font-bold rounded-full border border-teal-200">#釣り</span>
+              <span class="px-2.5 py-1 bg-white text-emerald-500 text-[10px] font-bold rounded-full border border-emerald-200">#渋谷</span>
+              <span class="px-2.5 py-1 bg-white text-sky-500 text-[10px] font-bold rounded-full border border-sky-200">#飲食</span>
+            </div>
+          </div>
         </div>
-        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
-          <div class="text-2xl mb-3">🔗</div>
-          <h3 class="font-bold mb-2">SNSリンクまとめ</h3>
-          <p class="text-xs text-neutral-500 leading-relaxed">Instagram・X・YouTubeなど、あなたのSNSやサイトへのリンクを名刺にまとめて掲載できます。</p>
-        </div>
-        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
-          <div class="text-2xl mb-3">🏷️</div>
-          <h3 class="font-bold mb-2">タグで仲間とつながる</h3>
-          <p class="text-xs text-neutral-500 leading-relaxed">「#DIY」「#釣り」など共通のタグをつけた仲間の名刺が表示され、新しいつながりが生まれます。</p>
-        </div>
-        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
-          <div class="text-2xl mb-3">🎨</div>
-          <h3 class="font-bold mb-2">テーマカラーで自分らしく</h3>
-          <p class="text-xs text-neutral-500 leading-relaxed">名刺のテーマカラーを選んで、あなたの雰囲気にぴったりの1枚に。PROなら全色＋背景画像（＋G）も。</p>
+        <!-- 小カード3枚 -->
+        <div class="grid sm:grid-cols-3 gap-5">
+          <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+            <div class="text-2xl mb-3">🔄</div>
+            <h3 class="font-bold mb-2">A面 / B面の2面カード</h3>
+            <p class="text-xs text-neutral-500 leading-relaxed">おもて面はきちんと、うら面は自由に。<br>ひとつの名刺で2つの顔を。</p>
+          </div>
+          <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+            <div class="text-2xl mb-3">🔗</div>
+            <h3 class="font-bold mb-2">SNSリンクまとめ</h3>
+            <p class="text-xs text-neutral-500 leading-relaxed">Instagram・X・YouTubeなど。<br>あなたのリンクを名刺にまとめて。</p>
+          </div>
+          <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm">
+            <div class="text-2xl mb-3">🎨</div>
+            <h3 class="font-bold mb-2">テーマカラーで自分らしく</h3>
+            <p class="text-xs text-neutral-500 leading-relaxed">好きな色で、あなたらしい1枚に。<br>PROなら全色＋背景画像（＋G）も。</p>
+          </div>
         </div>
       </div>
     </section>
@@ -292,6 +314,42 @@
           </tbody>
         </table>
         <p class="text-[11px] text-amber-700 bg-amber-50 border-t border-amber-100 px-5 py-3 text-center">✦ 登録から7日間はPROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります）</p>
+      </div>
+    </section>
+
+    <!-- リアルカード（かざすだけ） -->
+    <section class="max-w-5xl mx-auto px-6 py-14">
+      <div class="reveal bg-neutral-900 rounded-3xl p-8 md:p-10 shadow-xl shadow-neutral-300/60 grid md:grid-cols-2 gap-8 items-center overflow-hidden relative">
+        <div aria-hidden="true" class="pointer-events-none absolute -top-16 -right-16 w-56 h-56 bg-rose-400/20 rounded-full"></div>
+        <div aria-hidden="true" class="pointer-events-none absolute -bottom-20 -left-10 w-48 h-48 bg-sky-400/20 rounded-full"></div>
+        <!-- カードのビジュアル（CSS描画） -->
+        <div class="flex justify-center" aria-hidden="true">
+          <div class="relative w-64 h-40 bg-gradient-to-br from-rose-400 via-orange-400 to-amber-400 rounded-2xl shadow-2xl rotate-[-4deg] p-5 flex flex-col justify-between">
+            <div class="flex items-start justify-between">
+              <span class="text-white font-extrabold tracking-tight text-sm">XYZ Digital Card</span>
+              <!-- かざすだけマーク（電波アイコン） -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.9">
+                <path d="M6 8.5a8 8 0 0 1 0 7"/><path d="M9.5 6a12 12 0 0 1 0 12"/><path d="M13 3.5a16 16 0 0 1 0 17"/>
+              </svg>
+            </div>
+            <div>
+              <div class="h-2 w-24 bg-white/50 rounded-full mb-1.5"></div>
+              <div class="h-2 w-16 bg-white/30 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+        <div class="text-center md:text-left relative">
+          <h2 class="text-white text-xl md:text-2xl font-extrabold tracking-tight mb-3">スマホにかざすだけ。<br>リアルカード、登場予定。</h2>
+          <p class="text-neutral-300 text-xs md:text-sm leading-relaxed mb-6">
+            カードをスマホにかざすと、あなたの名刺がひらく。<br>
+            イベントでも、店頭でも、もっとスマートに。<br>
+            財布に1枚、あなたの名刺の入り口を。
+          </p>
+          <!-- TODO: BASE販売ページ公開後、下のspanを <a href="BASEのURL" target="_blank" rel="noopener"> に差し替え -->
+          <span class="inline-block px-7 py-3 bg-white/15 border border-white/30 text-white/80 rounded-2xl text-sm font-bold tracking-wide cursor-default select-none">
+            販売ページ 近日公開 ✨
+          </span>
+        </div>
       </div>
     </section>
 
@@ -405,7 +463,7 @@
             <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h4"/>
           </svg>
         </span>
-        <span class="text-sm font-extrabold tracking-tight text-neutral-700">デジタル名刺</span>
+        <span class="text-sm font-extrabold tracking-tight text-neutral-700">XYZ Digital Card</span>
       </div>
       <p class="text-[10px] text-neutral-400">— XYZ Digital Card プロジェクト</p>
     </div>
