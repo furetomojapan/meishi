@@ -42,13 +42,12 @@ npm run build    # 本番ビルド（dist/）
 `main` に push すると GitHub Actions が自動でビルドして公開（数分で反映）。
 Pages の Source は「GitHub Actions」（リポジトリ Settings → Pages）。
 
-### GAS（バックエンド）
-1. スプレッドシート → 拡張機能 → Apps Script
-2. `gas_backend.js` の内容で全置き換え
-3. **まずテスト用デプロイに反映**して docs/smoke_test.md を実施
-4. 問題なければ「デプロイ → デプロイを管理 → 編集 → 新バージョン」で本番デプロイ
-5. シート列が増える変更のときは `initSheets()` を1回手動実行
-6. **反映確認**: ブラウザで `本番URL?action=version` を開き、バージョン番号が一致するか確認（複数デプロイがある場合、更新対象を間違えやすいため必須）
+### GAS（バックエンド）— 自動デプロイ
+ を変更して  に push すると、GitHub Actions（gas-deploy.yml）が clasp で Apps Script に反映し、本番デプロイを新バージョンに更新する。ワークフローが  で反映確認まで行う。
+
+- 認証: リポジトリSecret （furetomojapanアカウントのOAuthトークン。無効化は https://myaccount.google.com/permissions ）
+- マニフェスト: （公開設定を含むため変更注意）
+- **シート列が増える変更のみ**、Apps Script エディタで  を1回手動実行が必要
 
 ### ロールバック
 - フロント: `git revert` して push（基準点タグ: `v5.10-stable`）

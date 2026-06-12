@@ -1,0 +1,67 @@
+name: Deploy GAS backend
+
+# gas_backend.js が変更された push で自動的に Apps Script へ反映し、
+# 本番デプロイ（URL固定）を新バージョンに更新する。
+# 認証: リポジトリSecret CLASPRC_JSON（clasp用OAuthトークン）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - gas_backend.js
+      - gas/appsscript.json
+      - .github/workflows/gas-deploy.yml
+  workflow_dispatch:
+
+concurrency:
+  group: gas-deploy
+  cancel-in-progress: false
+
+env:
+  SCRIPT_ID: 1rmDWaZpknJkIk3zNEqC6298WIv8ANxLkXRhgCdtk_RWJedH5M5V1ZVIz
+  DEPLOYMENT_ID: AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install clasp
+        run: npm i -g @google/clasp@2.4.2
+
+      - name: Setup clasp auth
+        run: |
+          cat > ~/.clasprc.json << 'CLASPEOF'
+          ${{ secrets.CLASPRC_JSON }}
+          CLASPEOF
+
+      - name: Prepare project dir
+        run: |
+          mkdir -p /tmp/gasproj
+          cp gas_backend.js /tmp/gasproj/backend.js
+          cp gas/appsscript.json /tmp/gasproj/appsscript.json
+          echo "{\"scriptId\":\"$SCRIPT_ID\",\"rootDir\":\".\"}" > /tmp/gasproj/.clasp.json
+
+      - name: Push code to Apps Script
+        working-directory: /tmp/gasproj
+        run: clasp push -f
+
+      - name: Update production deployment
+        working-directory: /tmp/gasproj
+        run: clasp deploy -i "$DEPLOYMENT_ID" -d "auto ${GITHUB_SHA:0:7}"
+
+      - name: Verify deployed version
+        run: |
+          expected=$(grep -o 'BACKEND_VERSION = "[^"]*"' gas_backend.js | cut -d'"' -f2)
+          sleep 10
+          actual=$(curl -sL "https://script.google.com/macros/s/$DEPLOYMENT_ID/exec?action=version")
+          echo "expected=$expected actual=$actual"
+          case "$actual" in
+            *"$expected"*) echo "✅ 本番に $expected が反映されました" ;;
+            *) echo "❌ 本番のバージョンが一致しません"; exit 1 ;;
+          esac

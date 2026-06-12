@@ -1,5 +1,6 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.3
+ * デジタル名刺 - Google Apps Script バックエンド v4.4
+ *   - v4.4: clasp + GitHub Actions による自動デプロイに移行（手動貼り替え廃止）
  *   - v4.3: ?action=version でデプロイ中のバージョンを確認可能に
  *   - v4.2: PINリセット/管理者PIN変更時にその人の端末記憶（セッション）も無効化
  *   - v4.1: PROリンク上限 5→8
@@ -23,7 +24,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.3"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.4"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
