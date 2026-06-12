@@ -123,8 +123,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 const cur = prev[res.name] || {};
                 const merged = { ...prev, [res.name]: {
                   ...res.user,
-                  // ローカルで確認済みのhasPinSet/publicIdは保持（通信遅延・未反映対策）
-                  hasPinSet: res.user.hasPinSet || cur.hasPinSet || false,
+                  // ★ v5.15.1: hasPinSetはサーバー値が正（ローカル優先だと管理者のPINリセットが反映されないバグ）
+                  hasPinSet: !!res.user.hasPinSet,
                   publicId:  res.user.publicId || cur.publicId || ""
                 }};
                 try { localStorage.setItem('meisi_urls_data', JSON.stringify(merged)); } catch {}

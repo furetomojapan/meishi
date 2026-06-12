@@ -1,5 +1,6 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.1
+ * デジタル名刺 - Google Apps Script バックエンド v4.2
+ *   - v4.2: PINリセット/管理者PIN変更時にその人の端末記憶（セッション）も無効化
  *   - v4.1: PROリンク上限 5→8
  *
  * v4.0 の変更点:
@@ -253,12 +254,14 @@ const ROUTES = {
       return { success: false, error: "6桁の数字で入力してください", code: "VALIDATION" };
     setUserPin(p.name, String(p.pin));
     clearPinFailures(p.name); // ロックも解除
+    deleteSessionsFor(p.name); // ★ v4.2: 旧端末記憶を無効化
     return { success: true };
   }},
 
   admin_reset_pin: { auth: "admin", write: true, handler: (p) => {
     setUserPin(p.name, ""); // クリア → ユーザーが次回アクセスで再設定
     clearPinFailures(p.name);
+    deleteSessionsFor(p.name); // ★ v4.2: 端末記憶も無効化（リセットの徹底）
     return { success: true };
   }},
 
@@ -581,6 +584,16 @@ function validateSession(name, token) {
     return false;
   }
   return false;
+}
+
+// 指定ユーザーのセッションを全削除（PINリセット/管理者変更時）
+function deleteSessionsFor(name) {
+  if (!name) return;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESSIONS);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][0] === name) sheet.deleteRow(i + 1);
+  }
 }
 
 function cleanExpiredSessions(sheet) {

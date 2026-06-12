@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.15"; // PROリンク上限8件 + タグ仲間表示 FREE5名/PRO8名
+      export const APP_VERSION = "v5.15.1"; // PINリセット反映バグ修正（hasPinSetはサーバー値が正）
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

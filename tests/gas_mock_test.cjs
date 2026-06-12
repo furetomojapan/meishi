@@ -90,7 +90,7 @@ t("tagPublicId発行(zt)", /^zt\d{9}$/.test(String(taroRow()[11] || "")));
 // ── PIN（ハッシュ化）──
 r = POST({ action: "set_initial_pin", name: "taro", pin: "123456" });
 t("初回PIN設定→トークン", r.success === true && typeof r.token === "string" && r.token.length === 64);
-const taroToken = r.token;
+let taroToken = r.token;
 t("PINセルがハッシュ", String(taroRow()[6]).startsWith("sha256:"));
 t("二重初期設定拒否", POST({ action: "set_initial_pin", name: "taro", pin: "654321" }).success === false);
 t("正PINで認証", POST({ action: "verify_pin", name: "taro", pin: "123456" }).success === true);
@@ -102,7 +102,9 @@ t("admin_set_pinでロック解除+PIN変更", POST({ action: "admin_set_pin", a
 t("新PINで認証可", POST({ action: "verify_pin", name: "taro", pin: "111111" }).success === true);
 // 平文移行
 sheets.users.rows[sheets.users.rows.indexOf(taroRow())][6] = "222222"; // 平文を直接書き込み
-t("平文PINでも認証成功", POST({ action: "verify_pin", name: "taro", pin: "222222" }).success === true);
+r = POST({ action: "verify_pin", name: "taro", pin: "222222" });
+t("平文PINでも認証成功", r.success === true);
+taroToken = r.token; // v4.2: admin_set_pinが旧セッションを無効化するため再取得
 t("認証成功後ハッシュへ自動移行", String(taroRow()[6]).startsWith("sha256:"));
 // 廃止アクション
 t("get_my_pin廃止", POST({ action: "get_my_pin", name: "taro", token: taroToken }).code === "UNKNOWN_ACTION");
@@ -160,6 +162,15 @@ r = POST({ action: "self_register", email: "test@example.com" });
 t("自己登録成功", r.success === true && !!r.userId);
 t("24h重複拒否", POST({ action: "self_register", email: "test@example.com" }).code === "DUPLICATE");
 t("不正メール拒否", POST({ action: "self_register", email: "bad" }).success === false);
+
+// ── PINリセットの徹底（v4.2バグ修正） ──
+r = POST({ action: "verify_pin", name: "taro", pin: "222222" });
+const taroToken2 = r.token;
+t("リセット前: トークン有効", POST({ action: "get_my_tags", name: "taro", token: taroToken2 }).success === true);
+t("PINリセット成功", POST({ action: "admin_reset_pin", adminPass: AP, name: "taro" }).success === true);
+t("リセット後: hasPinSet=false", POST({ action: "admin_get_all", adminPass: AP }).users.taro.hasPinSet === false);
+t("リセット後: 端末記憶も無効", POST({ action: "get_my_tags", name: "taro", token: taroToken2 }).code === "SESSION_INVALID");
+t("リセット後: 初回設定が可能", POST({ action: "set_initial_pin", name: "taro", pin: "777777" }).success === true);
 
 // ── その他 ──
 t("未知アクション", POST({ action: "nope" }).code === "UNKNOWN_ACTION");
