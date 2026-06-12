@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.15.1"; // PINリセット反映バグ修正（hasPinSetはサーバー値が正）
+      export const APP_VERSION = "v5.16"; // テーマカラー復活（カード画面全体・FREE2色/PRO全8色 — 座談会D課題）
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -15,7 +15,7 @@
                     address:"", addressFont:0, addressFontSize:"M", addressColor:"",
                     phone:"", phoneFont:0, phoneFontSize:"M", phoneColor:"",
                     appeals:["","","",""], appealsAlign:"left", appealFonts:[0,0,0,0], appealColors:["","","",""],
-                    bg:"1", bgBack:"", tint:"", textColor:"#ffffff", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
+                    bg:"1", bgBack:"", tint:"", themeColor:"", textColor:"#ffffff", frontImageUrl:"", backImageUrl:"", showTextOverlay:true };
         if (!p) return d;
         const appeals = Array.isArray(p.appeals) ? [...p.appeals, ...["","","",""]].slice(0,4) : d.appeals;
         const appealFonts = Array.isArray(p.appealFonts) ? [...p.appealFonts, 0,0,0,0].slice(0,4) : d.appealFonts;
@@ -65,6 +65,33 @@
         { label:"パープル", bg:"#8c3cbe", value:"rgba(140,60,190,0.38)"                },
         { label:"ブラック", bg:"#222222", value:"rgba(0,0,0,0.48)"                     },
       ];
+
+      /* ── テーマカラー（カード画面全体）v5.16 — 座談会D課題・プラン差別化 ── */
+      // key は profile.themeColor に保存。"" = テーマなし（従来の白画面）
+      // FREE は FREE_THEME_KEYS のみ選択可（サーバー側でも矯正 — GAS v4.5）
+      export const THEME_OPTIONS = [
+        { key:"",       label:"なし",     swatch:"#e0e0e0", rgb:""            },
+        { key:"pink",   label:"ピンク",   swatch:"#ff69b4", rgb:"255,105,180" },
+        { key:"red",    label:"レッド",   swatch:"#e03040", rgb:"210,50,50"   },
+        { key:"orange", label:"オレンジ", swatch:"#f09020", rgb:"240,140,30"  },
+        { key:"green",  label:"グリーン", swatch:"#32a040", rgb:"50,160,70"   },
+        { key:"blue",   label:"ブルー",   swatch:"#2878d0", rgb:"40,120,210"  },
+        { key:"purple", label:"パープル", swatch:"#8c3cbe", rgb:"140,60,190"  },
+        { key:"black",  label:"ブラック", swatch:"#222222", rgb:"34,34,34"    },
+      ];
+      export const FREE_THEME_KEYS = ["", "blue", "green"];
+      // カード画面に適用するテーマを解決。無効キー・FREEのPRO限定色は null（=従来表示）
+      export const getCardTheme = (key, pro) => {
+        if (!key) return null;
+        if (!pro && !FREE_THEME_KEYS.includes(key)) return null;
+        const opt = THEME_OPTIONS.find(o => o.key === key);
+        if (!opt || !opt.rgb) return null;
+        return {
+          key: opt.key,
+          accent: opt.swatch,
+          pageBg: `linear-gradient(165deg, rgba(${opt.rgb},0.22) 0%, rgba(${opt.rgb},0.07) 38%, #f5f5f5 70%, rgba(${opt.rgb},0.12) 100%)`,
+        };
+      };
 
       export const FONT_OPTIONS = [
         { label:"ゴシック",   value:"'Noto Sans JP', sans-serif",   sample:"Aa" },

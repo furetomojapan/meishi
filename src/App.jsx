@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST } from "./lib/core";
-import { BgPicker, TintPicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
 
@@ -535,8 +535,14 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           } catch { showToast("error"); }
         };
 
+        /* ── テーマカラー（カード画面全体）v5.16 — 編集中はリアルタイムプレビュー ── */
+        const themePd = (!isAdminMode && variablePart) ? getPersonData(urlsData, variablePart) : null;
+        const cardTheme = themePd
+          ? getCardTheme((showUserEdit ? userEditProfile : themePd.profile)?.themeColor, isPro(themePd))
+          : null;
+
         return (
-          <div className="min-h-screen p-4 sm:p-8 md:p-12" style={{ zoom: UI_ZOOMS[uiZoomIdx] }}>
+          <div className="min-h-screen p-4 sm:p-8 md:p-12" style={{ zoom: UI_ZOOMS[uiZoomIdx], ...(cardTheme ? { background: cardTheme.pageBg } : {}) }}>
             <Toast status={toast} />
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -838,6 +844,11 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                         {/* ───── デザインタブ ───── */}
                                         {adminEditTab === "design" && (<>
                                           {!personIsPro && <div className="text-[10px] bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20">フォント・サイズ・位置はPROで利用可能</div>}
+                                          {/* テーマカラー（カード画面全体）v5.16 */}
+                                          <div className="border-b border-neutral-800 pb-3">
+                                            <p className="text-[9px] text-neutral-300 font-semibold uppercase tracking-widest mb-2">テーマカラー（画面全体）</p>
+                                            <ThemePicker dark pro={personIsPro} selected={editingProfile.themeColor || ""} onSelect={themeColor => setEditingProfile(p => ({...p,themeColor}))} />
+                                          </div>
                                           <div className="border-b border-neutral-800 pb-3">
                                             <div className="flex items-center justify-between mb-1.5">
                                               <p className="text-[9px] text-neutral-300 font-semibold uppercase tracking-widest">会社名</p>
@@ -1138,6 +1149,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                         {!pd._tagView && (
                         <div className="mt-5 flex items-center justify-center gap-4">
                           <button onClick={openUserEdit} disabled={editOpening}
+                            style={cardTheme && !editOpening ? { borderColor: cardTheme.accent, color: cardTheme.accent } : {}}
                             className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-full px-4 py-2 ${editOpening ? 'text-neutral-300 border-neutral-100 cursor-wait' : 'text-neutral-500 hover:text-black border-neutral-200 hover:border-black'}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             {editOpening ? "読み込み中…" : "名刺を編集"}
@@ -1385,6 +1397,11 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       </div>
                                     );
                                   })()}
+                                  {/* テーマカラー（カード画面全体）v5.16 */}
+                                  <div className="border-b border-neutral-100 pb-3">
+                                    <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">テーマカラー（画面全体）</p>
+                                    <ThemePicker pro={pro} selected={userEditProfile.themeColor || ""} onSelect={themeColor => setUserEditProfile(p => ({...p,themeColor}))} />
+                                  </div>
                                   {/* 背景 */}
                                   <div className="border-b border-neutral-100 pb-3">
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">背景デザイン（表面）</p>

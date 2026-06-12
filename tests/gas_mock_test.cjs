@@ -117,10 +117,18 @@ r = POST({ action: "save_user_profile", name: "taro", token: taroToken,
 t("プロフィール保存", r.success === true);
 t("FREEはリンク1件に制限", JSON.parse(taroRow()[3]).length === 1);
 t("無効トークン拒否", POST({ action: "save_user_profile", name: "taro", token: "bad", links: [] }).code === "SESSION_INVALID");
+// ── テーマカラー（v4.5: サーバー側矯正）──
+POST({ action: "save_user_profile", name: "taro", token: taroToken, displayName: "太郎", links: [], profile: { themeColor: "purple" } });
+t("FREE: PRO限定テーマ色は矯正", JSON.parse(taroRow()[5]).themeColor === "");
+POST({ action: "save_user_profile", name: "taro", token: taroToken, displayName: "太郎", links: [], profile: { themeColor: "blue" } });
+t("FREE: 許可テーマ色は保存", JSON.parse(taroRow()[5]).themeColor === "blue");
+POST({ action: "save_user_profile", name: "taro", token: taroToken, displayName: "太郎", links: [], profile: { themeColor: "rainbow" } });
+t("不正テーマ色キーは矯正", JSON.parse(taroRow()[5]).themeColor === "");
 t("PRO切替", POST({ action: "admin_toggle_plan", adminPass: AP, name: "taro" }).plan === "pro");
 POST({ action: "save_user_profile", name: "taro", token: taroToken, displayName: "太郎",
-  links: [{url:"https://a"},{url:"https://b"},{url:"https://c"}], profile: { phone: "090-1111-2222", address: "東京都渋谷区", tagPhone: "03-9999-0000", tagAddress: "渋谷区" } });
+  links: [{url:"https://a"},{url:"https://b"},{url:"https://c"}], profile: { phone: "090-1111-2222", address: "東京都渋谷区", tagPhone: "03-9999-0000", tagAddress: "渋谷区", themeColor: "purple" } });
 t("PROはリンク3件OK", JSON.parse(taroRow()[3]).length === 3);
+t("PRO: 全テーマ色OK", JSON.parse(taroRow()[5]).themeColor === "purple");
 
 // ── get_user（フル/タグビュー）──
 const taroPub = String(taroRow()[8]), taroTag = String(taroRow()[11]);

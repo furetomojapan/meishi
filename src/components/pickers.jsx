@@ -1,6 +1,6 @@
 import { useState } from "react";
 import React from "react";
-import { TINT_OPTIONS, FONT_OPTIONS, copyText, getSNS } from "../lib/core";
+import { TINT_OPTIONS, FONT_OPTIONS, THEME_OPTIONS, FREE_THEME_KEYS, copyText, getSNS } from "../lib/core";
 
       export function BgPicker({ selected, onSelect }) {
         return (
@@ -42,6 +42,37 @@ import { TINT_OPTIONS, FONT_OPTIONS, copyText, getSNS } from "../lib/core";
                 </button>
               );
             })}
+          </div>
+        );
+      }
+
+      /* ── テーマカラーピッカー（カード画面全体）v5.16 ── */
+      // FREE は なし＋ブルー・グリーンのみ。PRO限定色は🔒表示（クリック不可）
+      export function ThemePicker({ selected, onSelect, pro, dark = false }) {
+        return (
+          <div>
+            <div className="flex gap-2 flex-wrap">
+              {THEME_OPTIONS.map(opt => {
+                const locked = !pro && !FREE_THEME_KEYS.includes(opt.key);
+                const active = (selected || "") === opt.key;
+                return (
+                  <button key={opt.key || "none"} type="button"
+                    title={locked ? `${opt.label}（PRO限定）` : opt.label}
+                    onClick={() => { if (!locked) onSelect(opt.key); }}
+                    style={{width:"28px",height:"28px",borderRadius:"50%",background:opt.swatch,
+                            cursor:locked?"not-allowed":"pointer",position:"relative",flexShrink:0,
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            opacity:locked?0.3:1,filter:locked?"grayscale(0.6)":"none",
+                            border:active?(dark?"2.5px solid #fff":"2.5px solid #000"):"2.5px solid transparent",
+                            boxShadow:active?(dark?"0 0 0 1px #fff":"0 0 0 1px #000"):"0 1px 3px rgba(0,0,0,0.18)"}}>
+                    {!opt.key && <span style={{fontSize:"10px",color:"#888",fontWeight:"bold"}}>✕</span>}
+                    {locked && <span style={{fontSize:"10px"}}>🔒</span>}
+                    {active && opt.key && <span style={{fontSize:"10px",color:"white",fontWeight:"bold"}}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {!pro && <p className={`text-[9px] mt-1.5 ${dark ? "text-amber-400" : "text-amber-600"}`}>✦ PROなら全8色から選べます（FREEはブルー・グリーン）</p>}
           </div>
         );
       }

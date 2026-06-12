@@ -9,3 +9,4 @@
 # ビルド成果物・依存（フェーズ4）
 node_modules/
 dist/
+vite.config.js.timestamp-*
