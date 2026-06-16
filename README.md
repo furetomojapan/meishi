@@ -1,4 +1,7 @@
-# XYZ Digital Card — デジタル名刺サイト
+# NEXUA — デジタル名刺サイト
+
+> 人と情報を、あなたのためにつなぐ。
+> NEXUA ＝ Nexus（結びつき）× U（You / User / Unity）× Access（情報へアクセス）
 
 スマホで見せる・送れるデジタル名刺。GitHub Pages（静的フロント）+ Google Apps Script（API）+ Googleスプレッドシート（データ）で動作。
 

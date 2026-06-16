@@ -558,7 +558,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1 className="text-base font-medium tracking-widest text-neutral-500 uppercase">XYZ Digital Card</h1>
+                  <h1><img src={`${getSiteBase()}01_NEXUA_main.png`} alt="NEXUA" className="h-5 w-auto" /></h1>
                   <p className="text-[10px] font-mono text-neutral-400 mt-0.5 uppercase tracking-widest">
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
@@ -1606,7 +1606,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
               <footer className="mt-24 py-10 border-t border-neutral-100">
                 <button onClick={() => setIsAdminMode(true)}
                   className="text-[9px] text-neutral-300 font-mono uppercase tracking-[0.4em] text-center w-full hover:text-neutral-500 transition-colors">
-                  © 2026 XYZ furetomo
+                  © 2026 NEXUA
                 </button>
               </footer>
             </div>

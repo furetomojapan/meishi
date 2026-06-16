@@ -870,7 +870,7 @@ function selfRegister(p) {
     MailApp.sendEmail({
       to: email,
       subject: "【デジタル名刺】登録完了 — あなたの名刺URLをお届けします",
-      body: "登録ありがとうございます！\n\nあなた専用の名刺URLはこちらです：\n" + cardUrl + "\n\n初回アクセス時に6桁のPINの設定が必要です。\n\n★ 今なら登録から" + TRIAL_DAYS + "日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります。お試し中の設定内容は保存されたまま残り、PROプランのご購入で再び有効になります）。\n\n— XYZ Digital Card プロジェクト"
+      body: "登録ありがとうございます！\n\nあなた専用の名刺URLはこちらです：\n" + cardUrl + "\n\n初回アクセス時に6桁のPINの設定が必要です。\n\n★ 今なら登録から" + TRIAL_DAYS + "日間、PROプランと＋G機能を無料でお試しいただけます（期限後は自動的にFREEプランになります。お試し中の設定内容は保存されたまま残り、PROプランのご購入で再び有効になります）。\n\n— NEXUA プロジェクト"
     });
   } catch (mailErr) { /* メール失敗でも登録は成功 */ }
   try {

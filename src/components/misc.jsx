@@ -120,7 +120,7 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
                   )}
                 </div>
                 <div style={{position:"absolute",bottom:"5%",right:"5%",...ts(""),fontSize:"7px",opacity:0.35,
-                             fontFamily:"monospace",letterSpacing:"0.12em"}}>XYZ Digital Card</div>
+                             fontFamily:"monospace",letterSpacing:"0.12em"}}>NEXUA</div>
               </>) : (<>
                 {/* 裏面：名前なし、アピール項目を大きく中央寄せ */}
                 <div style={{display:"flex",flexDirection:"column",justifyContent:"center",height:"100%",gap:"clamp(6px,1.8vw,12px)"}}>
