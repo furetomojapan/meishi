@@ -30,8 +30,15 @@ import { appConfirm } from "../lib/dialog";
           {Array.from({ length: PRO_TAG_LIMIT - (allOn ? 1 : 0) }).map((_, i) => {
             const locked = i >= slotLimit;
             const disabled = locked && !lockedEditable;
+            // v5.20: FREE枠を超えるタグはPRO特典。お試し中でも分かるよう常時 金背景で区別
+            const proSlot = i >= (FREE_TAG_LIMIT - (allOn ? 1 : 0));
+            const proSlotCls = proSlot
+              ? (dark ? 'bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 relative'
+                      : 'bg-amber-50/70 border border-amber-200 rounded-xl px-3 py-2 relative')
+              : '';
             return (
-              <div key={i} className={`space-y-1 ${locked ? 'opacity-40' : ''}`}>
+              <div key={i} className={`space-y-1 ${proSlotCls} ${locked ? 'opacity-40' : ''}`}>
+                {proSlot && !locked && <span className={`absolute -top-2 right-3 z-10 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-amber-400 text-black`}>✦ PRO特典</span>}
                 <div className="flex items-center gap-2">
                   <p className={`text-[9px] uppercase tracking-widest font-mono ${dark ? 'text-neutral-300' : 'text-neutral-400'}`}>Tag {i+1}</p>
                   {locked && <span className={`text-[8px] px-2 py-0.5 rounded-full font-semibold ${dark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-600'}`}>

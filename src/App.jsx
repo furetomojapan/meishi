@@ -6,6 +6,47 @@ import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePi
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
 
+      /* ── プラン特典エリアの視覚区別（v5.20）──
+         お試し中はロックが外れて特典の場所が分からなくなるため、
+         背景色で常時 FREE（無地）/ PRO（金）/ +G（青）を区別する。
+         dark=true で管理画面（黒テーマ）用の淡色に切替。 */
+      const planBoxCls = (kind, dark) => {
+        const isG = kind === "plusg";
+        if (dark) return isG ? "bg-sky-500/10 border-sky-500/25" : "bg-amber-500/10 border-amber-500/25";
+        return isG ? "bg-sky-50/70 border-sky-200" : "bg-amber-50/70 border-amber-200";
+      };
+      function PlanBadge({ kind }) {
+        const isG = kind === "plusg";
+        return (
+          <span className={`absolute -top-2 right-3 z-10 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm ${isG ? "bg-sky-500 text-white" : "bg-amber-400 text-black"}`}>
+            {isG ? "✦ ＋G特典" : "✦ PRO特典"}
+          </span>
+        );
+      }
+      function PlanBox({ kind = "pro", dark = false, label, className = "", children }) {
+        const isG = kind === "plusg";
+        const labelCls = isG ? (dark ? "text-sky-300" : "text-sky-600") : (dark ? "text-amber-300" : "text-amber-600");
+        return (
+          <div className={`relative border rounded-2xl pt-3 ${planBoxCls(kind, dark)} ${className}`}>
+            <PlanBadge kind={kind} />
+            {label && <p className={`text-[9px] font-bold uppercase tracking-widest px-3 mb-1.5 ${labelCls}`}>{label}</p>}
+            {children}
+          </div>
+        );
+      }
+      function PlanLegend({ dark = false }) {
+        const item = (cls, text) => (
+          <span className="flex items-center gap-1"><span className={`w-3 h-3 rounded border inline-block ${cls}`}></span>{text}</span>
+        );
+        return (
+          <div className={`flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-[9px] ${dark ? "text-neutral-400" : "text-neutral-500"}`}>
+            {item(dark ? "bg-neutral-800 border-neutral-700" : "bg-white border-neutral-300", "FREE（無料）")}
+            {item(dark ? "bg-amber-500/20 border-amber-500/40" : "bg-amber-50 border-amber-300", "PRO特典")}
+            {item(dark ? "bg-sky-500/20 border-sky-500/40" : "bg-sky-50 border-sky-300", "＋G特典")}
+          </div>
+        );
+      }
+
       export function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
         const [adminSearch, setAdminSearch] = useState("");
@@ -800,6 +841,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                           </button>
                                         ))}
                                       </div>
+                                      {/* 凡例（色の意味）v5.20 */}
+                                      <div className="px-4 pt-2"><PlanLegend dark /></div>
                                       {/* コンテンツ */}
                                       <div className="p-4 space-y-3">
 
@@ -870,6 +913,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                             <p className="text-[9px] text-neutral-300 font-semibold uppercase tracking-widest mb-2">テーマカラー（画面全体）</p>
                                             <ThemePicker dark pro={personIsPro} selected={editingProfile.themeColor || ""} onSelect={themeColor => setEditingProfile(p => ({...p,themeColor}))} />
                                           </div>
+                                          <PlanBox kind="pro" dark label="文字スタイル（フォント・サイズ・色・位置）" className="px-3 pb-1">
                                           <div className="border-b border-neutral-800 pb-3">
                                             <div className="flex items-center justify-between mb-1.5">
                                               <p className="text-[9px] text-neutral-300 font-semibold uppercase tracking-widest">会社名</p>
@@ -917,6 +961,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                               </div>
                                             ))}
                                           </div>
+                                          </PlanBox>
                                           <div className="border-b border-neutral-800 pb-3">
                                             <p className="text-[9px] text-neutral-300 font-semibold uppercase tracking-widest mb-2">背景デザイン</p>
                                             <BgPicker selected={editingProfile.bg} onSelect={bg => setEditingProfile(p => ({...p,bg}))} />
@@ -934,8 +979,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                           </p>
                                           {editingUrls.map((_, i) => {
                                             const locked = !personIsPro && i >= FREE_LINK_LIMIT;
+                                            const proSlot = i >= FREE_LINK_LIMIT; // v5.20: FREE上限超はPRO特典
                                             return (
-                                              <div key={i} className={`space-y-2 pb-3 border-b border-neutral-800 last:border-0 last:pb-0 ${locked ? 'opacity-40' : ''}`}>
+                                              <div key={i} className={`space-y-2 pb-3 last:pb-0 ${proSlot ? 'relative bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 pt-3' : 'border-b border-neutral-800 last:border-0'} ${locked ? 'opacity-40' : ''}`}>
+                                                {proSlot && !locked && <span className="absolute -top-2 right-3 z-10 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-amber-400 text-black">✦ PRO特典</span>}
                                                 <div className="flex items-center gap-2">
                                                   <p className="text-[9px] text-neutral-300 uppercase tracking-widest">Link {i+1}</p>
                                                   {locked && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO限定</span>}
@@ -1298,6 +1345,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   </button>
                                 ))}
                               </div>
+                              {/* 凡例（色の意味）v5.20: お試し中でも特典の場所が分かるように */}
+                              <div className="px-5 pt-2 flex-shrink-0"><PlanLegend /></div>
                               {/* スクロール領域 */}
                               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                                 {/* ───── 情報タブ ───── */}
@@ -1379,7 +1428,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       }
                                     };
                                     return (
-                                      <div className={`relative space-y-3 ${!canUpload ? 'pointer-events-none select-none' : ''}`}>
+                                      <div className={`relative space-y-3 border rounded-2xl p-3 ${planBoxCls('plusg', false)} ${!canUpload ? 'pointer-events-none select-none' : ''}`}>
+                                        {canUpload && <PlanBadge kind="plusg" />}
                                         <div className="flex items-center justify-between">
                                           {!canUpload && (
                                             <div className="absolute inset-0 z-10 rounded-xl bg-blue-900/75 flex flex-col items-center justify-center gap-1 pointer-events-none">
@@ -1447,6 +1497,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
                                   </div>
+                                  <PlanBox kind="pro" label="文字スタイル（フォント・サイズ・色・位置）" className="px-3 pb-1">
                                   <div className="border-b border-neutral-100 pb-3">
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
                                     <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
@@ -1510,6 +1561,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       </div>
                                     ))}
                                   </div>
+                                  </PlanBox>
                                 </>)}
 
                                 {/* ───── リンクタブ ───── */}
@@ -1517,8 +1569,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <p className="text-[10px] text-neutral-500">リンク（{pro ? `最大${PRO_LINK_LIMIT}件` : `FREE: ${FREE_LINK_LIMIT}件`}）</p>
                                   {userEditUrls.map((_, i) => {
                                     const locked = !pro && i >= FREE_LINK_LIMIT;
+                                    const proSlot = i >= FREE_LINK_LIMIT; // v5.20: FREE上限超はPRO特典
                                     return (
-                                      <div key={i} className={`space-y-2 pb-4 border-b border-neutral-100 last:border-0 ${locked ? 'opacity-40' : ''}`}>
+                                      <div key={i} className={`space-y-2 pb-4 last:border-0 ${proSlot ? 'relative bg-amber-50/70 border border-amber-200 rounded-2xl px-3 pt-3' : 'border-b border-neutral-100'} ${locked ? 'opacity-40' : ''}`}>
+                                        {proSlot && !locked && <span className="absolute -top-2 right-3 z-10 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-amber-400 text-black">✦ PRO特典</span>}
                                         <div className="flex items-center gap-2">
                                           <p className="text-[9px] text-neutral-400 uppercase tracking-widest font-mono">Link {i+1}</p>
                                           {locked && <span className="text-[8px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-semibold">PRO限定</span>}
