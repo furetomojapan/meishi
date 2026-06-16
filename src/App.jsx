@@ -790,13 +790,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     {(() => { const d = trialDaysLeft(pd); return (
                                       <button onClick={async () => {
                                         const days = await appPrompt({
-                                          message: `「${pd.displayName || name}」のPRO+＋Gお試し期間を設定します。\n現在: ${d > 0 ? `残り約${d}日` : 'なし'}\n（設定すると「今日からその日数」に上書きされます）`,
-                                          presets: [
-                                            { label: "3日", value: 3 }, { label: "7日", value: 7 },
-                                            { label: "14日", value: 14 }, { label: "30日", value: 30 },
-                                            { label: "終了(0日)", value: 0, danger: true },
-                                          ],
-                                          inputLabel: "任意の日数",
+                                          message: `「${pd.displayName || name}」のPRO+＋Gお試し期間を設定します。\n現在: ${d > 0 ? `残り約${d}日` : 'なし'}\n（設定すると「今日からその日数」に上書きされます。0で終了）`,
+                                          inputLabel: "日数",
                                           unit: "日",
                                           default: d > 0 ? String(d) : "7",
                                         });
