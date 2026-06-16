@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
-import { appConfirm, appAlert, DialogHost } from "./lib/dialog";
+import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
 import { TagFields, ProfileTextFields } from "./components/forms";
@@ -23,7 +23,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           </span>
         );
       }
-      function PlanBox({ kind = "pro", dark = false, label, className = "", children }) {
+      function PlanBox({ kind = "pro", dark = false, label, upgrade = false, className = "", children }) {
         const isG = kind === "plusg";
         const labelCls = isG ? (dark ? "text-sky-300" : "text-sky-600") : (dark ? "text-amber-300" : "text-amber-600");
         return (
@@ -31,9 +31,27 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             <PlanBadge kind={kind} />
             {label && <p className={`text-[9px] font-bold uppercase tracking-widest px-3 mb-1.5 ${labelCls}`}>{label}</p>}
             {children}
+            {upgrade && (
+              <a href={STORES_URL} target="_blank" rel="noopener noreferrer"
+                className={`mt-3 mb-3 mx-3 flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold tracking-wide active:scale-95 transition-all ${isG ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-amber-500 text-white hover:bg-amber-400'}`}>
+                {isG ? '＋Gにアップグレード →' : 'PROにアップグレード →'}
+              </a>
+            )}
           </div>
         );
       }
+      /* お試し終了後の安心メッセージ用: 保存済みデータにPRO/＋G特典が含まれるか判定 */
+      const premiumSettings = (pd, savedTags) => {
+        const p = pd?.profile || {};
+        const fonts = [p.companyFont, p.titleFont, p.nameFont, p.addressFont, p.phoneFont, ...(p.appealFonts || [])];
+        const colors = [p.companyColor, p.titleColor, p.nameColor, p.addressColor, p.phoneColor, ...(p.appealColors || [])];
+        const aligns = [p.companyAlign, p.titleAlign, p.nameAlign, p.appealsAlign];
+        const typography = fonts.some(f => f && f !== 0) || colors.some(c => c) || aligns.some(a => a && a !== 'left') || (p.textColor && p.textColor !== '#ffffff');
+        const extraLinks = (pd?.links || []).length > FREE_LINK_LIMIT;
+        const extraTags = (savedTags || []).filter(t => normalizeTag(t) !== 'all').length > FREE_TAG_LIMIT;
+        const hasImage = !!(p.frontImageUrl || p.backImageUrl);
+        return { typography, extraLinks, extraTags, hasImage, any: typography || extraLinks || extraTags || hasImage };
+      };
       function PlanLegend({ dark = false }) {
         const item = (cls, text) => (
           <span className="flex items-center gap-1"><span className={`w-3 h-3 rounded border inline-block ${cls}`}></span>{text}</span>
@@ -599,7 +617,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1><img src={`${getSiteBase()}01_NEXUA_main.png`} alt="NEXUA" className="h-5 w-auto" /></h1>
+                  <h1><img src={`${getSiteBase()}01_NEXUA_dark.png`} alt="NEXUA" className="h-5 w-auto" /></h1>
                   <p className="text-[10px] font-mono text-neutral-400 mt-0.5 uppercase tracking-widest">
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
@@ -768,11 +786,22 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider transition-all ${pd.plusG ? 'bg-red-500 border-red-500 text-white hover:bg-red-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-red-400 hover:text-red-400'}`}>
                                       +G
                                     </button>
-                                    {/* トライアル付与/終了（v5.17） */}
+                                    {/* トライアル期間の調整（v5.21: プリセット＋任意日数） */}
                                     {(() => { const d = trialDaysLeft(pd); return (
                                       <button onClick={async () => {
-                                        if (d > 0) { if (await appConfirm(`「${pd.displayName || name}」のPRO+＋Gお試しを終了しますか？`)) setTrial(name, 0); }
-                                        else if (await appConfirm(`「${pd.displayName || name}」に7日間のPRO+＋Gお試しを付与しますか？`)) setTrial(name, 7);
+                                        const days = await appPrompt({
+                                          message: `「${pd.displayName || name}」のPRO+＋Gお試し期間を設定します。\n現在: ${d > 0 ? `残り約${d}日` : 'なし'}\n（設定すると「今日からその日数」に上書きされます）`,
+                                          presets: [
+                                            { label: "3日", value: 3 }, { label: "7日", value: 7 },
+                                            { label: "14日", value: 14 }, { label: "30日", value: 30 },
+                                            { label: "終了(0日)", value: 0, danger: true },
+                                          ],
+                                          inputLabel: "任意の日数",
+                                          unit: "日",
+                                          default: d > 0 ? String(d) : "7",
+                                        });
+                                        if (days === null) return;
+                                        setTrial(name, days);
                                       }}
                                         className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${d > 0 ? 'bg-emerald-500 border-emerald-500 text-black hover:bg-emerald-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-emerald-400 hover:text-emerald-400'}`}>
                                         {d > 0 ? `試${d}日` : '試用'}
@@ -1349,6 +1378,28 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <div className="px-5 pt-2 flex-shrink-0"><PlanLegend /></div>
                               {/* スクロール領域 */}
                               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                                {/* v5.20: お試し期限が近いときの注意バナー（残り2日以下） */}
+                                {(() => { const d = trialDaysLeft(pd); return d > 0 && d <= 2 ? (
+                                  <div className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2.5 rounded-xl border border-amber-200">
+                                    <p className="font-bold mb-0.5">⏳ PRO+＋Gお試しは残り{d}日です</p>
+                                    <p className="text-amber-600">期限後はFREEになりますが、設定内容は保存され、PROにすると再び有効になります。
+                                      <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline font-bold ml-0.5">PROにする →</a></p>
+                                  </div>
+                                ) : null; })()}
+                                {/* v5.20: お試し終了後（FREEだが特典データを保持中）の安心リキャップ */}
+                                {(() => {
+                                  if (pro || trialDaysLeft(pd) > 0) return null;
+                                  const ps = premiumSettings(pd, mySavedTags);
+                                  if (!ps.any) return null;
+                                  const items = [ps.typography && "文字スタイル", ps.extraLinks && "追加リンク", ps.extraTags && "追加タグ", ps.hasImage && "独自背景画像"].filter(Boolean);
+                                  return (
+                                    <div className="text-[10px] bg-sky-50 text-sky-700 px-3 py-2.5 rounded-xl border border-sky-200">
+                                      <p className="font-bold mb-0.5">💾 お試し中の設定は保存されています</p>
+                                      <p className="text-sky-600">{items.join("・")}は現在おやすみ中ですが、消えていません。PROにすると、そのまま再び有効になります。
+                                        <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline font-bold ml-0.5">PROにする →</a></p>
+                                    </div>
+                                  );
+                                })()}
                                 {/* ───── 情報タブ ───── */}
                                 {editTab === "info" && (<>
                                 <p className="text-[10px] text-neutral-400">空白文字（スペース・改行）も認識します</p>
@@ -1435,6 +1486,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                             <div className="absolute inset-0 z-10 rounded-xl bg-blue-900/75 flex flex-col items-center justify-center gap-1 pointer-events-none">
                                               <span className="text-[11px] font-bold text-white tracking-wide">✦ +Gプラン限定</span>
                                               <span className="text-[9px] text-blue-200">背景画像をアップロードできます</span>
+                                              <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="pointer-events-auto mt-1 px-3 py-1 bg-sky-500 text-white rounded-full text-[9px] font-bold hover:bg-sky-400 active:scale-95 transition-all">＋Gにする →</a>
                                             </div>
                                           )}
                                           <div>
@@ -1497,7 +1549,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
                                   </div>
-                                  <PlanBox kind="pro" label="文字スタイル（フォント・サイズ・色・位置）" className="px-3 pb-1">
+                                  <PlanBox kind="pro" label="文字スタイル（フォント・サイズ・色・位置）" upgrade={!pro} className="px-3 pb-1">
                                   <div className="border-b border-neutral-100 pb-3">
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
                                     <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />
