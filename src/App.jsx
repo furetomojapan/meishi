@@ -1287,16 +1287,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </div>
                         )}
 
-                        {/* v4.8: オーナー用ボタンは本人のみ表示。来訪者には控えめな編集の再入口だけ */}
-                        {!pd._tagView && !ownerView && (
-                          <div className="mt-5 flex justify-center">
-                            <button onClick={openUserEdit} disabled={editOpening}
-                              className="text-[10px] text-neutral-300 hover:text-neutral-500 underline underline-offset-2 transition-colors">
-                              {editOpening ? "読み込み中…" : "オーナーの方（編集はこちら）"}
-                            </button>
-                          </div>
-                        )}
-
                         {/* リンク編集ボタン（FREE/PRO共通） */}
                         {!pd._tagView && ownerView && (
                         <div className="mt-5 flex items-center justify-center gap-4">
@@ -1444,6 +1434,16 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             </a>
                           </div>
                         </div>
+                        )}
+
+                        {/* v4.8: フッターのオーナー再入口（来訪者ビューのみ・端末記憶が切れたとき用） */}
+                        {!pd._tagView && !ownerView && (
+                          <div className="mt-10 mb-2 text-center">
+                            <button onClick={openUserEdit} disabled={editOpening}
+                              className="text-[9px] text-neutral-300 hover:text-neutral-500 underline underline-offset-2 transition-colors">
+                              {editOpening ? "読み込み中…" : "オーナーログイン"}
+                            </button>
+                          </div>
                         )}
 
                         {/* ユーザーリンク編集モーダル（ボトムシート） */}
