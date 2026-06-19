@@ -28,18 +28,12 @@ import { URLRow } from "./pickers";
           else { setImgError(prev => ({ ...prev, [side]: true })); }
         };
 
+        const plusG = personData?.plusG === true; // v4.8: ＋Gは永続・PRO非依存
         const CardFace = ({ src, side }) => {
           const uploadedUrl = side === "front" ? profile?.frontImageUrl : profile?.backImageUrl;
 
-          // FREEプラン → テキストカード
-          if (!pro) return (
-            <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
-              <FreeCardFace profile={profile} side={side} />
-            </div>
-          );
-
-          // PROプラン + ユーザーアップロード画像あり
-          if (uploadedUrl) return (
+          // v4.8: 独自背景画像（＋G）はPROでなくても表示（＋Gは買い切りで永続）
+          if ((pro || plusG) && uploadedUrl) return (
             <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
               <img src={uploadedUrl} className="absolute inset-0 w-full h-full object-cover" />
               {showOverlay && (
@@ -47,6 +41,13 @@ import { URLRow } from "./pickers";
                   <FreeCardFace profile={profile} side={side} transparent />
                 </div>
               )}
+            </div>
+          );
+
+          // FREEプラン（＋G背景なし）→ テキストカード
+          if (!pro) return (
+            <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
+              <FreeCardFace profile={profile} side={side} />
             </div>
           );
 

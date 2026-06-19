@@ -24,15 +24,21 @@
       export const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, proEnd: raw.proEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
       /* ── プラン判定 ── */
       export const isPro = (personData) => personData?.plan === "pro";
-      export const isPlusG = (personData) => isPro(personData) && personData?.plusG === true;
+      // v4.8: ＋Gは買い切りで永続。PRO状態とは独立（PROが切れても背景画像は使える）
+      export const isPlusG = (personData) => personData?.plusG === true;
       // v5.17: PRO+＋Gトライアル — サーバーが期限内のみ trialEnd(ms) を返す（planはpro扱いで返る）
       export const trialDaysLeft = (personData) => {
         const end = personData?.trialEnd || 0;
+        return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
+      };
+      // v4.8: 有料PROの残り日数（proEnd）。期限制PROの表示に使用
+      export const proDaysLeft = (personData) => {
+        const end = personData?.proEnd || 0;
         return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
       };
       export const FREE_LINK_LIMIT = 1;
@@ -60,6 +66,14 @@
       };
       // ★ STORESの商品公開URL（申し込みボタン用）
       export const STORES_URL = "https://w0uojgyhnhslanlhxcdn.stores.jp/";
+      // v4.8: 購入ページ用のSquare決済リンク（確定したらURLを差し込む。空ならそのプランは「準備中」表示）
+      export const SQUARE_LINKS = {
+        pro1m:  "", // PRO 1ヶ月
+        pro3m:  "", // PRO 3ヶ月
+        pro6m:  "", // PRO 6ヶ月
+        pro12m: "", // PRO 1年
+        plusg:  "", // ＋G（独自背景画像）買い切り
+      };
       export const TINT_OPTIONS = [
         { label:"なし",     bg:"#e0e0e0", value:"",                        textIcon:"✕" },
         { label:"ピンク",   bg:"#ff69b4", value:"rgba(255,105,180,0.38)"               },

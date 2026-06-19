@@ -329,6 +329,14 @@ const ROUTES = {
       return { success: false, error: "ユーザーが見つからないか、trialEnd列がありません（initSheets()を実行してください）", code: "NOT_FOUND" };
     return { success: true, trialEnd: end };
   }},
+  // v4.8: 有料PROの有効期限を設定（days>0=今からN日, 0=失効）。＋Gとは独立
+  admin_set_pro: { auth: "admin", write: true, handler: (p) => {
+    const days = Number(p.days) || 0;
+    const end  = days > 0 ? Date.now() + days * 24 * 60 * 60 * 1000 : 0;
+    if (!setProEnd(p.name, end))
+      return { success: false, error: "ユーザーが見つからないか、proEnd列がありません（initSheets()を実行してください）", code: "NOT_FOUND" };
+    return { success: true, proEnd: end };
+  }},
   admin_delete_user:  { auth: "admin", write: true, handler: (p) => { deleteUser(p.name); return { success: true }; } },
 
   admin_set_pin: { auth: "admin", write: true, handler: (p) => {
@@ -359,11 +367,11 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage"]);
-    us.getRange(1,1,1,15).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd"]);
+    us.getRange(1,1,1,16).setFontWeight("bold");
   } else {
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
@@ -418,7 +426,8 @@ function getUsersTable() {
     colTagPublicId: header.indexOf("tagPublicId"),
     colTrialEnd:    header.indexOf("trialEnd"),   // v4.6
     colFrontImage:  header.indexOf("frontImage"), // v4.7
-    colBackImage:   header.indexOf("backImage")   // v4.7
+    colBackImage:   header.indexOf("backImage"),  // v4.7
+    colProEnd:      header.indexOf("proEnd")      // v4.8: 有料PROの有効期限（自動失効）
   };
   return _cache.usersTable;
 }
@@ -450,6 +459,26 @@ function setTrialEnd(name, ms) {
   return true;
 }
 
+// ── 有料PROの有効期限（v4.8）──────────────────────────────────────
+// proEnd(ms) を過ぎると実効FREEに戻る。0/空=未設定。＋Gとは独立。
+function rowProEndMs(row, t) {
+  if (t.colProEnd < 0) return 0;
+  const v = row[t.colProEnd];
+  if (!v) return 0;
+  const ms = v instanceof Date ? v.getTime() : new Date(String(v)).getTime();
+  return isNaN(ms) ? 0 : ms;
+}
+
+function setProEnd(name, ms) {
+  const t = getUsersTable();
+  if (t.colProEnd < 0) return false; // 列がない（initSheets未実行）
+  const f = findUserRow(name);
+  if (!f) return false;
+  t.sheet.getRange(f.idx, t.colProEnd + 1).setValue(ms ? new Date(ms).toISOString() : "");
+  invalidateUsersCache();
+  return true;
+}
+
 // v4.7: 専用列の画像をprofileに注入（列が空なら旧形式=profile内埋め込みをそのまま使用）
 function injectImages(profile, row, t) {
   const fi = t.colFrontImage >= 0 ? String(row[t.colFrontImage] || "") : "";
@@ -467,8 +496,11 @@ function injectImages(profile, row, t) {
 function rowToPublicUser(row, t) {
   const trialEnd = rowTrialEndMs(row, t);
   const onTrial  = trialEnd > Date.now();
-  const plan     = onTrial ? "pro" : (row[4] || "free");
-  const isProEff = plan === "pro";
+  const proEnd   = rowProEndMs(row, t);
+  const proPaid  = proEnd > Date.now();           // v4.8: 有料PRO期間内
+  // 実効PRO = お試し中 / 有料期間内 / 手動permanent(plan="pro")
+  const isProEff = onTrial || proPaid || row[4] === "pro";
+  const plan     = isProEff ? "pro" : "free";
   let links = parseJson(row[3], []);
   if (!isProEff && links.length > FREE_LINK_LIMIT) links = links.slice(0, FREE_LINK_LIMIT);
   return {
@@ -476,8 +508,10 @@ function rowToPublicUser(row, t) {
     links,
     plan,
     trialEnd:    onTrial ? trialEnd : 0,
+    proEnd:      proPaid ? proEnd : 0,            // v4.8: 有効期限（期間内のみ返す）
     profile:     clampThemeColor(injectImages(parseJson(row[5], null), row, t), isProEff),
     hasPinSet:   !!(row[6]),
+    // ＋Gは購入で永続（PRO期限とは独立）。お試し中も有効
     plusG:       onTrial ? true : (row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1"),
     publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : ""
   };
@@ -527,6 +561,7 @@ function getAllUsersAdmin() {
     u.links    = parseJson(row[3], []);
     u.profile  = injectImages(parseJson(row[5], null), row, t); // v4.7: 画像列も注入
     u.trialEnd = rowTrialEndMs(row, t);
+    u.proEnd   = rowProEndMs(row, t);   // v4.8: 有料PRO有効期限（生値）
     u.licenseKey = row[2] || "";
     result[row[0]] = u;
   }

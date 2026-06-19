@@ -208,6 +208,22 @@ t("admin_set_trial終了", POST({ action: "admin_set_trial", adminPass: AP, name
   && GET({ action: "get_user", id: regId }).user.plan === "free");
 t("admin_set_trial認証必須", POST({ action: "admin_set_trial", name: regId, days: 7 }).success === false);
 
+// ── 有料PRO期間（v4.8: proEnd・自動失効・＋G独立）──
+const proCol = sheets.users.rows[0].indexOf("proEnd");
+t("proEnd列あり", proCol >= 0);
+r = POST({ action: "admin_set_pro", adminPass: AP, name: regId, days: 30 });
+t("admin_set_pro付与", r.success === true && r.proEnd > Date.now());
+t("付与後: 実効pro+proEnd返却", (() => { const u = GET({ action: "get_user", id: regId }).user; return u.plan === "pro" && u.proEnd > Date.now(); })());
+regRow()[proCol] = new Date(Date.now() - 1000).toISOString(); // 期限切れに
+t("PRO期限後: 実効free", GET({ action: "get_user", id: regId }).user.plan === "free");
+t("admin_set_pro終了(0)", POST({ action: "admin_set_pro", adminPass: AP, name: regId, days: 0 }).success === true
+  && GET({ action: "get_user", id: regId }).user.plan === "free");
+t("admin_set_pro認証必須", POST({ action: "admin_set_pro", name: regId, days: 30 }).success === false);
+// ＋Gは購入で永続（PRO期限と独立）: plusGフラグONなら実効freeでもplusG有効
+POST({ action: "admin_toggle_plusg", adminPass: AP, name: regId });
+t("＋G独立: freeでもplusG有効", (() => { const u = GET({ action: "get_user", id: regId }).user; return u.plan === "free" && u.plusG === true; })());
+POST({ action: "admin_toggle_plusg", adminPass: AP, name: regId }); // 元に戻す
+
 // ── 独自背景画像（v4.7: 専用列に分離・高画質化）──
 const imgCols = { f: sheets.users.rows[0].indexOf("frontImage"), b: sheets.users.rows[0].indexOf("backImage") };
 t("画像列あり", imgCols.f >= 0 && imgCols.b >= 0);

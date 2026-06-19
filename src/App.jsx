@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -126,6 +126,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [cardTagBusy, setCardTagBusy] = useState(false);
         const [deviceMemMsg, setDeviceMemMsg] = useState("");
         const [idCopied, setIdCopied] = useState(false); // v5.24: ユーザーIDコピー用
+        const [showPurchase, setShowPurchase] = useState(false); // v4.8: 購入ページ（Squareリンク一覧）
         const [isNewUser, setIsNewUser] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
@@ -305,6 +306,15 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           try {
             const r = await gasPost({ action:"admin_set_trial", adminPass:adminPassLocal, name, days });
             if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), trialEnd:r.trialEnd||0}; return n; });
+            showToast(r.success ? "saved" : "error");
+          } catch { showToast("error"); }
+        };
+        /* ── 有料PROの期間設定（v4.8: days>0=今からN日 / 0=失効）── */
+        const setPro = async (name, days) => {
+          showToast("saving", 10000);
+          try {
+            const r = await gasPost({ action:"admin_set_pro", adminPass:adminPassLocal, name, days });
+            if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), proEnd:r.proEnd||0}; return n; });
             showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
@@ -804,6 +814,27 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                         {d > 0 ? `試${d}日` : '試用'}
                                       </button>
                                     ); })()}
+                                    {/* v4.8: 有料PROの期間設定（1/3/6/12ヶ月・終了） */}
+                                    {(() => { const pdl = proDaysLeft(pd); return (
+                                      <button onClick={async () => {
+                                        const days = await appPrompt({
+                                          message: `「${pd.displayName || name}」の有料PRO有効期限を設定します。\n現在: ${pdl > 0 ? `残り約${pdl}日` : 'なし'}\n（「今日からその日数」に上書き。0で失効。＋Gは別管理）`,
+                                          presets: [
+                                            { label: "1ヶ月", value: 30 }, { label: "3ヶ月", value: 90 },
+                                            { label: "6ヶ月", value: 180 }, { label: "1年", value: 365 },
+                                            { label: "失効(0)", value: 0, danger: true },
+                                          ],
+                                          inputLabel: "日数",
+                                          unit: "日",
+                                          default: pdl > 0 ? String(pdl) : "180",
+                                        });
+                                        if (days === null) return;
+                                        setPro(name, days);
+                                      }}
+                                        className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${pdl > 0 ? 'bg-amber-500 border-amber-500 text-black hover:bg-amber-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-amber-400 hover:text-amber-400'}`}>
+                                        {pdl > 0 ? `PRO${pdl}日` : 'PRO期間'}
+                                      </button>
+                                    ); })()}
                                     <button
                                       onClick={() => {
                                         if (editingUrlsName === name) { setEditingUrlsName(null); return; }
@@ -854,7 +885,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       {/* ヘッダー */}
                                       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
                                         <span className={`text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${personIsPro ? 'bg-amber-400 text-black' : 'bg-neutral-700 text-neutral-400'}`}>
-                                          {isPro(pd) ? '✦ PRO' : trialDaysLeft(pd) > 0 ? `✦ PRO+＋Gお試し中・残り${trialDaysLeft(pd)}日` : 'FREE'}
+                                          {isPro(pd) ? '✦ PRO' : proDaysLeft(pd) > 0 ? `✦ PRO・残り${proDaysLeft(pd)}日` : trialDaysLeft(pd) > 0 ? `✦ お試し・残り${trialDaysLeft(pd)}日` : 'FREE'}
                                         </span>
                                         {!personIsPro && <span className="text-[9px] text-neutral-500">PROボタンでアップグレード可能</span>}
                                       </div>
@@ -1253,10 +1284,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                             {cardTagBusy ? "読み込み中…" : "タグ仲間"}
                           </button>
-                          <a href={STORES_URL} target="_blank" rel="noopener noreferrer"
+                          <button onClick={() => setShowPurchase(true)}
                             className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black hover:bg-neutral-800 active:scale-95 transition-all rounded-full px-4 py-2">
-                            ☆STORE☆
-                          </a>
+                            ☆購入☆
+                          </button>
                         </div>
                         )}
 
@@ -1288,6 +1319,57 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             </div>
                           </div>
                         )}
+
+                        {/* v4.8: 購入ページ（Squareリンク一覧） */}
+                        {showPurchase && (() => { const myId = pd?.publicId || variablePart; const plans = [["pro1m","PRO 1ヶ月"],["pro3m","PRO 3ヶ月"],["pro6m","PRO 6ヶ月"],["pro12m","PRO 1年"]]; return (
+                          <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPurchase(false)}>
+                            <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 overflow-y-auto shadow-2xl" style={{maxHeight:`calc(85vh / ${UI_ZOOMS[uiZoomIdx]})`}} onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-neutral-800">プランを購入</h3>
+                                <button onClick={() => setShowPurchase(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
+                              </div>
+                              {/* 決済ページに貼り付けるユーザーID */}
+                              <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2.5">
+                                <p className="text-[10px] font-bold text-sky-700 mb-1">① 決済ページの「ユーザーID」欄に、これを貼り付け</p>
+                                <div className="flex items-center gap-2">
+                                  <code className="flex-1 px-2 py-1.5 bg-white border border-sky-200 rounded-lg text-xs font-mono text-neutral-800 break-all select-all">{myId}</code>
+                                  <button type="button"
+                                    onClick={async () => { try { await navigator.clipboard.writeText(myId); } catch { const ta=document.createElement('textarea'); ta.value=myId; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } setIdCopied(true); setTimeout(()=>setIdCopied(false), 2000); }}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors ${idCopied ? 'bg-green-500 text-white' : 'bg-sky-500 text-white hover:bg-sky-400'}`}>
+                                    {idCopied ? '✓ 済' : 'コピー'}
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest pt-1">② PRO（期間制）を選ぶ</p>
+                              {plans.map(([k,label]) => SQUARE_LINKS[k] ? (
+                                <a key={k} href={SQUARE_LINKS[k]} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center justify-between px-4 py-3 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 transition-colors">
+                                  <span className="text-xs font-bold text-neutral-800">{label}</span>
+                                  <span className="text-[10px] font-bold text-amber-600">購入 →</span>
+                                </a>
+                              ) : (
+                                <div key={k} className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 opacity-60">
+                                  <span className="text-xs font-bold text-neutral-500">{label}</span>
+                                  <span className="text-[10px] text-neutral-400">準備中</span>
+                                </div>
+                              ))}
+                              <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest pt-1">＋G（買い切り・永続）</p>
+                              {SQUARE_LINKS.plusg ? (
+                                <a href={SQUARE_LINKS.plusg} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center justify-between px-4 py-3 rounded-xl border border-sky-200 bg-sky-50/70 hover:bg-sky-100 transition-colors">
+                                  <span className="text-xs font-bold text-neutral-800">＋G 独自背景画像（買い切り）</span>
+                                  <span className="text-[10px] font-bold text-sky-600">購入 →</span>
+                                </a>
+                              ) : (
+                                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 opacity-60">
+                                  <span className="text-xs font-bold text-neutral-500">＋G 独自背景画像（買い切り）</span>
+                                  <span className="text-[10px] text-neutral-400">準備中</span>
+                                </div>
+                              )}
+                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 購入後、入金確認しだい有効化します（数営業日内）。PROは期間制、＋Gは一度の購入でずっと使えます。IDの入力間違いにご注意ください。</p>
+                            </div>
+                          </div>
+                        ); })()}
 
                         {/* タグ仲間の名刺一覧（カード画面・編集パネル不要） */}
                         {showCardTags && cardTagMatches && (
@@ -1370,7 +1452,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-sm font-semibold text-neutral-800">名刺を編集</h3>
                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${pro ? 'bg-amber-400 text-black' : 'bg-neutral-200 text-neutral-500'}`}>
-                                    {pro ? (trialDaysLeft(pd) > 0 ? `✦ PRO+＋Gお試し中・残り${trialDaysLeft(pd)}日` : "✦ PRO") : "FREE"}
+                                    {trialDaysLeft(pd) > 0 ? `✦ PRO+＋Gお試し中・残り${trialDaysLeft(pd)}日` : proDaysLeft(pd) > 0 ? `✦ PRO・残り${proDaysLeft(pd)}日` : pro ? "✦ PRO" : "FREE"}
                                   </span>
                                   {editDirty && <span className="text-[9px] text-amber-500 font-bold animate-pulse">● 未保存</span>}
                                 </div>
