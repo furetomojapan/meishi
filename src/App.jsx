@@ -69,7 +69,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
       function MakeOwnCTA() {
         return (
           <div className="flex flex-wrap gap-2 justify-center">
-            <a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
+            <a href="welcome.html" target="_blank" rel="noopener noreferrer"
               className="px-3 py-2 bg-black text-white rounded-full text-[11px] font-medium hover:bg-neutral-800 active:scale-95 transition-all">私もデジタル名刺を作りたい！</a>
             <a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
               className="px-3 py-2 bg-neutral-200 text-black rounded-full text-[11px] font-medium hover:bg-neutral-300 active:scale-95 transition-all">デジタルカードを作りたい</a>
@@ -650,7 +650,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                   <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
                   <div className="flex flex-wrap gap-2">
-                    <motion.a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
+                    <motion.a href="welcome.html" target="_blank" rel="noopener noreferrer"
                       whileHover={{scale:1.05}} whileTap={{scale:0.95}}
                       className="px-4 py-2 bg-black text-white rounded-full text-xs font-medium shadow-lg hover:shadow-xl transition-all">
                       私もデジタル名刺を作りたい！
@@ -1428,7 +1428,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           <div className="rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur px-5 py-5 shadow-sm">
                             <p className="text-[12px] font-bold text-neutral-800 mb-1">あなたも、NEXUA（ネクア）で名刺を。</p>
                             <p className="text-[10px] text-neutral-500 mb-3">人と情報を、あなたのためにつなぐ。メールだけ・1分で無料登録。</p>
-                            <a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
+                            <a href="welcome.html" target="_blank" rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 px-5 py-2.5 rounded-full text-[11px] font-bold text-white bg-gradient-to-r from-rose-400 to-orange-400 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all shadow-md">
                               無料で名刺をつくる →
                             </a>
