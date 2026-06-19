@@ -1,4 +1,4 @@
-# NEXUA — デジタル名刺サイト
+# NEXUA（ネクア） — デジタル名刺サイト
 
 > 人と情報を、あなたのためにつなぐ。
 > NEXUA ＝ Nexus（結びつき）× U（You / User / Unity）× Access（情報へアクセス）

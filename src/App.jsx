@@ -617,7 +617,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             <div className="max-w-xl mx-auto">
               <header className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1><img src={`${getSiteBase()}01_NEXUA_dark.png`} alt="NEXUA" className="h-5 w-auto" /></h1>
+                  <h1><img src={`${getSiteBase()}01_NEXUA_dark.png`} alt="NEXUA（ネクア）" className="h-5 w-auto" /></h1>
                   <p className="text-[10px] font-mono text-neutral-400 mt-0.5 uppercase tracking-widest">
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
@@ -1315,6 +1315,20 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </div>
                         )}
 
+                        {/* v5.22: 閲覧者→見込み客 向けCTA（カード下部）／v5.23: 編集できる本人(PIN認証済 or 端末記憶あり)には非表示 */}
+                        {!(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart)))) && (
+                        <div className="mt-8 mb-2 mx-auto max-w-sm text-center">
+                          <div className="rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur px-5 py-5 shadow-sm">
+                            <p className="text-[12px] font-bold text-neutral-800 mb-1">あなたも、NEXUA（ネクア）で名刺を。</p>
+                            <p className="text-[10px] text-neutral-500 mb-3">人と情報を、あなたのためにつなぐ。メールだけ・1分で無料登録。</p>
+                            <a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-5 py-2.5 rounded-full text-[11px] font-bold text-white bg-gradient-to-r from-rose-400 to-orange-400 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all shadow-md">
+                              無料で名刺をつくる →
+                            </a>
+                          </div>
+                        </div>
+                        )}
+
                         {/* ユーザーリンク編集モーダル（ボトムシート） */}
                         {showUserEdit && (() => {
                           const editDirty = editOrigJSON !== null &&
@@ -1374,7 +1388,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               {/* スクロール領域 */}
                               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                                 {/* v5.20: お試し期限が近いときの注意バナー（残り2日以下） */}
-                                {(() => { const d = trialDaysLeft(pd); return d > 0 && d <= 2 ? (
+                                {(() => { const d = trialDaysLeft(pd); return d > 0 && d <= 3 ? (
                                   <div className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2.5 rounded-xl border border-amber-200">
                                     <p className="font-bold mb-0.5">⏳ PRO+＋Gお試しは残り{d}日です</p>
                                     <p className="text-amber-600">期限後はFREEになりますが、設定内容は保存され、PROにすると再び有効になります。
