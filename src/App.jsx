@@ -125,6 +125,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [cardTagMatches, setCardTagMatches] = useState(null); // { tag: users[] }
         const [cardTagBusy, setCardTagBusy] = useState(false);
         const [deviceMemMsg, setDeviceMemMsg] = useState("");
+        const [idCopied, setIdCopied] = useState(false); // v5.24: ユーザーIDコピー用
         const [isNewUser, setIsNewUser] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
         const [userEditUrls, setUserEditUrls] = useState([]);
         const [userEditDisplayName, setUserEditDisplayName] = useState("");
@@ -750,7 +751,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           const filtered = [...registeredNames].reverse().filter(name => {
                             if (!q) return true;
                             const pd = getPersonData(urlsData, name);
-                            return name.toLowerCase().includes(q) || (pd.displayName || "").toLowerCase().includes(q);
+                            return name.toLowerCase().includes(q) || (pd.displayName || "").toLowerCase().includes(q) || (pd.publicId || "").toLowerCase().includes(q);
                           });
                           return filtered.length === 0 ? (
                             <div className="py-12 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800">
@@ -768,6 +769,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       <div className="text-left">
                                         <p className="font-medium tracking-wide">{pd.displayName || name}</p>
                                         {pd.displayName && <p className="text-[9px] opacity-40 font-mono mt-0.5">{name}</p>}
+                                        {pd.publicId && <p className="text-[9px] opacity-60 font-mono mt-0.5">ID: {pd.publicId}</p>}
                                         <div className="flex items-center gap-1.5 mt-1">
                                           <span className="text-[9px] font-mono tracking-widest opacity-60">
                                             PIN: {pd.hasPinSet ? "設定済み" : "未設定"}
@@ -1411,6 +1413,21 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 })()}
                                 {/* ───── 情報タブ ───── */}
                                 {editTab === "info" && (<>
+                                {/* v5.24: 決済時に貼り付ける本人確認用ユーザーID（publicId） */}
+                                {(() => { const myId = pd?.publicId || variablePart; return (
+                                  <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3">
+                                    <p className="text-[10px] font-bold text-sky-700 mb-1">あなたのユーザーID（PRO購入時にコピペで入力）</p>
+                                    <div className="flex items-center gap-2">
+                                      <code className="flex-1 px-3 py-2 bg-white border border-sky-200 rounded-xl text-sm font-mono text-neutral-800 tracking-wider break-all select-all">{myId}</code>
+                                      <button type="button"
+                                        onClick={async () => { try { await navigator.clipboard.writeText(myId); } catch { const ta=document.createElement('textarea'); ta.value=myId; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } setIdCopied(true); setTimeout(()=>setIdCopied(false), 2000); }}
+                                        className={`px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors ${idCopied ? 'bg-green-500 text-white' : 'bg-sky-500 text-white hover:bg-sky-400'}`}>
+                                        {idCopied ? '✓ コピー済' : 'コピー'}
+                                      </button>
+                                    </div>
+                                    <p className="text-[9px] text-sky-600/80 mt-1.5">決済ページのID欄に、このIDをそのまま貼り付けてください。入金確認後、このIDの名刺をPROに切り替えます。</p>
+                                  </div>
+                                ); })()}
                                 <p className="text-[10px] text-neutral-400">空白文字（スペース・改行）も認識します</p>
                                 {/* フェーズ3: 文字入力は管理者編集と共通（ProfileTextFields） */}
                                 <ProfileTextFields profile={userEditProfile} setProfile={setUserEditProfile} />
