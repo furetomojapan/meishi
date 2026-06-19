@@ -65,6 +65,18 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         );
       }
 
+      /* v4.8: 「作りたい」勧誘CTA（カードヘッダーから移設。編集画面・購入モーダルで使用） */
+      function MakeOwnCTA() {
+        return (
+          <div className="flex flex-wrap gap-2 justify-center">
+            <a href="https://furetomojapan.github.io/meishi/welcome.html" target="_blank" rel="noopener noreferrer"
+              className="px-3 py-2 bg-black text-white rounded-full text-[11px] font-medium hover:bg-neutral-800 active:scale-95 transition-all">私もデジタル名刺を作りたい！</a>
+            <a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
+              className="px-3 py-2 bg-neutral-200 text-black rounded-full text-[11px] font-medium hover:bg-neutral-300 active:scale-95 transition-all">デジタルカードを作りたい</a>
+          </div>
+        );
+      }
+
       export function App() {
         const [registeredNames, setRegisteredNames] = useState([]);
         const [adminSearch, setAdminSearch] = useState("");
@@ -633,6 +645,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                     {variablePart ? `Viewing: ${variablePart}` : "Management System"}
                   </p>
                 </div>
+                {/* v4.8: カード画面では非表示（編集画面・購入モーダルに移設）。管理画面のみ表示 */}
+                {!variablePart && (
                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                   <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-widest">あなたもデジタル名刺を作りませんか？</p>
                   <div className="flex flex-wrap gap-2">
@@ -648,6 +662,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                     </motion.a>
                   </div>
                 </div>
+                )}
               </header>
 
               <AnimatePresence mode="wait">
@@ -1367,6 +1382,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 </div>
                               )}
                               <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 購入後、入金確認しだい有効化します（数営業日内）。PROは期間制、＋Gは一度の購入でずっと使えます。IDの入力間違いにご注意ください。</p>
+                              <div className="border-t border-neutral-100 pt-3 mt-1">
+                                <p className="text-[10px] text-neutral-400 mb-2 text-center">知り合いにもすすめる</p>
+                                <MakeOwnCTA />
+                              </div>
                             </div>
                           </div>
                         ); })()}
@@ -1537,6 +1556,11 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">変更</button>
                                   </div>
                                   {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                </div>
+                                {/* v4.8: 「作りたい」勧誘CTA（ヘッダーから移設） */}
+                                <div className="border-t border-neutral-100 pt-3">
+                                  <p className="text-[10px] text-neutral-400 mb-2 text-center">知り合いにもすすめる</p>
+                                  <MakeOwnCTA />
                                 </div>
                                 </>)}
 
