@@ -1180,8 +1180,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                       const pro = isPro(pd);
                       // 編集中はuserEditProfileをリアルタイムでカードに反映
                       const previewPd = showUserEdit ? { ...pd, profile: userEditProfile } : pd;
+                      // v4.8: 本人（オーナー）判定 — 認証済み or 端末記憶あり or 新規登録(new=1)。来訪者にはオーナー用UIを出さない
+                      const ownerView = !!(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart))) || isNewUser);
                       return (<>
-                        <FlipCard variablePart={variablePart} personData={previewPd} pro={pro} />
+                        <FlipCard variablePart={variablePart} personData={previewPd} pro={pro} owner={ownerView} />
 
                         {/* PIN認証モーダル */}
                         {showPinModal && (
@@ -1285,8 +1287,18 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </div>
                         )}
 
+                        {/* v4.8: オーナー用ボタンは本人のみ表示。来訪者には控えめな編集の再入口だけ */}
+                        {!pd._tagView && !ownerView && (
+                          <div className="mt-5 flex justify-center">
+                            <button onClick={openUserEdit} disabled={editOpening}
+                              className="text-[10px] text-neutral-300 hover:text-neutral-500 underline underline-offset-2 transition-colors">
+                              {editOpening ? "読み込み中…" : "オーナーの方（編集はこちら）"}
+                            </button>
+                          </div>
+                        )}
+
                         {/* リンク編集ボタン（FREE/PRO共通） */}
-                        {!pd._tagView && (
+                        {!pd._tagView && ownerView && (
                         <div className="mt-5 flex items-center justify-center gap-4">
                           <button onClick={openUserEdit} disabled={editOpening}
                             style={cardTheme && !editOpening ? { borderColor: cardTheme.accent, color: cardTheme.accent } : {}}
@@ -1306,7 +1318,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                         </div>
                         )}
 
-                        {/* ★ v5.9: プライバシー説明 / v5.14: 文字サイズ切替 */}
+                        {/* ★ v5.9: プライバシー説明 / v5.14: 文字サイズ切替（v4.8: 本人のみ） */}
+                        {ownerView && (
                         <div className="mt-3 flex items-center justify-center gap-4">
                           <button onClick={cycleUiZoom}
                             className={`flex items-center gap-1 text-[10px] border rounded-full px-3 py-1.5 transition-colors ${uiZoomIdx > 0 ? 'border-black text-black font-bold' : 'border-neutral-200 text-neutral-400 hover:text-black hover:border-black'}`}>
@@ -1317,6 +1330,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             🔒 プライバシー
                           </button>
                         </div>
+                        )}
                         {showPrivacy && (
                           <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPrivacy(false)}>
                             <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 overflow-y-auto shadow-2xl" style={{maxHeight:`calc(80vh / ${UI_ZOOMS[uiZoomIdx]})`}} onClick={e => e.stopPropagation()}>
