@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 /* ── 独自ダイアログ（v5.19 / v5.21）──
-   ブラウザ標準の confirm/alert/prompt はサイト名（furetomojapan.github.io の内容）が
+   ブラウザ標準の confirm/alert/prompt はサイト名（nexua.tech の内容）が
    消せないため、アプリ内モーダルに置き換える。
    appConfirm(msg) → Promise<boolean>
    appAlert(msg)   → Promise<true>

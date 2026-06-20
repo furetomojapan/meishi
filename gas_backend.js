@@ -33,7 +33,7 @@ const SHEET_SESSIONS      = "sessions";
 const SHEET_REGISTRATIONS = "registrations";
 const SESSION_TTL_MS      = 30 * 24 * 60 * 60 * 1000; // 30日（端末記憶用）
 const ADMIN_EMAIL         = "furetomojapan@gmail.com";
-const SITE_URL            = "https://furetomojapan.github.io/meishi/";
+const SITE_URL            = "https://nexua.tech/";
 
 const FREE_TAG_LIMIT  = 1;
 const PRO_TAG_LIMIT   = 5;

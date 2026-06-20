@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUAカード — かざすだけで想いが届く、オリジナルカード</title>
+  <meta name="description" content="スマホにかざすだけで、あなたのデジタル名刺ページが開く。NEXUAのオリジナルカード。アプリ不要・おサイフケータイ対応スマホ対応。おもて面／うら面のデザインも自由に。" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <meta name="theme-color" content="#1a1a1a" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="NEXUAカード — かざすだけで想いが届く、オリジナルカード" />
+  <meta property="og:description" content="スマホにかざすだけで、あなたのデジタル名刺ページが開く。NEXUAのオリジナルカード。" />
+  <meta property="og:image" content="https://nexua.tech/og_default.png" />
+  <meta property="og:url" content="https://nexua.tech/card.html" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://nexua.tech/og_default.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: linear-gradient(160deg, #fff7ed 0%, #fef3f2 35%, #eff6ff 70%, #f0fdfa 100%);
+    }
+    @keyframes float1 { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-18px) rotate(2deg); } }
+    @keyframes float2 { 0%,100% { transform: translateY(0) rotate(8deg); } 50% { transform: translateY(14px) rotate(0deg); } }
+    @keyframes float3 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .float-1 { animation: float1 7s ease-in-out infinite; }
+    .float-2 { animation: float2 9s ease-in-out infinite; }
+    .float-3 { animation: float3 6s ease-in-out infinite; }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .reveal.shown { opacity: 1; transform: translateY(0); }
+
+    /* カードが宙に浮かんで揺れる */
+    @keyframes cardSway { 0%,100% { transform: rotate(-4deg) translateY(0); } 50% { transform: rotate(3deg) translateY(-12px); } }
+    .card-sway { animation: cardSway 6s ease-in-out infinite; }
+
+    /* かざすときの波紋 */
+    @keyframes ripple { 0% { transform: scale(0.4); opacity: 0.6; } 100% { transform: scale(1.6); opacity: 0; } }
+    .ripple { animation: ripple 2.2s ease-out infinite; }
+    .ripple-2 { animation-delay: 1.1s; }
+
+    details[open] .faq-arrow { transform: rotate(180deg); }
+    .faq-arrow { transition: transform 0.25s ease; }
+    details summary::-webkit-details-marker { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .float-1, .float-2, .float-3, .card-sway, .ripple { animation: none; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body class="min-h-screen relative overflow-x-hidden text-neutral-800">
+
+  <!-- 背景の装飾シェイプ -->
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+    <div class="float-1 absolute -top-10 -left-10 w-48 h-48 md:w-72 md:h-72 bg-amber-200/40 rounded-[40%]"></div>
+    <div class="float-2 absolute top-1/3 -right-14 w-56 h-56 md:w-80 md:h-80 bg-sky-200/40 rounded-[45%]"></div>
+    <div class="float-3 absolute bottom-10 left-1/4 w-32 h-32 md:w-52 md:h-52 bg-rose-200/40 rounded-[42%]"></div>
+    <div class="float-2 absolute bottom-1/4 -left-12 w-40 h-40 md:w-64 md:h-64 bg-teal-200/30 rounded-[48%]"></div>
+  </div>
+
+  <!-- 固定ヘッダー -->
+  <header class="sticky top-0 z-40 bg-white/70 backdrop-blur-md border-b border-white/60">
+    <div class="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
+      <a href="welcome.html" class="flex items-center gap-2">
+        <img src="01_NEXUA_dark.png" alt="NEXUA（ネクア）" class="h-6 md:h-7 w-auto" />
+        <span class="text-[10px] text-neutral-400 tracking-wide">ネクア</span>
+      </a>
+      <a href="#order" class="px-4 py-2 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-full text-xs font-bold shadow-md shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+        購入する
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ヒーロー -->
+    <section class="max-w-5xl mx-auto px-6 pt-12 md:pt-20 pb-16 grid md:grid-cols-2 gap-12 items-center">
+      <div class="text-center md:text-left">
+        <p class="inline-block text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1 mb-4">NEXUA オリジナルカード 🎴</p>
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4">
+          想いを届ける、<br>
+          <span class="bg-gradient-to-r from-rose-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">新しいカタチ</span>。
+        </h1>
+        <p class="text-sm md:text-base text-neutral-500 leading-relaxed mb-7">
+          スマホにかざすだけ。<br>
+          あなたのデジタル名刺ページが、その場でふわっと開きます。<br>
+          カメラを起動して、枠を合わせて……はもう要りません。
+        </p>
+        <p class="text-sm font-bold text-rose-500/90 mb-7">NEXUA（ネクア）— 人と情報を、あなたのためにつなぐ。</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+          <a href="#order" class="px-7 py-3.5 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-sm font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+            カードを購入する →
+          </a>
+          <a href="#how" class="px-7 py-3.5 bg-white/80 backdrop-blur border border-neutral-200 rounded-2xl text-sm font-bold text-neutral-600 hover:bg-white active:scale-95 transition-all">
+            使いかたを見る
+          </a>
+        </div>
+        <p class="text-[11px] text-amber-700 mt-5">✦ アプリ不要。おサイフケータイ対応スマホ（iPhone／Android）でそのまま使えます</p>
+      </div>
+
+      <!-- カードのモックアップ（かざす演出） -->
+      <div class="flex justify-center" aria-hidden="true">
+        <div class="relative w-[300px] h-[360px] flex items-center justify-center">
+          <!-- 波紋 -->
+          <div class="ripple absolute w-40 h-40 rounded-full border-2 border-rose-300/60"></div>
+          <div class="ripple ripple-2 absolute w-40 h-40 rounded-full border-2 border-orange-300/60"></div>
+          <!-- カード本体 -->
+          <div class="card-sway relative w-[230px] h-[145px] rounded-2xl shadow-2xl shadow-orange-200/70 bg-gradient-to-br from-neutral-900 to-neutral-700 p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-white text-lg font-extrabold tracking-widest">NEXUA</span>
+              <span class="text-[8px] text-white/50 tracking-widest">ネクア</span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <div class="h-2 w-20 bg-white/30 rounded-full mb-1.5"></div>
+                <div class="h-2 w-14 bg-white/15 rounded-full"></div>
+              </div>
+              <!-- かざすマーク -->
+              <div class="w-9 h-9 rounded-full bg-white/10 border border-white/30 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5 text-rose-200">
+                  <path d="M5 12a7 7 0 0114 0" stroke-linecap="round"/>
+                  <path d="M8 12a4 4 0 018 0" stroke-linecap="round"/>
+                  <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 比較：これまで vs NEXUAカード -->
+    <section class="max-w-5xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">NEXUAカードで、こんなに変わる。</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">「見せる」「送る」のひと手間が、ぜんぶ消えます。</p>
+      <div class="grid md:grid-cols-2 gap-5 items-stretch">
+        <div class="reveal bg-white/70 backdrop-blur rounded-3xl border border-neutral-200 p-7">
+          <p class="text-xs font-bold text-neutral-400 mb-4">これまでの常識</p>
+          <ul class="space-y-3 text-sm text-neutral-500">
+            <li class="flex items-center gap-3"><span class="w-7 h-7 shrink-0 rounded-lg bg-neutral-100 flex items-center justify-center">📷</span>カメラを起動する</li>
+            <li class="pl-3 text-neutral-300">↓</li>
+            <li class="flex items-center gap-3"><span class="w-7 h-7 shrink-0 rounded-lg bg-neutral-100 flex items-center justify-center">🖼️</span>QRの枠に合わせる</li>
+            <li class="pl-3 text-neutral-300">↓</li>
+            <li class="flex items-center gap-3"><span class="w-7 h-7 shrink-0 rounded-lg bg-neutral-100 flex items-center justify-center">👉</span>タップして開く</li>
+          </ul>
+        </div>
+        <div class="reveal bg-gradient-to-br from-rose-50 to-orange-50 rounded-3xl border border-rose-100 p-7 shadow-sm">
+          <p class="text-xs font-bold text-rose-500 mb-4">✨ NEXUAカードなら</p>
+          <div class="flex flex-col items-center justify-center h-[calc(100%-2rem)] text-center gap-3">
+            <span class="text-5xl">💖</span>
+            <p class="text-lg font-extrabold text-neutral-800">ピッと、かざすだけ。</p>
+            <p class="text-sm text-neutral-500 leading-relaxed">スマホを当てるだけで、<br>あなたの想いとプロフィールが届きます。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 使いかた 3ステップ -->
+    <section id="how" class="max-w-5xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-2">使いかたは、かんたん3ステップ</h2>
+      <p class="reveal text-center text-sm text-neutral-500 mb-10">むずかしい設定も、専用アプリも要りません。</p>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-rose-100">1</div>
+          <h3 class="font-bold mb-2">カードを受け取る</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">あなたのデジタル名刺ページに紐づいた、オリジナルカードが届きます。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-rose-100">2</div>
+          <h3 class="font-bold mb-2">相手のスマホにかざす</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">カードをそっと当てるだけ。標準のブラウザが自動で立ち上がります。</p>
+        </div>
+        <div class="reveal bg-white/85 backdrop-blur rounded-3xl border border-white p-6 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-rose-100">3</div>
+          <h3 class="font-bold mb-2">その場で想いが届く</h3>
+          <p class="text-xs text-neutral-500 leading-relaxed">プロフィールもSNSも自己紹介も、ページひとつでまるごと伝わります。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商品・価格 -->
+    <section id="order" class="max-w-3xl mx-auto px-6 py-16">
+      <div class="reveal bg-white/90 backdrop-blur rounded-[2rem] border border-white shadow-xl shadow-rose-100/50 overflow-hidden">
+        <div class="bg-gradient-to-r from-rose-400 to-orange-400 px-8 py-6 text-white">
+          <p class="text-[11px] font-bold tracking-widest opacity-80 mb-1">NEXUA ORIGINAL CARD</p>
+          <h2 class="text-2xl font-extrabold">NEXUAカード</h2>
+        </div>
+        <div class="px-8 py-8">
+          <div class="flex items-end gap-2 mb-6">
+            <span class="text-4xl font-extrabold text-neutral-900">¥2,980</span>
+            <span class="text-sm text-neutral-400 mb-1.5">（税込・送料別）</span>
+          </div>
+          <ul class="space-y-3 text-sm text-neutral-600 mb-8">
+            <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>かざすだけであなたのデジタル名刺ページが開く、オリジナルカード本体</li>
+            <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>おもて面・うら面のデザインを選べます（お名前・画像・QRなど）</li>
+            <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>アプリ不要。おサイフケータイ対応スマホ（iPhone／Android）対応</li>
+            <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>ページの内容はあとから何度でも更新OK</li>
+          </ul>
+          <a href="https://square.link/u/3FbwaGhP" target="_blank" rel="noopener noreferrer"
+            class="block w-full text-center px-7 py-4 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-base font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
+            購入手続きへ進む →
+          </a>
+          <p class="text-[11px] text-neutral-400 text-center mt-4">お支払いは安全な決済ページ（Square）で完了します。</p>
+          <p class="text-xs text-neutral-500 text-center mt-3">ご相談・ご質問は <a href="https://lin.ee/T8KuRDy" target="_blank" rel="noopener noreferrer" class="font-bold text-green-600 hover:underline">公式LINE</a> までお気軽に。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- よくあるご質問 -->
+    <section class="max-w-3xl mx-auto px-6 py-14">
+      <h2 class="reveal text-center text-2xl md:text-3xl font-extrabold tracking-tight mb-10">よくあるご質問</h2>
+      <div class="space-y-3">
+        <details class="reveal group bg-white/85 backdrop-blur rounded-2xl border border-white px-6 py-4 shadow-sm">
+          <summary class="flex items-center justify-between cursor-pointer list-none font-bold text-sm">
+            自分のスマホでも使えますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <p class="text-sm text-neutral-500 leading-relaxed mt-3">おサイフケータイに対応しているスマートフォンであれば、iPhone・Android問わずそのままご利用いただけます。</p>
+        </details>
+        <details class="reveal group bg-white/85 backdrop-blur rounded-2xl border border-white px-6 py-4 shadow-sm">
+          <summary class="flex items-center justify-between cursor-pointer list-none font-bold text-sm">
+            専用のアプリを入れる必要はありますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <p class="text-sm text-neutral-500 leading-relaxed mt-3">いいえ、不要です。カードをかざすだけで、標準のブラウザが自動的に立ち上がり、指定したページが開きます。</p>
+        </details>
+        <details class="reveal group bg-white/85 backdrop-blur rounded-2xl border border-white px-6 py-4 shadow-sm">
+          <summary class="flex items-center justify-between cursor-pointer list-none font-bold text-sm">
+            どんなデザインにできますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <p class="text-sm text-neutral-500 leading-relaxed mt-3">おもて面・うら面それぞれに、お名前や画像、QRコードなどを配置できます。ご注文時にお選びいただけます。</p>
+        </details>
+        <details class="reveal group bg-white/85 backdrop-blur rounded-2xl border border-white px-6 py-4 shadow-sm">
+          <summary class="flex items-center justify-between cursor-pointer list-none font-bold text-sm">
+            カードに表示される内容は変更できますか？
+            <svg class="faq-arrow w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <p class="text-sm text-neutral-500 leading-relaxed mt-3">はい。カードが開くデジタル名刺ページの内容は、ご自身でいつでも何度でも編集できます。引っ越しや転職、SNSの追加にもそのまま対応できます。</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- 末尾CTA -->
+    <section class="max-w-5xl mx-auto px-6 pb-20">
+      <div class="reveal bg-gradient-to-br from-neutral-900 to-neutral-700 rounded-[2rem] px-8 py-12 text-center text-white shadow-xl">
+        <h2 class="text-2xl md:text-3xl font-extrabold mb-3">あなたの「はじめまして」を、もっと特別に。</h2>
+        <p class="text-sm text-white/70 mb-7">かざすだけで想いが届く、NEXUAカード。</p>
+        <a href="#order" class="inline-block px-8 py-4 bg-white text-neutral-900 rounded-2xl text-sm font-bold tracking-wide hover:bg-neutral-100 active:scale-95 transition-all">
+          カードを購入する →
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- フッター -->
+  <footer class="border-t border-white/60 bg-white/50 backdrop-blur">
+    <div class="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      <a href="welcome.html" class="flex items-center gap-2">
+        <img src="01_NEXUA_dark.png" alt="NEXUA（ネクア）" class="h-5 w-auto" />
+      </a>
+      <nav class="flex items-center gap-5 text-xs text-neutral-500">
+        <a href="welcome.html" class="hover:text-neutral-800 transition-colors">デジタル名刺について</a>
+        <a href="index.html" class="hover:text-neutral-800 transition-colors">マイページ</a>
+        <a href="https://lin.ee/T8KuRDy" target="_blank" rel="noopener noreferrer" class="hover:text-neutral-800 transition-colors">公式LINE</a>
+      </nav>
+      <p class="text-[11px] text-neutral-400">© 2026 NEXUA All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // スクロールでふんわり登場
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('shown'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+  </script>
+</body>
+</html>

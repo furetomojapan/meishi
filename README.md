@@ -5,7 +5,7 @@
 
 スマホで見せる・送れるデジタル名刺。GitHub Pages（静的フロント）+ Google Apps Script（API）+ Googleスプレッドシート（データ）で動作。
 
-- 本番サイト: https://furetomojapan.github.io/meishi/
+- 本番サイト: https://nexua.tech/
 - 現行バージョン: フロント v5.13 / GAS v4.0
 
 ## 構成（フェーズ4: Viteビルド）

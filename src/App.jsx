@@ -71,7 +71,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           <div className="flex flex-wrap gap-2 justify-center">
             <a href="welcome.html" target="_blank" rel="noopener noreferrer"
               className="px-3 py-2 bg-black text-white rounded-full text-[11px] font-medium hover:bg-neutral-800 active:scale-95 transition-all">私もデジタル名刺を作りたい！</a>
-            <a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
+            <a href="card.html" target="_blank" rel="noopener noreferrer"
               className="px-3 py-2 bg-neutral-200 text-black rounded-full text-[11px] font-medium hover:bg-neutral-300 active:scale-95 transition-all">デジタルカードを作りたい</a>
           </div>
         );
@@ -655,7 +655,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                       className="px-4 py-2 bg-black text-white rounded-full text-xs font-medium shadow-lg hover:shadow-xl transition-all">
                       私もデジタル名刺を作りたい！
                     </motion.a>
-                    <motion.a href="https://laxuz.xyz/furetomo/" target="_blank" rel="noopener noreferrer"
+                    <motion.a href="card.html" target="_blank" rel="noopener noreferrer"
                       whileHover={{scale:1.05}} whileTap={{scale:0.95}}
                       className="px-4 py-2 bg-neutral-200 text-black rounded-full text-xs font-medium shadow-lg hover:shadow-xl hover:bg-neutral-300 transition-all">
                       デジタルカードを作りたい
