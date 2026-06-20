@@ -188,20 +188,57 @@
           <h2 class="text-2xl font-extrabold">NEXUAカード</h2>
         </div>
         <div class="px-8 py-8">
-          <div class="flex items-end gap-2 mb-6">
-            <span class="text-4xl font-extrabold text-neutral-900">¥2,980</span>
-            <span class="text-sm text-neutral-400 mb-1.5">（税込・送料別）</span>
-          </div>
-          <ul class="space-y-3 text-sm text-neutral-600 mb-8">
+          <ul class="space-y-3 text-sm text-neutral-600 mb-7">
             <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>かざすだけであなたのデジタル名刺ページが開く、オリジナルカード本体</li>
-            <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>おもて面・うら面のデザインを選べます（お名前・画像・QRなど）</li>
             <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>アプリ不要。おサイフケータイ対応スマホ（iPhone／Android）対応</li>
             <li class="flex items-start gap-2"><span class="text-rose-500 mt-0.5">✓</span>ページの内容はあとから何度でも更新OK</li>
           </ul>
-          <a href="https://square.link/u/3FbwaGhP" target="_blank" rel="noopener noreferrer"
+
+          <p class="text-sm font-bold text-neutral-700 mb-3">デザインをお選びください</p>
+          <div class="space-y-2.5 mb-6">
+            <label class="plan-opt flex items-center gap-3 p-4 rounded-2xl border-2 border-rose-300 bg-rose-50/50 cursor-pointer transition-all">
+              <input type="radio" name="plan" class="accent-rose-500 w-4 h-4 shrink-0" value="store" data-price="2,980" data-href="https://square.link/u/3FbwaGhP" data-custom="0" checked />
+              <span class="flex-1">
+                <span class="font-bold text-sm">当店デザインから選ぶ</span>
+                <span class="block text-xs text-neutral-500">ご用意したデザインからお選びいただけます</span>
+              </span>
+              <span class="font-extrabold text-neutral-900 whitespace-nowrap">¥2,980</span>
+            </label>
+            <label class="plan-opt flex items-center gap-3 p-4 rounded-2xl border-2 border-neutral-200 cursor-pointer transition-all">
+              <input type="radio" name="plan" class="accent-rose-500 w-4 h-4 shrink-0" value="byo1" data-price="3,500" data-href="https://square.link/u/lAI8YomM" data-custom="1" />
+              <span class="flex-1">
+                <span class="font-bold text-sm">持ち込みデザイン（1面印刷）</span>
+                <span class="block text-xs text-neutral-500">お客様の画像を、おもて面に印刷します</span>
+              </span>
+              <span class="font-extrabold text-neutral-900 whitespace-nowrap">¥3,500</span>
+            </label>
+            <label class="plan-opt flex items-center gap-3 p-4 rounded-2xl border-2 border-neutral-200 cursor-pointer transition-all">
+              <input type="radio" name="plan" class="accent-rose-500 w-4 h-4 shrink-0" value="byo2" data-price="4,200" data-href="https://square.link/u/Bjngycyg" data-custom="1" />
+              <span class="flex-1">
+                <span class="font-bold text-sm">持ち込みデザイン（両面印刷）</span>
+                <span class="block text-xs text-neutral-500">お客様の画像を、おもて・うら両面に印刷します</span>
+              </span>
+              <span class="font-extrabold text-neutral-900 whitespace-nowrap">¥4,200</span>
+            </label>
+          </div>
+
+          <div class="flex items-end justify-between mb-4 pt-1">
+            <span class="text-sm text-neutral-500">お支払い金額</span>
+            <span class="flex items-end gap-1">
+              <span class="text-3xl font-extrabold text-neutral-900">¥<span id="total-price">2,980</span></span>
+              <span class="text-xs text-neutral-400 mb-1">（税込・送料別）</span>
+            </span>
+          </div>
+
+          <a id="buy-btn" href="https://square.link/u/3FbwaGhP" target="_blank" rel="noopener noreferrer"
             class="block w-full text-center px-7 py-4 bg-gradient-to-r from-rose-400 to-orange-400 text-white rounded-2xl text-base font-bold tracking-wide shadow-lg shadow-rose-200 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all">
             購入手続きへ進む →
           </a>
+
+          <div id="byo-note" class="hidden mt-4 p-4 rounded-2xl bg-green-50 border border-green-100 text-xs text-green-800 leading-relaxed">
+            💬 持ち込みデザインをお選びの方は、<b>ご購入後に公式LINEでデザイン画像</b>をお送りください。内容を確認のうえ印刷いたします。
+          </div>
+
           <p class="text-[11px] text-neutral-400 text-center mt-4">お支払いは安全な決済ページ（Square）で完了します。</p>
           <p class="text-xs text-neutral-500 text-center mt-3">ご相談・ご質問は <a href="https://lin.ee/T8KuRDy" target="_blank" rel="noopener noreferrer" class="font-bold text-green-600 hover:underline">公式LINE</a> までお気軽に。</p>
         </div>
@@ -277,6 +314,23 @@
       entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('shown'); io.unobserve(e.target); } });
     }, { threshold: 0.12 });
     document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+    // デザイン選択 → 価格・購入リンク・案内を切り替え
+    function updatePlan() {
+      const sel = document.querySelector('input[name="plan"]:checked');
+      if (!sel) return;
+      document.getElementById('total-price').textContent = sel.dataset.price;
+      document.getElementById('buy-btn').href = sel.dataset.href;
+      document.getElementById('byo-note').classList.toggle('hidden', sel.dataset.custom !== '1');
+      document.querySelectorAll('.plan-opt').forEach((o) => {
+        const on = o.querySelector('input').checked;
+        o.classList.toggle('border-rose-300', on);
+        o.classList.toggle('bg-rose-50/50', on);
+        o.classList.toggle('border-neutral-200', !on);
+      });
+    }
+    document.querySelectorAll('input[name="plan"]').forEach((r) => r.addEventListener('change', updatePlan));
+    updatePlan();
   </script>
 </body>
 </html>
