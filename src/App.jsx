@@ -299,43 +299,58 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         // ── 管理者: 名刺コピー（内容・デザイン・プラン・タグ等を丸ごと複製） ──
         const copyUser = async (sourceName) => {
           const pd = getPersonData(urlsData, sourceName);
+          const randomSuffix = Math.random().toString(36).slice(2, 8); // ★ 推測されにくいデフォルトID用
           const newId = await appPrompt({
-            message: `「${pd.displayName || sourceName}」の内容をコピーして新しいユーザーを作成します。\n新しいID（半角英数字・アンダースコアのみ）を入力してください。`,
+            message: `「${pd.displayName || sourceName}」の内容をコピーして新しいユーザーを作成します。\n新しいID（半角英数字・アンダースコアのみ）を入力してください。\n※IDを知っている人はフル情報（電話・住所含む）を見られるため、推測されにくいIDを推奨します（初期値はランダム生成済み）`,
             inputLabel: "新しいID",
             inputType: "text",
             sanitize: v => v.replace(/[^a-zA-Z0-9_]/g, ""),
-            default: "",
+            default: `${sourceName}_${randomSuffix}`,
           });
           if (newId === null) return; // キャンセル
           const id = String(newId).trim();
-          if (!id) return;
+          if (!id) { await appAlert("IDを入力してください"); return; }
           if (registeredNames.includes(id)) { await appAlert("このIDはすでに存在します"); return; }
 
           showToast("saving", 20000);
+          let ok = true;
           try {
             const r1 = await gasPost({ action: "admin_create_user", adminPass: adminPassLocal, name: id });
-            if (!r1.success) { showToast("error"); return; }
+            if (!r1.success) { showToast("error"); return; } // 作成自体が失敗＝何も作られていない
 
+            // ここから先はユーザーが作成済み。以降どこで失敗しても一覧を更新して状態を可視化する
             const r2 = await gasPost({
               action: "admin_save_user", adminPass: adminPassLocal, name: id,
               displayName: pd.displayName, licenseKey: "", links: pd.links,
               plan: pd.plan, profile: pd.profile, plusG: pd.plusG,
             });
-            if (!r2.success) { showToast("error"); return; }
+            if (!r2.success) ok = false;
 
             const tDays = trialDaysLeft(pd);
-            if (tDays > 0) await gasPost({ action: "admin_set_trial", adminPass: adminPassLocal, name: id, days: tDays });
+            if (tDays > 0) {
+              const r3 = await gasPost({ action: "admin_set_trial", adminPass: adminPassLocal, name: id, days: tDays });
+              if (!r3.success) ok = false;
+            }
 
             const pDays = proDaysLeft(pd);
-            if (pDays > 0) await gasPost({ action: "admin_set_pro", adminPass: adminPassLocal, name: id, days: pDays });
+            if (pDays > 0) {
+              const r4 = await gasPost({ action: "admin_set_pro", adminPass: adminPassLocal, name: id, days: pDays });
+              if (!r4.success) ok = false;
+            }
 
             const srcTags = adminAllTags[sourceName] || [];
-            if (srcTags.length > 0) await gasPost({ action: "admin_save_tags", adminPass: adminPassLocal, name: id, tags: srcTags });
+            if (srcTags.length > 0) {
+              const r5 = await gasPost({ action: "admin_save_tags", adminPass: adminPassLocal, name: id, tags: srcTags });
+              if (!r5.success) ok = false;
+            }
 
             await fetchAllUsers(adminPassLocal);
             await fetchAllTags(adminPassLocal);
-            showToast("saved");
-          } catch { showToast("error"); }
+            showToast(ok ? "saved" : "error");
+          } catch {
+            await fetchAllUsers(adminPassLocal).catch(() => {});
+            showToast("error");
+          }
         };
 
         const handleLogin = async (e) => {

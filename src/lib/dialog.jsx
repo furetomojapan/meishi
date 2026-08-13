@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
    消せないため、アプリ内モーダルに置き換える。
    appConfirm(msg) → Promise<boolean>
    appAlert(msg)   → Promise<true>
-   appPrompt(opts) → Promise<number|null>  （opts: { message, presets:[{label,value,danger}], inputLabel, unit, default }）
+   appPrompt(opts) → Promise<number|string|null>  （opts: { message, presets:[{label,value,danger}], inputLabel, unit, default, inputType:"number"|"text", sanitize:(raw:string)=>string }）
+     ※ inputType:"text" 指定時は文字列をそのまま返す（数値変換・floor処理なし）。sanitizeは"text"時のみ、入力のたびに呼ばれる
    <DialogHost /> をアプリルートに1つ置くこと（未マウント時は標準にフォールバック） */
 
 let _show = null;
