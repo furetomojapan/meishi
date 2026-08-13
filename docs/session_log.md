@@ -1860,3 +1860,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 修正：`flipcard.jsx`のヒントバッジ位置を`bottom-3 left-1/2 -translate-x-1/2`（下部中央）→`top-3 right-8`（右上、FREEプランの右端ウォーターマーク帯を避けるオフセット込み）に変更
 - 検証：`npx eslint src/components/flipcard.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
 - 未push
+
+### UI変更: 「文字を重ねる」を表面/裏面で個別ボタンに分離 2026-08-13
+- 依頼：独自背景画像の「文字を重ねる」トグルが表裏共通1個だったのを、表面用・裏面用の2個のボタンにしてほしい
+- 修正：
+  - `flipcard.jsx`: 共通`showOverlay`定数を`showOverlayFor(side)`関数に変更。`${side}ShowTextOverlay`（新・個別設定）があればそれを優先、未設定なら旧`showTextOverlay`（共通設定）にフォールバック（既存データとの後方互換）
+  - `App.jsx`: デザインタブの独自背景画像セクション上部にあった共通トグルを削除し、表面/裏面それぞれの画像アップロード行の下に「表面に文字を重ねる」「裏面に文字を重ねる」のトグルを個別追加。キーは`frontShowTextOverlay`/`backShowTextOverlay`
+  - `core.jsx`: 変更なし（旧`showTextOverlay:true`はフォールバック用にそのまま維持）
+- 検証：`npx eslint` 0エラー、`node tests/gas_mock_test.cjs` 102 pass（バックエンド無変更）
+- 未push

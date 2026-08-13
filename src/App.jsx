@@ -1676,19 +1676,16 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                             <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest">独自背景画像</p>
                                             {!canUpload && <p className="text-[8px] text-sky-500 mt-0.5">✦ +Gプランで利用できます</p>}
                                           </div>
-                                          <label className="flex items-center gap-2 cursor-pointer select-none">
-                                            <span className="text-[9px] text-neutral-500">文字を重ねる</span>
-                                            <button type="button"
-                                              onClick={() => setUserEditProfile(p => ({...p,showTextOverlay:!(p.showTextOverlay !== false)}))}
-                                              className={`relative w-9 h-5 rounded-full transition-colors ${userEditProfile.showTextOverlay !== false ? 'bg-black' : 'bg-neutral-300'}`}>
-                                              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${userEditProfile.showTextOverlay !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                                            </button>
-                                          </label>
                                         </div>
                                         {[{side:"front",label:"表面"},{side:"back",label:"裏面"}].map(({side,label}) => {
                                           const url = userEditProfile[`${side}ImageUrl`];
                                           const uploading = userEditProfile[`${side}Uploading`];
                                           const uploadErr = userEditProfile[`${side}UploadErr`];
+                                          // v5.20: 文字を重ねるは表面/裏面で個別設定。未設定時は旧・共通設定にフォールバック
+                                          const overlayKey = `${side}ShowTextOverlay`;
+                                          const overlayOn = userEditProfile[overlayKey] !== undefined
+                                            ? userEditProfile[overlayKey] !== false
+                                            : userEditProfile.showTextOverlay !== false;
                                           return (
                                             <div key={side} className="space-y-1">
                                               <div className="flex items-center gap-3">
@@ -1708,6 +1705,14 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                                 </div>
                                               </div>
                                               {uploadErr && <p className="text-[8px] text-red-400 pl-1">画像アップに失敗しました</p>}
+                                              <label className="flex items-center justify-end gap-2 pt-0.5 cursor-pointer select-none">
+                                                <span className="text-[9px] text-neutral-500">{label}に文字を重ねる</span>
+                                                <button type="button"
+                                                  onClick={() => setUserEditProfile(p => ({...p,[overlayKey]:!overlayOn}))}
+                                                  className={`relative w-9 h-5 rounded-full transition-colors ${overlayOn ? 'bg-black' : 'bg-neutral-300'}`}>
+                                                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${overlayOn ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                                </button>
+                                              </label>
                                             </div>
                                           );
                                         })}

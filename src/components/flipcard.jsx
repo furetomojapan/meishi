@@ -20,7 +20,13 @@ import { URLRow } from "./pickers";
 
         const [imgError, setImgError] = React.useState({front:false, back:false});
         const profile = personData.profile;
-        const showOverlay = profile?.showTextOverlay !== false;
+        // v5.20: 文字を重ねる表示は表面/裏面で個別設定可能に。
+        //   個別設定（frontShowTextOverlay/backShowTextOverlay）が未設定の場合は
+        //   旧・共通設定（showTextOverlay）にフォールバック（既存データとの後方互換）
+        const showOverlayFor = (side) => {
+          const key = `${side}ShowTextOverlay`;
+          return profile?.[key] !== undefined ? profile[key] !== false : profile?.showTextOverlay !== false;
+        };
 
         const onImgError = (e, side) => {
           const fb = ghFallback(e.target.dataset.src);
@@ -36,7 +42,7 @@ import { URLRow } from "./pickers";
           if ((pro || plusG) && uploadedUrl) return (
             <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-lg">
               <img src={uploadedUrl} className="absolute inset-0 w-full h-full object-cover" />
-              {showOverlay && (
+              {showOverlayFor(side) && (
                 <div className="absolute inset-0">
                   <FreeCardFace profile={profile} side={side} transparent />
                 </div>
