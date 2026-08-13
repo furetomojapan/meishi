@@ -296,6 +296,48 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           } catch {}
         };
 
+        // ── 管理者: 名刺コピー（内容・デザイン・プラン・タグ等を丸ごと複製） ──
+        const copyUser = async (sourceName) => {
+          const pd = getPersonData(urlsData, sourceName);
+          const newId = await appPrompt({
+            message: `「${pd.displayName || sourceName}」の内容をコピーして新しいユーザーを作成します。\n新しいID（半角英数字・アンダースコアのみ）を入力してください。`,
+            inputLabel: "新しいID",
+            inputType: "text",
+            sanitize: v => v.replace(/[^a-zA-Z0-9_]/g, ""),
+            default: "",
+          });
+          if (newId === null) return; // キャンセル
+          const id = String(newId).trim();
+          if (!id) return;
+          if (registeredNames.includes(id)) { await appAlert("このIDはすでに存在します"); return; }
+
+          showToast("saving", 20000);
+          try {
+            const r1 = await gasPost({ action: "admin_create_user", adminPass: adminPassLocal, name: id });
+            if (!r1.success) { showToast("error"); return; }
+
+            const r2 = await gasPost({
+              action: "admin_save_user", adminPass: adminPassLocal, name: id,
+              displayName: pd.displayName, licenseKey: "", links: pd.links,
+              plan: pd.plan, profile: pd.profile, plusG: pd.plusG,
+            });
+            if (!r2.success) { showToast("error"); return; }
+
+            const tDays = trialDaysLeft(pd);
+            if (tDays > 0) await gasPost({ action: "admin_set_trial", adminPass: adminPassLocal, name: id, days: tDays });
+
+            const pDays = proDaysLeft(pd);
+            if (pDays > 0) await gasPost({ action: "admin_set_pro", adminPass: adminPassLocal, name: id, days: pDays });
+
+            const srcTags = adminAllTags[sourceName] || [];
+            if (srcTags.length > 0) await gasPost({ action: "admin_save_tags", adminPass: adminPassLocal, name: id, tags: srcTags });
+
+            await fetchAllUsers(adminPassLocal);
+            await fetchAllTags(adminPassLocal);
+            showToast("saved");
+          } catch { showToast("error"); }
+        };
+
         const handleLogin = async (e) => {
           e.preventDefault();
           const clean = passwordInput.trim().replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -890,6 +932,12 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       }}
                                       className={`px-4 rounded-2xl border transition-all ${editingUrlsName === name ? 'bg-white text-black border-white' : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-white'}`}>
                                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                    {/* コピーボタン（内容・デザインを丸ごと複製して新規作成） */}
+                                    <button onClick={() => copyUser(name)}
+                                      className="px-4 rounded-2xl border border-neutral-800 text-neutral-500 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+                                      title="この名刺をコピーして新規作成">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                                     </button>
                                     {/* 削除ボタン */}
                                     <button
