@@ -1854,3 +1854,9 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 地図/発信リンク自体は残す方針で確定（ユーザー確認済み）
 - 検証：`npx eslint src/**/*.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
 - 未push
+
+### UI変更: 「タップして裏返す」ヒントを右上に移動 2026-08-13
+- 依頼：下部中央にあるヒント表示が住所と重なって見え、そこをタップするとMapが開く原因になっている。右上に移動してほしい
+- 修正：`flipcard.jsx`のヒントバッジ位置を`bottom-3 left-1/2 -translate-x-1/2`（下部中央）→`top-3 right-8`（右上、FREEプランの右端ウォーターマーク帯を避けるオフセット込み）に変更
+- 検証：`npx eslint src/components/flipcard.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
+- 未push
