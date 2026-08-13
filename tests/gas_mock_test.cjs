@@ -170,6 +170,9 @@ r = POST({ action: "self_register", email: "test@example.com" });
 t("自己登録成功", r.success === true && !!r.userId);
 t("24h重複拒否", POST({ action: "self_register", email: "test@example.com" }).code === "DUPLICATE");
 t("不正メール拒否", POST({ action: "self_register", email: "bad" }).success === false);
+// ★ 内部IDはメールアドレスから直接推測できないこと（常にランダム文字列を付加）
+const guessR = POST({ action: "self_register", email: "guessme@example.com" });
+t("自己登録: IDはメール直結でない(ランダム付加)", guessR.success && guessR.userId !== "guessme" && /^guessme_[a-z0-9]{6}$/.test(guessR.userId));
 
 // ── トライアル（v4.6: 新規登録7日間PRO+＋G・期限後は非表示でデータ保持）──
 const regId = r.userId;

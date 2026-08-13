@@ -1,5 +1,8 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.9
+ * デジタル名刺 - Google Apps Script バックエンド v4.10
+ *   - v4.10: 自己登録の内部IDに常にランダム6文字を付加 — メールアドレスから直接推測できる
+ *     ID（旧: tanaka.taro@... → tanakataro）だと、publicIdを知らない第三者でもメール
+ *     アドレスさえ分かればフル情報（電話・住所含む）にアクセスできてしまう問題を修正
  *   - v4.9: admin_delete_user で端末記憶（セッション）も削除 — 削除済みユーザーの残存セッションが
  *     「タグを保存」等の書き込み操作で「ユーザーが見つかりません」エラーを起こすバグを修正
  *   - v4.7: 独自背景画像を専用列（frontImage/backImage）に分離 — 画像ごとに5万文字を確保し高画質化
@@ -27,7 +30,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.9"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.10"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -886,15 +889,18 @@ function selfRegister(p) {
     }
   }
 
-  // ユーザーID生成（@より前、重複時は3文字追加）
+  // ユーザーID生成（@より前＋ランダム6文字を必ず付加）
+  // ★ メールアドレスから直接推測できるID（例: tanaka.taro@... → tanakataro）だと、
+  //   publicIdを知らない第三者でもメールアドレスさえ分かればフル情報（電話・住所含む）に
+  //   アクセスできてしまうため、常にランダム文字列を付加して推測不可能にする
   const t = getUsersTable();
   const existingIds = new Set(t.rows.slice(1).map(r => r[0]));
   let baseId = email.split("@")[0].replace(/[^a-z0-9_\-]/gi, "").toLowerCase().slice(0, 20);
   if (!baseId) baseId = "user";
-  let userId = baseId;
+  let userId = baseId + "_" + generateShortId(6);
   let attempts = 0;
   while (existingIds.has(userId) && attempts < 10) {
-    userId = baseId + generateShortId(3);
+    userId = baseId + "_" + generateShortId(6);
     attempts++;
   }
   if (existingIds.has(userId))
