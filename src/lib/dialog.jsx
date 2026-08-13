@@ -24,7 +24,8 @@ export const appPrompt = (opts) => new Promise((resolve) => {
   if (_show) _show({ ...opts, prompt: true, resolve });
   else {
     const v = window.prompt(opts.message, opts.default ?? "");
-    resolve(v === null ? null : (Number(v) || 0));
+    if (v === null) { resolve(null); return; }
+    resolve(opts.inputType === "text" ? v.trim() : (Number(v) || 0));
   }
 });
 
@@ -47,6 +48,7 @@ export function DialogHost() {
   if (!dlg) return null;
   const close = (val) => { dlg.resolve(val); setDlg(null); };
   const submitInput = () => {
+    if (dlg.inputType === "text") { close(input.trim()); return; }
     const n = Math.max(0, Math.floor(Number(input) || 0));
     close(n);
   };
@@ -73,8 +75,12 @@ export function DialogHost() {
             )}
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-neutral-500 whitespace-nowrap">{dlg.inputLabel || "任意の値"}</span>
-              <input type="number" inputMode="numeric" min={0} value={input} autoFocus
-                onChange={(e) => setInput(e.target.value)}
+              <input
+                type={dlg.inputType === "text" ? "text" : "number"}
+                inputMode={dlg.inputType === "text" ? "text" : "numeric"}
+                min={dlg.inputType === "text" ? undefined : 0}
+                value={input} autoFocus
+                onChange={(e) => setInput(dlg.inputType === "text" && dlg.sanitize ? dlg.sanitize(e.target.value) : e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") submitInput(); }}
                 className="flex-1 w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-black text-sm text-center font-mono" />
               {dlg.unit && <span className="text-[11px] text-neutral-500">{dlg.unit}</span>}
