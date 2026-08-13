@@ -170,6 +170,14 @@ r = POST({ action: "self_register", email: "test@example.com" });
 t("自己登録成功", r.success === true && !!r.userId);
 t("24h重複拒否", POST({ action: "self_register", email: "test@example.com" }).code === "DUPLICATE");
 t("不正メール拒否", POST({ action: "self_register", email: "bad" }).success === false);
+// ★ ユーザー削除後は、同じメールで24h待たずに再登録できること（registrationsシートも掃除されること）
+// ※ 後続テストが依存する r/regId を壊さないよう、専用のメールアドレスで完結させる
+t("削除後は同じメールで即再登録できる", (() => {
+  const first = POST({ action: "self_register", email: "deletecheck@example.com" });
+  if (!first.success) return false;
+  POST({ action: "admin_delete_user", adminPass: AP, name: first.userId });
+  return POST({ action: "self_register", email: "deletecheck@example.com" }).success === true;
+})());
 // ★ 内部IDはメールアドレスから直接推測できないこと（常にランダム文字列を付加）
 const guessR = POST({ action: "self_register", email: "guessme@example.com" });
 t("自己登録: IDはメール直結でない(ランダム付加)", guessR.success && guessR.userId !== "guessme" && /^guessme_[a-z0-9]{6}$/.test(guessR.userId));

@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.11
+ * デジタル名刺 - Google Apps Script バックエンド v4.12
+ *   - v4.12: ユーザー削除時にregistrationsシート（自己登録の24h重複防止記録）も掃除 —
+ *     削除したユーザーと同じメールアドレスで24時間再登録できなかった問題を修正
  *   - v4.11: 管理者パスワードにブルートフォース対策を追加 — PIN認証と同様、5回連続失敗で
  *     15分ロック。checkAdminPass()内に実装し、これを使う全経路（共通認証ゲート・
  *     verify_admin・save_admin_passの現パス確認）を自動的に保護する
@@ -33,7 +35,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.11"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.12"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -676,6 +678,7 @@ function deleteUser(name) {
   if (f) { f.t.sheet.deleteRow(f.idx); invalidateUsersCache(); }
   deleteSessionsFor(name); // ★ 削除済みユーザーの端末記憶（セッション）が残ると
                             //   「見つかりません」エラーの温床になるため、他のPIN無効化系と同様に必ず掃除する
+  deleteRegistrationsFor(name); // ★ 自己登録の24h重複防止記録も掃除し、同じメールで即再登録できるようにする
 }
 
 function userExists(name) { return !!name && !!findUserRow(name); }
@@ -792,6 +795,18 @@ function deleteSessionsFor(name) {
   const rows  = sheet.getDataRange().getValues();
   for (let i = rows.length - 1; i >= 1; i--) {
     if (rows[i][0] === name) sheet.deleteRow(i + 1);
+  }
+}
+
+// ユーザー削除時に registrations（自己登録の24h重複防止記録）も掃除する。
+// これをしないと、削除したユーザーと同じメールアドレスで24時間は再登録できないままになる
+function deleteRegistrationsFor(name) {
+  if (!name) return;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGISTRATIONS);
+  if (!sheet) return;
+  const rows = sheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][2] === name) sheet.deleteRow(i + 1); // 列2=userId
   }
 }
 
