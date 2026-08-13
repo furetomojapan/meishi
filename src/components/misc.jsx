@@ -103,6 +103,7 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
                 <div style={{position:"absolute",bottom:"12%",left:"9%",right:"9%",display:"flex",flexDirection:"column",gap:"6px"}}>
                   {profile?.phone && (
                     <a href={`tel:${profile.phone.replace(/[^\d+]/g,"")}`}
+                      onClick={e => e.stopPropagation()}
                       style={{...ts(profile?.phoneColor),fontSize:FONT_SIZES.phone[profile?.phoneFontSize||"M"],
                               fontFamily:FONT_OPTIONS[profile?.phoneFont??0]?.value||"inherit",
                               opacity:0.9,display:"flex",alignItems:"center",gap:"5px",textDecoration:"none"}}>
@@ -112,6 +113,7 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
                   {profile?.address && (
                     <a href={`https://maps.google.com/?q=${encodeURIComponent(profile.address)}`}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
                       style={{...ts(profile?.addressColor),fontSize:FONT_SIZES.address[profile?.addressFontSize||"M"],
                               fontFamily:FONT_OPTIONS[profile?.addressFont??0]?.value||"inherit",
                               opacity:0.8,display:"flex",alignItems:"flex-start",gap:"5px",lineHeight:1.4,textDecoration:"none"}}>
