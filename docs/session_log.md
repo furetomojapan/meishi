@@ -1810,3 +1810,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 修正：`src/lib/core.jsx`に`isEffectivePro`/`isEffectivePlusG`（trialDaysLeftを織り込んだ実効判定）を追加し、機能ゲーティングの全箇所を置き換え。**サーバーへ書き戻すplan/plusGフィールド自体（admin_save_user等のpayload）は生値のまま変更していない**（実効値を永続保存する事故を避けるため）
 - 検証：`node tests/gas_mock_test.cjs` 102 pass（バックエンド無変更）。フロントは`npx eslint src/**/*.jsx`で全ファイル0エラー（ローカルの`npm run build`は`@rollup/rollup-darwin-arm64`未インストールという既存の環境問題で失敗・今回の変更とは無関係、CIはLinux実行のため影響なし）
 - 未push
+
+### バグ修正: 管理画面で削除しても名刺が出てくる（端末キャッシュ残存） 2026-08-13
+- 報告：管理画面でユーザーを削除しても、その名刺URLにアクセスすると古い名刺が表示され続ける
+- 調査：`fetchUser()`（カード表示のたびにサーバーへ最新データを取りに行く関数）は、サーバーが「見つかりません」（削除済み）と返しても`if (!res || !res.user || !res.name) return;`で単に無視するだけで、端末側の`urlsData`(React state)・`localStorage['meisi_urls_data']`に残っている古いキャッシュを消していなかった。バックエンド側（`getUserPublic`/`doGet`）は削除後正しく`NOT_FOUND`を返しており、サーバー側の不具合ではない
+- 影響：一度でもその名刺を開いたことがある端末（本人・管理者・訪問者いずれも）では、削除後もキャッシュが残っている限り古いカードが表示され続ける。publicId/tagPublicId経由でアクセスした場合も、キャッシュ側の`publicId`一致で誤って古いエントリに解決されてしまうケースを含む
+- 修正：`fetchUser()`の「見つからない」応答（`code:"NOT_FOUND"`または`error`あり）時に、該当キー・または`publicId`が一致するキャッシュエントリを`urlsData`とlocalStorageから削除する処理を追加
+- 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass（バックエンド無変更）
+- 未push

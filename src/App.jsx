@@ -192,7 +192,25 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           fetch(`${GAS_URL}?action=get_user&id=${encodeURIComponent(id)}&t=${Date.now()}`)
             .then(r => r.ok ? r.json() : null)
             .then(res => {
-              if (!res || !res.user || !res.name) return;
+              if (!res || !res.user || !res.name) {
+                // ★ サーバーが「見つからない」（削除済み等）と明確に返した場合は、
+                //   端末に残っている古いキャッシュ（urlsData/localStorage）を掃除する。
+                //   これをしないと、削除後もこの端末では古いカードが表示され続けてしまう。
+                if (res && (res.code === "NOT_FOUND" || res.error)) {
+                  setUrlsData(prev => {
+                    const hit = Object.entries(prev).some(([k, v]) => k === id || v?.publicId === id);
+                    if (!hit) return prev;
+                    const next = {};
+                    for (const [k, v] of Object.entries(prev)) {
+                      if (k === id || v?.publicId === id) continue;
+                      next[k] = v;
+                    }
+                    try { localStorage.setItem('meisi_urls_data', JSON.stringify(next)); } catch {}
+                    return next;
+                  });
+                }
+                return;
+              }
               setUrlsData(prev => {
                 const cur = prev[res.name] || {};
                 const merged = { ...prev, [res.name]: {
