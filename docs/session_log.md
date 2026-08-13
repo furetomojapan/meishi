@@ -1802,3 +1802,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 修正：`deleteUser()`に`deleteSessionsFor(name)`を追加（1箇所・最小修正）。BACKEND_VERSIONを v4.7→v4.9 に更新（ヘッダーコメントの`v4.8`未反映分の整理はスコープ外・据え置き）
 - テスト：`node tests/gas_mock_test.cjs` 102 pass / 0 fail（新規2件追加、修正前は2件fail確認済み→修正後green）
 - 未push（要ユーザー承認：gas_backend.js変更はpush後にGitHub Actionsで自動デプロイされる。README.mdのGASバージョン表記もv4.9に更新済み）
+
+### バグ修正: お試し期間中なのに名刺編集画面でFREE扱い（PRO/＋G操作不可） 2026-08-13
+- 報告：管理画面では「お試し」中と表示されるが、名刺編集画面（オーナー本人の編集UI）ではFREE扱いでPRO/＋G機能が使えない
+- 調査：`isPro(pd)`は`pd.plan === "pro"`のみを見る関数。GET(`get_user`)経由のデータは`trialEnd`を実効plan="pro"に折り込み済みだが、`admin_get_all`は意図的に生plan（お試し中でも"free"）を返す設計（実効proを誤って永続保存しないため）。同一ブラウザで管理画面を使った後にオーナー編集画面（`urlsData`はstateとlocalStorageで共有）を開くと、生plan="free"のデータが残ったまま`isPro(pd)`単体で判定している箇所が軒並みFREE扱いになっていた
+- 該当箇所：自分のタグ上限/タグ仲間上限、リンク保存時の件数制限、表示名フォールバック、管理者の汎用Save、テーマ色プレビュー、カード画面のPRO判定、＋G背景画像アップロード可否 — 計10箇所前後。管理者編集モーダルの1箇所だけは`isPro(pd) || trialDaysLeft(pd) > 0`で既に正しく対応済みだった（v5.17）
+- 修正：`src/lib/core.jsx`に`isEffectivePro`/`isEffectivePlusG`（trialDaysLeftを織り込んだ実効判定）を追加し、機能ゲーティングの全箇所を置き換え。**サーバーへ書き戻すplan/plusGフィールド自体（admin_save_user等のpayload）は生値のまま変更していない**（実効値を永続保存する事故を避けるため）
+- 検証：`node tests/gas_mock_test.cjs` 102 pass（バックエンド無変更）。フロントは`npx eslint src/**/*.jsx`で全ファイル0エラー（ローカルの`npm run build`は`@rollup/rollup-darwin-arm64`未インストールという既存の環境問題で失敗・今回の変更とは無関係、CIはLinux実行のため影響なし）
+- 未push

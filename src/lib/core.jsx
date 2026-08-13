@@ -36,6 +36,13 @@
         const end = personData?.trialEnd || 0;
         return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
       };
+      // v5.20: 実効PRO/＋G判定（お試し中もPRO・＋G扱い）。
+      //   urlsDataはadmin_get_all由来だと生plan（お試し中でも"free"）のことがあるため、
+      //   機能ゲーティング（表示制限・保存前の件数制限など）は必ずこちらを使うこと。
+      //   ※ サーバーへ書き戻すplan/plusGの値そのものにはisPro/isPlusG(生データ)を使う
+      //     （実効値をそのまま永続保存すると、お試し終了後もPROのままになってしまうため）
+      export const isEffectivePro   = (personData) => isPro(personData)   || trialDaysLeft(personData) > 0;
+      export const isEffectivePlusG = (personData) => isPlusG(personData) || trialDaysLeft(personData) > 0;
       // v4.8: 有料PROの残り日数（proEnd）。期限制PROの表示に使用
       export const proDaysLeft = (personData) => {
         const end = personData?.proEnd || 0;

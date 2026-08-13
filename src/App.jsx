@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -377,7 +377,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         /* ── タグ保存（専用アクション — 他フィールドに影響しない） ── */
         const saveMyTags = async () => {
           const pd = getPersonData(urlsData, variablePart);
-          const limit = isPro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
+          const limit = isEffectivePro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT;
           const cleaned = [];
           const seen = new Set();
           for (const raw of userEditTags.slice(0, limit)) {
@@ -435,8 +435,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         /* ── カード画面: タグ仲間の一覧（並列取得・各タグランダム5名まで） ── */
         const loadCardTagMatches = async (token, tags) => {
           const pd = getPersonData(urlsData, variablePart);
-          const friendsLimit = isPro(pd) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE; // v5.15: プラン差別化
-          const active = (tags || []).slice(0, isPro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
+          const friendsLimit = isEffectivePro(pd) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE; // v5.15: プラン差別化
+          const active = (tags || []).slice(0, isEffectivePro(pd) ? PRO_TAG_LIMIT : FREE_TAG_LIMIT);
           const entries = await Promise.all(active.map(async (tag) => {
             try {
               const r = await gasPost({ action:"get_users_by_tag", name:variablePart, token, tag });
@@ -581,13 +581,13 @@ import { TagFields, ProfileTextFields } from "./components/forms";
 
         const saveUserLinks = async () => {
           const pd = getPersonData(urlsData, variablePart);
-          const pro = isPro(pd);
+          const pro = isEffectivePro(pd);
           const allLinks = userEditUrls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
           const links = pro
             ? allLinks
             : [...allLinks.slice(0, FREE_LINK_LIMIT), ...pd.links.slice(FREE_LINK_LIMIT)];
-          const effectiveDisplayName = userEditDisplayName || (!isPro(pd) && userEditProfile.name ? userEditProfile.name : "");
+          const effectiveDisplayName = userEditDisplayName || (!pro && userEditProfile.name ? userEditProfile.name : "");
           // ...pd で hasPinSet / publicId / plusG 等の既存フィールドを保持（上書き消失防止）
           const personObj = { ...pd, displayName: effectiveDisplayName, plan: pd.plan || "free", links, profile: userEditProfile, pin: pd.pin || "" };
           const newData = { ...urlsData, [variablePart]: personObj };
@@ -605,7 +605,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
 
         const saveUrls = async (name, displayName, urls, profile) => {
           const pd = getPersonData(urlsData, name);
-          const personIsPro = isPro(pd);
+          const personIsPro = isEffectivePro(pd);
           const allLinks = urls.map(e => ({url: e.url||"", label: e.label||""}))
             .map(normalizeEntry).filter(u => u.url);
           const existingLinks = pd.links;
@@ -630,7 +630,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         /* ── テーマカラー（カード画面全体）v5.16 — 編集中はリアルタイムプレビュー ── */
         const themePd = (!isAdminMode && variablePart) ? getPersonData(urlsData, variablePart) : null;
         const cardTheme = themePd
-          ? getCardTheme((showUserEdit ? userEditProfile : themePd.profile)?.themeColor, isPro(themePd))
+          ? getCardTheme((showUserEdit ? userEditProfile : themePd.profile)?.themeColor, isEffectivePro(themePd))
           : null;
 
         return (
@@ -888,7 +888,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   </div>
 
                                   {editingUrlsName === name && (() => {
-                                    const personIsPro = isPro(pd) || trialDaysLeft(pd) > 0; // v5.17: お試し中はPRO扱い
+                                    const personIsPro = isEffectivePro(pd); // v5.17: お試し中はPRO扱い
                                     const AP = ({label, children}) => (
                                       <div className="flex items-center justify-between gap-2 mt-1.5">
                                         <span className="text-[8px] text-neutral-500 w-9 flex-shrink-0">{label}</span>
@@ -1177,7 +1177,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                   <motion.div key="card" initial={{opacity:0}} animate={{opacity:1}}>
                     {(() => {
                       const pd = getPersonData(urlsData, variablePart);
-                      const pro = isPro(pd);
+                      const pro = isEffectivePro(pd);
                       // 編集中はuserEditProfileをリアルタイムでカードに反映
                       const previewPd = showUserEdit ? { ...pd, profile: userEditProfile } : pd;
                       // v4.8: 本人（オーナー）判定 — 認証済み or 端末記憶あり or 新規登録(new=1)。来訪者にはオーナー用UIを出さない
@@ -1401,7 +1401,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <p className="text-[10px] text-neutral-700 font-semibold uppercase tracking-widest">タグ仲間の名刺</p>
                               <button onClick={() => setShowCardTags(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 text-xs">✕</button>
                             </div>
-                            <p className="text-[10px] text-neutral-400">同じタグを設定している人の中から、開くたびにランダムで最大{isPro(getPersonData(urlsData, variablePart)) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE}名まで表示されます（毎回顔ぶれが変わります）{!isPro(getPersonData(urlsData, variablePart)) && <span className="text-amber-600">　✦ PROなら最大{TAG_FRIENDS_PRO}名表示</span>}</p>
+                            <p className="text-[10px] text-neutral-400">同じタグを設定している人の中から、開くたびにランダムで最大{isEffectivePro(getPersonData(urlsData, variablePart)) ? TAG_FRIENDS_PRO : TAG_FRIENDS_FREE}名まで表示されます（毎回顔ぶれが変わります）{!isEffectivePro(getPersonData(urlsData, variablePart)) && <span className="text-amber-600">　✦ PROなら最大{TAG_FRIENDS_PRO}名表示</span>}</p>
                             {Object.keys(cardTagMatches).length === 0 && (
                               <p className="text-[10px] text-neutral-400">タグが設定されていません。「名刺を編集」のタグタブから設定できます</p>
                             )}
@@ -1583,7 +1583,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   {!pro && <div className="text-[10px] bg-amber-50 text-amber-600 px-3 py-2 rounded-xl border border-amber-100">フォント・サイズ・位置はPROで利用可能</div>}
                                   {/* 独自背景画像（+G） */}
                                   {(() => {
-                                    const canUpload = isPlusG(getPersonData(urlsData, variablePart));
+                                    const canUpload = isEffectivePlusG(getPersonData(urlsData, variablePart));
                                     // v5.18: 高画質化 — 800px・WebP（非対応ならJPEG）・画質を自動段階調整。
                                     // 保存先（専用セル・上限5万文字）に収まる最高画質を選ぶ
                                     const compressImage = (file) => new Promise((resolve, reject) => {
