@@ -197,10 +197,12 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             .then(r => r.ok ? r.json() : null)
             .then(res => {
               if (!res || !res.user || !res.name) {
-                // ★ サーバーが「見つからない」（削除済み等）と明確に返した場合は、
+                // ★ サーバーが「見つからない」（削除済み等）と明確に返した場合のみ、
                 //   端末に残っている古いキャッシュ（urlsData/localStorage）を掃除する。
                 //   これをしないと、削除後もこの端末では古いカードが表示され続けてしまう。
-                if (res && (res.code === "NOT_FOUND" || res.error)) {
+                //   ※ code:"NOT_FOUND"限定（通信エラーや一時的なサーバー内部エラー(INTERNAL)まで
+                //     「見つからない」扱いにすると、正常なユーザーのキャッシュを誤って消してしまう）
+                if (res && res.code === "NOT_FOUND") {
                   setUrlsData(prev => {
                     const hit = Object.entries(prev).some(([k, v]) => k === id || v?.publicId === id);
                     if (!hit) return prev;
