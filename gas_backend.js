@@ -1,5 +1,8 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.10
+ * デジタル名刺 - Google Apps Script バックエンド v4.11
+ *   - v4.11: 管理者パスワードにブルートフォース対策を追加 — PIN認証と同様、5回連続失敗で
+ *     15分ロック。checkAdminPass()内に実装し、これを使う全経路（共通認証ゲート・
+ *     verify_admin・save_admin_passの現パス確認）を自動的に保護する
  *   - v4.10: 自己登録の内部IDに常にランダム6文字を付加 — メールアドレスから直接推測できる
  *     ID（旧: tanaka.taro@... → tanakataro）だと、publicIdを知らない第三者でもメール
  *     アドレスさえ分かればフル情報（電話・住所含む）にアクセスできてしまう問題を修正
@@ -30,7 +33,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.10"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.11"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -806,17 +809,46 @@ function sha256Hex(str) {
   return bytes.map(b => ((b + 256) % 256).toString(16).padStart(2, "0")).join("");
 }
 
+// ── 管理者パスワードのブルートフォース対策 ──
+// PIN認証の総当たり対策（isPinLocked等）と同じ仕組み。管理者は1名共通のため
+// ユーザー名での区別はせず、サイト全体で1つのロック状態を持つ
+const ADMIN_PASS_MAX_ATTEMPTS = 5;
+const ADMIN_PASS_LOCK_SECONDS = 15 * 60;
+function isAdminPassLocked() {
+  return !!CacheService.getScriptCache().get("adminpass_lock");
+}
+function recordAdminPassFailure() {
+  const cache = CacheService.getScriptCache();
+  const n = parseInt(cache.get("adminpass_fail") || "0", 10) + 1;
+  cache.put("adminpass_fail", String(n), ADMIN_PASS_LOCK_SECONDS);
+  if (n >= ADMIN_PASS_MAX_ATTEMPTS) {
+    cache.put("adminpass_lock", "1", ADMIN_PASS_LOCK_SECONDS);
+    cache.remove("adminpass_fail");
+  }
+}
+function clearAdminPassFailures() {
+  const cache = CacheService.getScriptCache();
+  cache.remove("adminpass_fail");
+  cache.remove("adminpass_lock");
+}
+
+// checkAdminPass()はこの機能を利用する全経路（doPostの共通ゲート・verify_admin・
+// save_admin_passの現パス確認）を自動的に保護する単一の関所
 function checkAdminPass(password) {
+  if (isAdminPassLocked()) return false;
   if (!password) return false;
   const stored = getConfig()["adminPass"];
   if (!stored) return false;
   const s = String(stored);
-  if (s.indexOf("sha256:") === 0) return sha256Hex(password) === s.slice(7);
-  if (String(password) === s) { // 旧平文 → 自動移行
+  let ok = false;
+  if (s.indexOf("sha256:") === 0) {
+    ok = sha256Hex(password) === s.slice(7);
+  } else if (String(password) === s) { // 旧平文 → 自動移行
     setConfig("adminPass", "sha256:" + sha256Hex(password));
-    return true;
+    ok = true;
   }
-  return false;
+  if (ok) clearAdminPassFailures(); else recordAdminPassFailure();
+  return ok;
 }
 
 // ── コンフィグ（リクエスト内キャッシュ付き）────────────────────────

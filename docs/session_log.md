@@ -1888,3 +1888,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - コピー対象外：PIN・publicId・tagPublicId・licenseKey
 - 検証：npx eslint 0エラー、コードレビューで複製ロジックの整合性を確認、最終レビューで成否反映・幽霊ユーザー可視化・推測されにくいID既定値を修正
 - 未push
+
+### セキュリティ改善: 管理者パスワードにブルートフォース対策を追加 2026-08-13
+- レビューで発見（名刺コピー機能の最終レビュー時にリストアップ済みの積み残し項目）：`verify_admin`にPIN認証のような総当たり対策が一切なく、管理者パスワード（全ユーザーデータ・削除等の破壊的操作を守る唯一の鍵）が無制限に試行可能だった
+- 修正：PINロック（`isPinLocked`/`recordPinFailure`/`clearPinFailures`）と同じCacheServiceベースの仕組みを`checkAdminPass()`内に実装（5回連続失敗で15分ロック）。管理者は1名共通のためユーザー名での区別はせず、サイト全体で1つのロック状態を持つ設計
+- `checkAdminPass()`を使う全経路（doPostの共通認証ゲート・`verify_admin`・`save_admin_pass`の現パス確認）が、単一の関所を通ることで自動的に保護される
+- TDD：`tests/gas_mock_test.cjs`に「5回連続失敗でロック」「ロック中は正しいパスワードでも管理者アクション拒否」を追加 → 修正前Red確認 → 修正後Green確認（105 pass）。※このテストはロックに有効期限があるがモックのCacheServiceがTTL未実装のため、ファイル最後に配置（以降のテストで管理者アクションが使えなくなるため）
+- BACKEND_VERSION v4.10→v4.11、README更新
+- 未push

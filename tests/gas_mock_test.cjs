@@ -287,5 +287,12 @@ t("削除後: 端末記憶も無効", POST({ action: "get_my_tags", name: "ghost
 t("削除後: タグ保存はセッション無効で拒否される（見つかりませんエラーではなく）",
   POST({ action: "save_tags", name: "ghost", token: ghostToken, tags: ["x"] }).code === "SESSION_INVALID");
 
+// ── 管理者パスワードのブルートフォース対策（★このブロックはファイル最後に置くこと。
+//    ロックには有効期限があるが、このモックのCacheServiceはTTLを実装していないため
+//    一度ロックすると以後の全テストで管理者アクションが使えなくなる）
+for (let i = 0; i < 5; i++) POST({ action: "verify_admin", password: "totally-wrong-pass" });
+t("5回連続失敗でロック", POST({ action: "verify_admin", password: AP }).success === false);
+t("ロック中は正しいパスワードでも管理者アクション拒否", POST({ action: "admin_get_all", adminPass: AP }).code === "AUTH_FAILED");
+
 console.log(`\n結果: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
