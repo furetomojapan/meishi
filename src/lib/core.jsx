@@ -1,11 +1,24 @@
 
 
-      export const APP_VERSION = "v5.25"; // 「対面用」プレビューを廃止（カード自体は誰が見ても同じ見た目のため）
+      export const APP_VERSION = "v5.26"; // ホーム画面追加ボタン＋人ごとの自動生成アイコンを追加
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
       // 書き込みは全てGAS経由（旧GitHub方式はv5.9で廃止、GAS_READY恒真分岐はフェーズ2で削除）
       export const getSiteBase = () => window.location.origin + window.location.pathname;
+
+      // v5.26: ホーム画面追加用アイコンを名前ごとに生成（同じ人は毎回同じ色・頭文字）。
+      //   独自背景画像がある場合はそちらを優先して使う（呼び出し側で判定）
+      export const generateIconDataUri = (label) => {
+        const s = String(label || "").trim();
+        const ch = s ? s.charAt(0).toUpperCase() : "N";
+        let hash = 0;
+        for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) | 0;
+        const hue = Math.abs(hash) % 360;
+        const bg = `hsl(${hue},45%,32%)`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><rect width="180" height="180" fill="${bg}"/><text x="90" y="122" font-size="92" font-family="Inter,sans-serif" font-weight="700" fill="#fff" text-anchor="middle">${ch}</text></svg>`;
+        return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+      };
 
       /* ── データ正規化 ── */
       export const normalizeProfile = (p) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
 
       export function QRButton({ url }) {
@@ -37,6 +37,49 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span className="text-[10px] font-semibold tracking-wide">{label}</span>
           </a>
+        );
+      }
+
+      /* ── ホーム画面に追加ボタン（v5.26・オーナー/来訪者どちらにも表示） ── */
+      export function AddToHomeBtn() {
+        const [installPrompt, setInstallPrompt] = useState(null);
+        const [showHelp, setShowHelp] = useState(false);
+        useEffect(() => {
+          const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
+          window.addEventListener('beforeinstallprompt', handler);
+          return () => window.removeEventListener('beforeinstallprompt', handler);
+        }, []);
+        const handleClick = async () => {
+          if (installPrompt) {
+            installPrompt.prompt();
+            try { await installPrompt.userChoice; } catch {}
+            setInstallPrompt(null);
+          } else {
+            setShowHelp(true); // Android以外（主にiOS Safari）はJSから直接追加できないため手順を案内
+          }
+        };
+        return (
+          <>
+            <button onClick={handleClick}
+              className="flex items-center gap-1.5 mx-auto text-[10px] text-neutral-500 hover:text-black border border-neutral-200 hover:border-black rounded-full px-4 py-2 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              ホーム画面に追加
+            </button>
+            {showHelp && (
+              <>
+                <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowHelp(false)} />
+                <div className="fixed z-50 bg-white rounded-3xl shadow-2xl p-6 border border-neutral-100"
+                  style={{left:'50%', top:'50%', transform:'translate(-50%,-50%)', width:'260px'}}>
+                  <button onClick={() => setShowHelp(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base font-bold">✕</button>
+                  <p className="text-xs font-bold text-center mb-3">ホーム画面に追加</p>
+                  <p className="text-[11px] text-neutral-600 leading-relaxed">
+                    ①画面下部（または上部）の<b>共有ボタン</b>（四角に↑のアイコン）をタップ<br/><br/>
+                    ②「<b>ホーム画面に追加</b>」を選択
+                  </p>
+                </div>
+              </>
+            )}
+          </>
         );
       }
 

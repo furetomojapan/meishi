@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -186,6 +186,18 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           setMeta('meta[property="og:image"]', 'content', imgUrl);
           setMeta('meta[property="og:url"]', 'content', pageUrl);
           setMeta('meta[name="twitter:image"]', 'content', imgUrl);
+          // v5.26: ホーム画面追加時のアイコンを人ごとに変える（独自背景画像があればそれを、
+          //   なければ名前の頭文字＋名前から決まる色の自動生成アイコンを使う）。同じ人を
+          //   複数保存しても見分けがつくように。apple-touch-iconのみ更新（iOS向け）—
+          //   通常のiconも変えるとブラウザタブのファビコンまで変わってしまうため対象外。
+          //   ※ AndroidのPWAマニフェストはアイコンが固定のため、個別化は主にiOS向けの対応
+          const customImg = data?.profile?.frontImageUrl;
+          const iconUrl = (customImg && /^(https:\/\/|data:image\/)/.test(customImg))
+            ? customImg
+            : generateIconDataUri(displayName || name);
+          let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+          if (!touchIcon) { touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; document.head.appendChild(touchIcon); }
+          touchIcon.setAttribute('href', iconUrl);
         };
 
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）

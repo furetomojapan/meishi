@@ -1971,3 +1971,18 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.24→v5.25、README更新
 - 未push
+
+### 新機能: 「ホーム画面に追加」ボタン＋人ごとの自動生成アイコン 2026-08-14
+- 依頼：オーナー本人・受け取った相手のどちらも、名刺をホーム画面に残せるようにしてほしい。NEXUAロゴ単体だと複数人保存した時に見分けがつかないため、名前から個別アイコンを生成してほしい
+- 実装：
+  - `public/manifest.json`を新設（name/short_name/icons/display:standalone等）。`index.html`・`welcome.html`に`<link rel="manifest">`・`<link rel="apple-touch-icon">`を追加
+  - `core.jsx`に`generateIconDataUri(label)`を追加：名前の頭文字＋名前のハッシュから決まる色のSVGを生成しdata URIで返す（同じ人は毎回同じ見た目）
+  - `App.jsx`の`updateOGP()`で、カード表示のたびに`apple-touch-icon`のhrefを動的更新。独自背景画像（＋G）があればそちらを、なければ生成アイコンを使用。ブラウザタブのファビコン（`icon`）は変えない（タブ表示が人によってコロコロ変わる副作用を避けるため、apple-touch-iconのみ更新）
+  - `misc.jsx`に`AddToHomeBtn`を新規追加：Android/Chromeは`beforeinstallprompt`イベントで直接追加ダイアログを表示、それ以外（主にiOS Safari）はJSから直接追加できないため簡易な手順案内ポップアップを表示
+  - `flipcard.jsx`のアクションボタン列の下に`AddToHomeBtn`を追加。QR/シェアと異なりオーナー限定にせず、オーナー・訪問者どちらの画面でも表示
+- 技術的な注意点（ユーザーに事前共有済み）：
+  - iOSのホーム画面追加時のアイコン取得は、JS更新後の値を確実に拾うかどうか実機未検証（Safariの挙動に依存）
+  - Androidは通常、Web App Manifestのアイコン（固定・NEXUAロゴ）が優先されるため、人ごとの個別化は主にiOS向けの対応になる
+- 検証：`npx eslint` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.25→v5.26、README更新
+- 未push

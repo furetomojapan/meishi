@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import React from "react";
 import { GH_REPO, getSiteBase, FREE_LINK_LIMIT, STORES_URL } from "../lib/core";
-import { QRButton, ShareBtn, PreviewBtn, FreeCardFace } from "./misc";
+import { QRButton, ShareBtn, PreviewBtn, AddToHomeBtn, FreeCardFace } from "./misc";
 import { URLRow } from "./pickers";
 
       export function FlipCard({ variablePart, personData, pro, owner = false }) {
@@ -134,6 +134,11 @@ import { URLRow } from "./pickers";
               <ShareBtn url={siteUrl} title={`${personData.displayName || variablePart} のデジタル名刺`} />
             </div>
             )}
+
+            {/* v5.26: ホーム画面に追加（本人・来訪者どちらにも表示） */}
+            <div className="mt-4 flex justify-center">
+              <AddToHomeBtn />
+            </div>
 
             {/* URLリンク（無料プランは1件のみ表示） */}
             {personData.links.length > 0 && (
