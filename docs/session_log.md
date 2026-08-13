@@ -1825,3 +1825,8 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 新規登録・管理者追加直後の一時的な未同期状態を誤って「見つかりません」表示しないよう、fetchUser呼び出しのたびにリセットする設計にした
 - 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
 - 未push
+
+### 改善: 「見つかりません」画面に名刺作成CTAを追加 2026-08-13
+- 「この名刺は見つかりません」画面に、既存の`MakeOwnCTA`（welcome.html/card.htmlへの導線）を追加
+- 検証：`npx eslint src/App.jsx` 0エラー
+- 未push
