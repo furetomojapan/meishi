@@ -1986,3 +1986,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.25→v5.26、README更新
 - 未push
+
+### バグ修正: ホーム画面追加でiOSが常にトップに飛ぶ問題を修正 2026-08-14
+- 報告：iPhoneでホーム画面に追加すると、常に「NEXUA」（トップ）のリンクになり、見ていた人の名刺リンクにならない
+- 原因：iOSは「ホーム画面に追加」時、ページのURLより`manifest.json`の`start_url`（固定値`"."`）を優先することがある。固定のmanifest.jsonのままだと、誰のカードを開いていても常にトップに飛んでしまっていた
+- 修正：`App.jsx`の`updateOGP()`で、`start_url`をその人のカードURLにしたmanifestオブジェクトをその場で生成し、Blob URL化して`<link rel="manifest">`のhrefを動的に差し替えるように変更。名前・アイコンも合わせて人ごとの内容にした（前回追加のBlob URLは都度`URL.revokeObjectURL`で解放）
+- 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.26→v5.27、README更新
+- 未push
