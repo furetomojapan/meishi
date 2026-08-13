@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.22"; // getPersonData()がtagPublicIdを返さず捨てていたバグを修正
+      export const APP_VERSION = "v5.23"; // 来訪者CTAをNEXUAコピーのバナー1つに統一・タグ仲間ビューには非表示
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

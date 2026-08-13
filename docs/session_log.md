@@ -1948,3 +1948,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.21→v5.22、README更新
 - 未push
+
+### UI変更: 来訪者CTAをNEXUAコピーの1枚バナーに統一・タグ仲間ビューには非表示 2026-08-14
+- 依頼：タグ仲間ビューには作成CTA（説明文・「私も作りたい」ボタン）は不要。対面用（フル表示）には指定のコピー文言「あなたも、NEXUA（ネクア）で名刺を。人と情報を、あなたのためにつなぐ。メールだけ・1分で無料登録。」を使い、既存の「私も作りたい」ボタンは重複するため削除
+- 修正：`src/App.jsx`の来訪者フッターCTAを、`MakeOwnCTA`（2ボタン）から、指定コピーをそのまま表示する1枚のバナー（`welcome.html`へのリンク）に置き換え。表示条件を`!ownerView`のみ→`!pd._tagView && !ownerView`に変更し、タグ仲間ビューでは非表示に
+- `MakeOwnCTA`コンポーネント自体は編集画面・購入モーダルの「知り合いにもすすめる」枠で引き続き使用（変更なし）
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.22→v5.23、README更新
+- 未push
