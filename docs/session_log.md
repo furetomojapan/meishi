@@ -1994,3 +1994,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.26→v5.27、README更新
 - 未push
+
+### 撤回: manifestベースの自動リンク修正を撤去、iPhoneは案内のみに 2026-08-14
+- 報告：manifestのstart_url動的生成（前回修正）を試してもiPhoneで変化なし。「iPhoneではやりかたの説明だけでいい」との判断
+- 対応：`index.html`・`welcome.html`から`<link rel="manifest">`を削除、`public/manifest.json`を削除、`App.jsx`の`updateOGP()`からmanifest動的生成コード（Blob URL差し替え）を削除。manifestの存在自体がiOSの「常にトップに飛ぶ」原因になった可能性が高いため、撤去して元の（manifestなしの）状態に戻した
+- 維持：`apple-touch-icon`の人ごと動的更新（アイコン個別化）、`AddToHomeBtn`（Android/Chromeは`beforeinstallprompt`で直接ダイアログ、iOSは元々の「共有ボタン→ホーム画面に追加」という案内ポップアップのみ）
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.27→v5.28、README更新
+- 未push

@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.27"; // manifestのstart_urlを人ごとに動的生成（iOSがトップに飛ぶ問題を修正）
+      export const APP_VERSION = "v5.28"; // manifestを撤去（iOSで解決せず）。iPhoneは案内のみのシンプルな形に
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

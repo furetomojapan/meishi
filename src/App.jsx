@@ -198,24 +198,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
           if (!touchIcon) { touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; document.head.appendChild(touchIcon); }
           touchIcon.setAttribute('href', iconUrl);
-          // v5.27: iOSは「ホーム画面に追加」時、ページのURLよりmanifestのstart_urlを優先することがあり、
-          //   固定のmanifest.jsonのままだと誰のカードを開いていても常に同じ場所（トップ）に飛んでしまう。
-          //   そのためstart_urlをこの人のURLにしたmanifestをその場で生成し、Blob URLとして差し替える
-          const manifestObj = {
-            name: `${displayName} - デジタル名刺`,
-            short_name: displayName.slice(0, 12) || "NEXUA",
-            start_url: pageUrl,
-            display: "standalone",
-            background_color: "#f5f5f5",
-            theme_color: "#1a1a1a",
-            icons: [{ src: iconUrl, sizes: "180x180", type: iconUrl.startsWith("data:image/svg+xml") ? "image/svg+xml" : "image/png" }]
-          };
-          const manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifestObj)], { type: "application/manifest+json" }));
-          let manifestLink = document.querySelector('link[rel="manifest"]');
-          if (!manifestLink) { manifestLink = document.createElement('link'); manifestLink.rel = 'manifest'; document.head.appendChild(manifestLink); }
-          const oldManifestHref = manifestLink.getAttribute('href');
-          if (oldManifestHref && oldManifestHref.startsWith('blob:')) URL.revokeObjectURL(oldManifestHref); // 前回分のBlobを解放
-          manifestLink.setAttribute('href', manifestBlobUrl);
         };
 
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）
