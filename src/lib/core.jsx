@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.20"; // ?preview=1でオーナー本人も訪問者と同じ見た目を強制表示できるように
+      export const APP_VERSION = "v5.21"; // ログイン後にtagPublicId等を再取得／来訪者画面に「私も作りたい」CTAを追加
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

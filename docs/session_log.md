@@ -1928,3 +1928,14 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - TDD：`tests/gas_mock_test.cjs`に「古いアカウントでtagPublicId未発行のままでも、ログイン時に自動発行される」テストを追加、Green確認（110 pass）。プレビューモードはこのプロジェクトにフロントエンド自動テスト基盤がないため、ESLintと手動確認で検証
 - BACKEND_VERSION v4.13→v4.14、APP_VERSION v5.19→v5.20、README更新
 - 未push
+
+### バグ修正・機能追加: ログイン後のtagPublicId未反映／訪問者画面に作成CTAを追加 2026-08-14
+- 報告：ログアウト→再ログインしても「タグ仲間用」ボタンが出ない。またプレビューで訪問者画面を見たら「私も名刺を作りたい」ボタンがなかった
+- 調査①：バックエンドの`ensureTagPublicId`自動発行（v4.14）自体は正しく動くが、フロントの`handlePinVerify`/`submitInitialPin`がPIN認証成功後に`get_my_tags`しか呼んでおらず、`get_user`（プロフィール全体の再取得）を呼んでいなかったため、`urlsData`の`tagPublicId`がログイン前（未発行時点）の値のまま更新されていなかった
+- 調査②：`MakeOwnCTA`はもともと「編集画面」「購入モーダル」等オーナー専用UI内でしか使われておらず、来訪者（オーナーでない閲覧者）向けの画面には元々一切表示されない設計だった。今回のプレビュー機能がその実態を正しく映していただけで、プレビュー自体のバグではなかった
+- 修正：
+  - `src/App.jsx`: `handlePinVerify`・`submitInitialPin`のPIN認証成功時に`fetchUser(variablePart)`を追加し、ログイン直後に最新のプロフィール（tagPublicId含む）を再取得するように修正
+  - `src/App.jsx`: 来訪者フッターに「私も作りたい」CTA（`MakeOwnCTA`）を新設。条件は`!ownerView`（タグ仲間ビューも含む＝オーナー以外の閲覧者全員に表示）。既存の「オーナーログイン」再入口リンクとは別ブロックとして追加（オーナーログインは引き続き`!pd._tagView`限定のまま維持）
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.20→v5.21、README.mdのフロントバージョン表記も長らく古いまま（v5.13表記）だったのを実際の値に合わせて修正
+- 未push

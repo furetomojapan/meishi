@@ -598,6 +598,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
               localStorage.setItem(tokenKey(variablePart), r.token); // 端末に30日記憶
               setPinAuthToken(r.token);
               setShowPinModal(false); setPinInput(""); setPinError("");
+              fetchUser(variablePart); // ★ ログインで自動発行/更新された可能性のある値（tagPublicId等）を反映
               if (pinModalPurpose === "tags") {
                 // タグ仲間表示が目的 → 編集パネルは開かずに一覧表示
                 const tr = await gasPost({ action:"get_my_tags", name:variablePart, token:r.token });
@@ -632,6 +633,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 localStorage.setItem('meisi_urls_data', JSON.stringify(updated));
                 return updated;
               });
+              fetchUser(variablePart); // ★ ログインで自動発行/更新された可能性のある値（tagPublicId等）を反映
               openUserEditDirect();
             } else if (r.error && r.error.includes("既に設定")) {
               // PINがGASに既に保存済み → 認証モーダルへ切り替え
@@ -1540,9 +1542,17 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                         </div>
                         )}
 
+                        {/* v4.14: 来訪者（タグ仲間ビュー含む）に「私も作りたい」CTA */}
+                        {!ownerView && (
+                          <div className="mt-10 text-center">
+                            <p className="text-[9px] text-neutral-400 mb-2">あなたもデジタル名刺を作りませんか？</p>
+                            <MakeOwnCTA />
+                          </div>
+                        )}
+
                         {/* v4.8: フッターのオーナー再入口（来訪者ビューのみ・端末記憶が切れたとき用） */}
                         {!pd._tagView && !ownerView && (
-                          <div className="mt-10 mb-2 text-center">
+                          <div className="mt-4 mb-2 text-center">
                             <button onClick={openUserEdit} disabled={editOpening}
                               className="text-[9px] text-neutral-300 hover:text-neutral-500 underline underline-offset-2 transition-colors">
                               {editOpening ? "読み込み中…" : "オーナーログイン"}
