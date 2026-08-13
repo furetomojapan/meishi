@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.21"; // ログイン後にtagPublicId等を再取得／来訪者画面に「私も作りたい」CTAを追加
+      export const APP_VERSION = "v5.22"; // getPersonData()がtagPublicIdを返さず捨てていたバグを修正
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -24,7 +24,7 @@
       export const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, proEnd: raw.proEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, proEnd: raw.proEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", tagPublicId: raw.tagPublicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
       /* ── プラン判定 ── */

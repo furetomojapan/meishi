@@ -1939,3 +1939,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.20→v5.21、README.mdのフロントバージョン表記も長らく古いまま（v5.13表記）だったのを実際の値に合わせて修正
 - 未push
+
+### バグ修正: getPersonData()がtagPublicIdを捨てていた（真因） 2026-08-14
+- 報告：バックエンド自動発行・ログイン後の再取得を修正してもなお「タグ仲間用」ボタンが出ない
+- 調査：`src/lib/core.jsx`の`getPersonData()`は、`urlsData[name]`（生データ）から返すフィールドを明示的に列挙するホワイトリスト方式になっており、`tagPublicId`がそのリストに含まれていなかった。バックエンド・ログイン再取得はどちらも正しく動作していたが、`FlipCard`が実際に受け取る`personData`はこの`getPersonData()`を経由するため、ここで値が握りつぶされていた
+- 修正：`getPersonData()`の返り値に`tagPublicId: raw.tagPublicId || ""`を追加
+- 影響確認：`copyUser`（名刺コピー機能）は`admin_save_user`へのペイロードを明示的なフィールド列挙で組んでおり`pd`をスプレッドしていないため、この修正でtagPublicIdが誤ってコピー先に伝播することはない（意図通り新規採番のまま）
+- 検証：`npx eslint src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.21→v5.22、README更新
+- 未push
