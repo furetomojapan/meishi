@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
@@ -82,6 +82,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [adminSearch, setAdminSearch] = useState("");
         const [newUserInput, setNewUserInput] = useState("");
         const [variablePart, setVariablePart] = useState(null);
+        const [cardNotFound, setCardNotFound] = useState(false); // ★ サーバーが明確に「見つからない」（削除済み等）と返した時のみtrue
+        const latestFetchIdRef = useRef(null); // ★ fetchUserの多重呼び出しで古い応答が新しい結果を上書きしないためのガード
         const [isAdminMode, setIsAdminMode] = useState(false);
         const [passwordInput, setPasswordInput] = useState("");
         const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -189,6 +191,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         //   id は内部名 / publicId のどちらでもGAS側で解決される
         const fetchUser = (id) => {
           if (!id) return;
+          latestFetchIdRef.current = id; // ★ 後発の呼び出しに対して古い応答が結果を上書きしないためのガード
+          setCardNotFound(false); // 新しい取得を開始 → 前回の「見つかりません」表示はリセット
           fetch(`${GAS_URL}?action=get_user&id=${encodeURIComponent(id)}&t=${Date.now()}`)
             .then(r => r.ok ? r.json() : null)
             .then(res => {
@@ -208,6 +212,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                     try { localStorage.setItem('meisi_urls_data', JSON.stringify(next)); } catch {}
                     return next;
                   });
+                  if (latestFetchIdRef.current === id) setCardNotFound(true);
                 }
                 return;
               }
@@ -660,7 +665,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                 <div>
                   <h1><img src={`${getSiteBase()}01_NEXUA_dark.png`} alt="NEXUA（ネクア）" className="h-5 w-auto" /></h1>
                   <p className="text-[10px] font-mono text-neutral-400 mt-0.5 uppercase tracking-widest">
-                    {variablePart ? `Viewing: ${variablePart}` : "Management System"}
+                    {variablePart ? (cardNotFound && !urlsData[variablePart] ? `Not Found: ${variablePart}` : `Viewing: ${variablePart}`) : "Management System"}
                   </p>
                 </div>
                 {/* v4.8: カード画面では非表示（編集画面・購入モーダルに移設）。管理画面のみ表示 */}
@@ -1189,6 +1194,16 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                       className="px-8 py-3 bg-neutral-100 text-neutral-500 rounded-full text-xs hover:bg-black hover:text-white transition-all active:scale-95">
                       管理者として選択する
                     </button>
+                  </motion.div>
+
+                ) : (cardNotFound && !urlsData[variablePart]) ? (
+                  <motion.div key="notfound" initial={{opacity:0}} animate={{opacity:1}}
+                    className="flex flex-col items-center justify-center py-32 text-center">
+                    <div className="p-10 mb-8 bg-neutral-100/30 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" strokeWidth="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </div>
+                    <h2 className="text-sm text-neutral-400 tracking-[0.1em] mb-2">この名刺は見つかりません</h2>
+                    <p className="text-xs text-neutral-300">削除されたか、URLが間違っている可能性があります</p>
                   </motion.div>
 
                 ) : (

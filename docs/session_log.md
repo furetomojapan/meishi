@@ -1818,3 +1818,10 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 修正：`fetchUser()`の「見つからない」応答（`code:"NOT_FOUND"`または`error`あり）時に、該当キー・または`publicId`が一致するキャッシュエントリを`urlsData`とlocalStorageから削除する処理を追加
 - 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass（バックエンド無変更）
 - 未push
+
+### 改善: 削除済み名刺で「見つかりません」を明示表示 2026-08-13
+- 前回修正（端末キャッシュ掃除）で個人情報の残存は解消したが、削除済みIDを開くと空のカード画面＋ヘッダーに生のID（「Viewing: xxx」）が出るだけで「削除された」と分かりにくいとの指摘
+- 対応：`cardNotFound`state（+ `latestFetchIdRef`で多重fetchのレース対策）を追加。`fetchUser`がサーバーから明確な「見つからない」応答を受けた時のみtrueにし、カード画面に「この名刺は見つかりません」の専用表示を追加。ヘッダーラベルも`Viewing:`→`Not Found:`に変化
+- 新規登録・管理者追加直後の一時的な未同期状態を誤って「見つかりません」表示しないよう、fetchUser呼び出しのたびにリセットする設計にした
+- 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
+- 未push
