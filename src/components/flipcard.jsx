@@ -10,10 +10,11 @@ import { URLRow } from "./pickers";
         const [showHint, setShowHint] = useState(true);
         const siteUrl = `${getSiteBase()}#${personData?.publicId || variablePart}`; // publicIdでID秘匿
         const tagUrl = personData?.tagPublicId ? `${getSiteBase()}#${personData.tagPublicId}` : ""; // タグ仲間向け限定URL
-        // v4.14: プレビュー用URL — ?preview=1 を付け、同じ端末で開いても訪問者と同じ見た目を強制する
-        //   （QR/シェアで配る本来のURLはsiteUrl/tagUrlのまま。previewパラメータを付けない）
-        const siteUrlPreview = `${getSiteBase()}?preview=1#${personData?.publicId || variablePart}`;
-        const tagUrlPreview  = personData?.tagPublicId ? `${getSiteBase()}?preview=1#${personData.tagPublicId}` : "";
+        // v4.16: プレビュー用URL（タグ仲間用のみ — 表面のカード自体は誰が見ても同じ見た目のため、
+        //   実際に表示内容が変わる「タグ仲間向け限定表示」だけプレビューする意味がある）
+        //   ?preview=1 を付け、同じ端末で開いても訪問者と同じ見た目を強制する
+        //   （QR/シェアで配る本来のURLはtagUrlのまま。previewパラメータを付けない）
+        const tagUrlPreview = personData?.tagPublicId ? `${getSiteBase()}?preview=1#${personData.tagPublicId}` : "";
         const frontSrc = `image1_${variablePart}.png`;
         const backSrc  = `image2_${variablePart}.png`;
         const ghFallback = src => `${getSiteBase()}${src}`; // フェーズ4: 画像はpublic/配下からPagesで配信
@@ -128,7 +129,6 @@ import { URLRow } from "./pickers";
             {/* アクションボタン（v4.8: QR/シェアは本人のみ。v4.13: 相手側プレビュー2種を追加） */}
             {owner && (
             <div className="mt-4 flex items-center justify-center gap-4">
-              <PreviewBtn url={siteUrlPreview} label="対面用" />
               <PreviewBtn url={tagUrlPreview} label="タグ仲間用" />
               <QRButton url={siteUrl} />
               <ShareBtn url={siteUrl} title={`${personData.displayName || variablePart} のデジタル名刺`} />

@@ -1551,8 +1551,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </a>
                         )}
 
-                        {/* v4.8: フッターのオーナー再入口（来訪者ビューのみ・端末記憶が切れたとき用） */}
-                        {!pd._tagView && !ownerView && (
+                        {/* v4.8: フッターのオーナー再入口（来訪者ビューのみ・端末記憶が切れたとき用）
+                            v4.15: プレビュー画面（?preview=1）では出さない（本人が今まさに編集画面から
+                            プレビューを開いている最中なので、再入口を出す必要がない） */}
+                        {!pd._tagView && !ownerView && !previewMode && (
                           <div className="mt-4 mb-2 text-center">
                             <button onClick={openUserEdit} disabled={editOpening}
                               className="text-[9px] text-neutral-300 hover:text-neutral-500 underline underline-offset-2 transition-colors">

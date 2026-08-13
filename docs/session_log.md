@@ -1956,3 +1956,18 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.22→v5.23、README更新
 - 未push
+
+### UI変更: プレビュー画面ではオーナーログイン再入口を非表示に 2026-08-14
+- 依頼：対面用プレビュー画面はCTAバナーのみにし、「オーナーログイン」リンクは消してほしい
+- 確認：本物の訪問者向け画面（`?preview=1`なし）で消すと、端末記憶が切れた時にオーナーが戻る手段がなくなるため確認したところ、依頼はプレビュー画面（`?preview=1`）限定の話と判明
+- 修正：「オーナーログイン」リンクの表示条件に`!previewMode`を追加。プレビュー画面でのみ非表示、本物の訪問者向け画面では従来通り表示を維持
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.23→v5.24、README更新
+- 未push
+
+### UI変更: 「対面用」プレビューを廃止 2026-08-14
+- 依頼：カード自体（表面/裏面）は誰が見ても同じ見た目のため、「対面用」プレビューは意味がない。削除してよい。「タグ仲間用」（実際に電話・住所表示が変わる）は残す
+- 修正：`flipcard.jsx`から`<PreviewBtn label="対面用">`とその専用URL（`siteUrlPreview`）を削除。「タグ仲間用」プレビューボタンとその仕組み（`?preview=1`・`previewMode`）はそのまま維持
+- 検証：`npx eslint` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.24→v5.25、README更新
+- 未push
