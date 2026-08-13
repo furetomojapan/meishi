@@ -296,6 +296,16 @@ t("削除後: 端末記憶も無効", POST({ action: "get_my_tags", name: "ghost
 t("削除後: タグ保存はセッション無効で拒否される（見つかりませんエラーではなく）",
   POST({ action: "save_tags", name: "ghost", token: ghostToken, tags: ["x"] }).code === "SESSION_INVALID");
 
+// ── 古いアカウントでtagPublicId未発行のままでも、ログイン時に自動発行される ──
+POST({ action: "admin_create_user", adminPass: AP, name: "oldacct" });
+POST({ action: "set_initial_pin", name: "oldacct", pin: "444444" });
+const oldRow = () => sheets.users.rows.find(x => x[0] === "oldacct");
+const tagCol = sheets.users.rows[0].indexOf("tagPublicId");
+oldRow()[tagCol] = ""; // 古いアカウント＝未発行状態を再現
+t("未発行状態を再現できた", !oldRow()[tagCol]);
+t("ログイン成功", POST({ action: "verify_pin", name: "oldacct", pin: "444444" }).success === true);
+t("ログイン時にtagPublicIdが自動発行される", /^zt\d{9}$/.test(String(oldRow()[tagCol])));
+
 // ── 管理者パスワードのブルートフォース対策（★このブロックはファイル最後に置くこと。
 //    ロックには有効期限があるが、このモックのCacheServiceはTTLを実装していないため
 //    一度ロックすると以後の全テストで管理者アクションが使えなくなる）

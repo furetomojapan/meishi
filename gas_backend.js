@@ -1,5 +1,8 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.13
+ * デジタル名刺 - Google Apps Script バックエンド v4.14
+ *   - v4.14: verify_pin/set_initial_pinでensureTagPublicId()を呼び、古いアカウントで
+ *     タグ仲間用IDが未発行のままログイン時に自動発行されるように修正（v4.13で追加した
+ *     タグ仲間用プレビューボタンが、古いアカウントでは出ないバグへの対策）
  *   - v4.13: rowToPublicUser()のフル表示に自分のtagPublicIdを追加 — 本人が「対面用URL」
  *     「タグ仲間用URL」を相手目線でプレビューできるボタンを名刺画面に追加するため
  *   - v4.12: ユーザー削除時にregistrationsシート（自己登録の24h重複防止記録）も掃除 —
@@ -37,7 +40,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.13"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.14"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -176,6 +179,7 @@ const ROUTES = {
       return { success: false, error: msg, code: "PIN_INVALID" };
     }
     clearPinFailures(p.name);
+    ensureTagPublicId(p.name); // ★ v4.14: 古いアカウントでタグ仲間用IDが未発行のままなら、ログイン時に自動発行
     return { success: true, token: createSession(p.name) };
   }},
 
@@ -188,6 +192,7 @@ const ROUTES = {
     if (getUserPinCell(p.name))
       return { success: false, error: "PINは既に設定されています", code: "PIN_EXISTS" };
     setUserPin(p.name, String(p.pin));
+    ensureTagPublicId(p.name); // ★ v4.14: 古いアカウントでタグ仲間用IDが未発行のままなら、ここでも発行
     return { success: true, token: createSession(p.name) };
   }},
 

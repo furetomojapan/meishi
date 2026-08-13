@@ -1916,3 +1916,15 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - TDD：`tests/gas_mock_test.cjs`に「フル: 自分のtagPublicIdが取得できる」テストを追加 → 修正前Red確認 → 修正後Green確認（107 pass）
 - BACKEND_VERSION v4.12→v4.13、README更新
 - 未push
+
+### バグ修正: プレビューボタンが本当のプレビューになっていない／タグ仲間用ボタンが出ない 2026-08-14
+- 報告：追加した「対面用」「タグ仲間用」プレビューボタンについて、①タグ仲間用ボタンが出ない ②タップしてもオーナー本人の名刺画面が出るだけでプレビューになっていない
+- 調査①：`tagPublicId`は`ensureTagPublicId()`が新規作成時（`adminCreateUser`）や`initSheets()`の一括migrateでのみ発行される。古いアカウントで一度もこの経路を通っていないと空のまま→フロントの`PreviewBtn`はurlが空だと非表示になる仕様のため、ボタンごと消えていた
+- 調査②：`siteUrl`/`tagUrl`を同じブラウザの新しいタブで開いても、`localStorage`の端末記憶トークンが共有されるため`ownerView`がtrueのままになり、オーナー用UI（編集導線・QR/シェア/プレビューボタン等）が出たままだった。新しいタブを開くだけでは「訪問者から見える状態」を再現できない設計だった
+- 修正：
+  - `gas_backend.js`: `verify_pin`・`set_initial_pin`のハンドラーで`ensureTagPublicId(p.name)`を呼び、ログインのたびに未発行なら自動発行するように変更（次回ログイン時に自己修復）
+  - `src/App.jsx`: `?preview=1`クエリパラメータを読み取る`previewMode` stateを追加。`ownerView`の計算に`!previewMode &&`を追加し、プレビューモード中は端末記憶・PIN済みでも強制的に訪問者と同じ表示にする
+  - `src/components/flipcard.jsx`: プレビューボタン専用に`siteUrlPreview`/`tagUrlPreview`（`?preview=1`付き）を追加し、`PreviewBtn`はこちらを使うよう変更。QR/シェアボタンが配る本来のURL（`siteUrl`/`tagUrl`）は`preview`パラメータなしのまま維持
+- TDD：`tests/gas_mock_test.cjs`に「古いアカウントでtagPublicId未発行のままでも、ログイン時に自動発行される」テストを追加、Green確認（110 pass）。プレビューモードはこのプロジェクトにフロントエンド自動テスト基盤がないため、ESLintと手動確認で検証
+- BACKEND_VERSION v4.13→v4.14、APP_VERSION v5.19→v5.20、README更新
+- 未push

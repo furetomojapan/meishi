@@ -82,6 +82,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         const [adminSearch, setAdminSearch] = useState("");
         const [newUserInput, setNewUserInput] = useState("");
         const [variablePart, setVariablePart] = useState(null);
+        const [previewMode, setPreviewMode] = useState(false); // ★ ?preview=1 時、オーナー本人でも訪問者と同じ見た目を強制する
         const [cardNotFound, setCardNotFound] = useState(false); // ★ サーバーが明確に「見つからない」（削除済み等）と返した時のみtrue
         const latestFetchIdRef = useRef(null); // ★ fetchUserの多重呼び出しで古い応答が新しい結果を上書きしないためのガード
         const [isAdminMode, setIsAdminMode] = useState(false);
@@ -250,6 +251,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             const newSearch = params.toString();
             history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''));
           }
+          // ★ ?preview=1: オーナー本人が「相手にはどう見えるか」を確認するためのモード。
+          //   端末記憶やPIN認証済みでもオーナー用UIを一切出さない（visitorと同じ見た目を強制）
+          if (new URLSearchParams(window.location.search).get('preview') === '1') setPreviewMode(true);
           const hash = window.location.hash.slice(1);
           const qid = new URLSearchParams(window.location.search).get('id');
           if (hash || qid) {
@@ -1281,7 +1285,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                       // 編集中はuserEditProfileをリアルタイムでカードに反映
                       const previewPd = showUserEdit ? { ...pd, profile: userEditProfile } : pd;
                       // v4.8: 本人（オーナー）判定 — 認証済み or 端末記憶あり or 新規登録(new=1)。来訪者にはオーナー用UIを出さない
-                      const ownerView = !!(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart))) || isNewUser);
+                      const ownerView = !previewMode && !!(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart))) || isNewUser);
                       return (<>
                         <FlipCard variablePart={variablePart} personData={previewPd} pro={pro} owner={ownerView} />
 
