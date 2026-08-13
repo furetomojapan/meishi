@@ -618,8 +618,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           const newData = { ...urlsData, [variablePart]: personObj };
           setUrlsData(newData);
           localStorage.setItem('meisi_urls_data', JSON.stringify(newData));
-          setShowUserEdit(false);
-          setEditOrigJSON(null);
+          // ★ 保存しても編集画面は閉じない（名刺画面に戻るのは別ボタンで行う）。
+          //   ダーティ判定の基準だけ「今保存した内容」に更新し、● 表示を消す
+          setEditOrigJSON(JSON.stringify(userEditProfile) + JSON.stringify(userEditUrls));
           // トークンは破棄しない（端末記憶で30日有効 — 「この端末の記憶を消す」で破棄可能）
           showToast("saving", 15000);
           try {
@@ -1875,10 +1876,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                               <div className="px-5 py-4 border-t border-neutral-100 flex gap-3 flex-shrink-0">
                                 <button onClick={handleFooterSave}
                                   className={`flex-1 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest active:scale-95 transition-all ${editDirty ? 'bg-amber-500 text-white shadow-md' : 'bg-black text-white hover:bg-neutral-800'}`}>
-                                  {editDirty ? "● SAVE" : "SAVE"}
+                                  {editDirty ? "● 保存" : "保存"}
                                 </button>
                                 <button onClick={closeEditSheet}
-                                  className="px-5 py-3.5 text-[10px] text-neutral-400 hover:text-black rounded-2xl border border-neutral-200 transition-colors">キャンセル</button>
+                                  className="px-5 py-3.5 text-[10px] text-neutral-400 hover:text-black rounded-2xl border border-neutral-200 transition-colors">名刺画面に戻る</button>
                               </div>
                             </div>
                           </>

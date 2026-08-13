@@ -1838,3 +1838,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 修正：条件を`res.code === "NOT_FOUND"`のみに限定。通信エラー・INTERNAL等は従来通り何もしない（キャッシュも消さない・「見つかりません」も出さない）
 - 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
 - 未push
+
+### UI変更: 名刺編集画面のSAVE/キャンセルボタン 2026-08-13
+- 依頼：SAVE→「保存」に変更、押しても名刺画面に戻らないようにする。キャンセルボタン→「名刺画面に戻る」ボタンに変更
+- 修正：
+  - `saveUserLinks()`: 保存後の`setShowUserEdit(false)`を削除（編集画面を閉じない）。`setEditOrigJSON(null)`→保存直後の内容で更新（●未保存マークを正しくクリアしつつ、以後の再編集も引き続きダーティ判定できるようにするため）
+  - フッターボタンのラベル：「SAVE」→「保存」、「キャンセル」→「名刺画面に戻る」（挙動＝closeEditSheetは変更なし。未保存の変更がある場合は引き続き確認ダイアログが出る）
+- 検証：`npx eslint src/App.jsx` 0エラー、`node tests/gas_mock_test.cjs` 102 pass
+- 未push
