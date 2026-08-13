@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import React from "react";
 import { GH_REPO, getSiteBase, FREE_LINK_LIMIT, STORES_URL } from "../lib/core";
-import { QRButton, ShareBtn, FreeCardFace } from "./misc";
+import { QRButton, ShareBtn, PreviewBtn, FreeCardFace } from "./misc";
 import { URLRow } from "./pickers";
 
       export function FlipCard({ variablePart, personData, pro, owner = false }) {
         const [flipped, setFlipped] = useState(false);
         const [showHint, setShowHint] = useState(true);
         const siteUrl = `${getSiteBase()}#${personData?.publicId || variablePart}`; // publicIdでID秘匿
+        const tagUrl = personData?.tagPublicId ? `${getSiteBase()}#${personData.tagPublicId}` : ""; // タグ仲間向け限定URL
         const frontSrc = `image1_${variablePart}.png`;
         const backSrc  = `image2_${variablePart}.png`;
         const ghFallback = src => `${getSiteBase()}${src}`; // フェーズ4: 画像はpublic/配下からPagesで配信
@@ -120,9 +121,11 @@ import { URLRow } from "./pickers";
               </button>
             </div>
 
-            {/* アクションボタン（v4.8: QR/シェアは本人のみ） */}
+            {/* アクションボタン（v4.8: QR/シェアは本人のみ。v4.13: 相手側プレビュー2種を追加） */}
             {owner && (
             <div className="mt-4 flex items-center justify-center gap-4">
+              <PreviewBtn url={siteUrl} label="対面用" />
+              <PreviewBtn url={tagUrl} label="タグ仲間用" />
               <QRButton url={siteUrl} />
               <ShareBtn url={siteUrl} title={`${personData.displayName || variablePart} のデジタル名刺`} />
             </div>

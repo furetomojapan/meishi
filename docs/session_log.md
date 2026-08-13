@@ -1905,3 +1905,14 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - BACKEND_VERSION v4.11→v4.12、README更新
 - これで先日リストアップした改善点3件（管理者パスワードのブルートフォース対策／推測可能な内部ID／削除時のregistrations掃除）すべて対応完了
 - 未push
+
+### 新機能: 名刺画面に「対面用」「タグ仲間用」プレビューボタンを追加 2026-08-13
+- 依頼：オーナーの名刺画面から、相手に見える状態（対面用のフルURL／タグ仲間用の制限URL）をプレビューできるボタンをQRボタンの左側に追加、押すと別ページで表示
+- 調査：`rowToPublicUser()`はフル表示時に自分のtagPublicId（タグ仲間向け限定URL）を一切返しておらず、フロントにその値がないためタグ仲間用URLを組み立てられなかった
+- 修正：
+  - `gas_backend.js`: `rowToPublicUser()`の返り値に`tagPublicId`を追加（フル表示時は自分の値、タグビュー時はアクセスに使ったtagIdそのものが返るだけで新たな漏えいなし）
+  - `src/components/misc.jsx`: 新規`PreviewBtn`コンポーネント（QRButton/ShareBtnと同じ見た目、`target="_blank"`で別タブを開くリンク）を追加
+  - `src/components/flipcard.jsx`: `tagUrl`（`personData.tagPublicId`から構築）を追加し、アクションボタン列の先頭（QRボタンの左）に「対面用」「タグ仲間用」の2ボタンを追加（オーナーのみ表示、既存のQR/シェアボタンと同条件）
+- TDD：`tests/gas_mock_test.cjs`に「フル: 自分のtagPublicIdが取得できる」テストを追加 → 修正前Red確認 → 修正後Green確認（107 pass）
+- BACKEND_VERSION v4.12→v4.13、README更新
+- 未push

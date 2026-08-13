@@ -28,6 +28,18 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
         );
       }
 
+      /* ── 相手側プレビューボタン（対面用/タグ仲間用URLを別タブで開く） ── */
+      export function PreviewBtn({ url, label }) {
+        if (!url) return null;
+        return (
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-1.5 w-20 h-16 rounded-2xl font-medium text-xs transition-all shadow-md bg-white text-neutral-700 hover:bg-black hover:text-white hover:shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span className="text-[10px] font-semibold tracking-wide">{label}</span>
+          </a>
+        );
+      }
+
       /* ── シェアボタン ── */
       export function ShareBtn({ url, title }) {
         const [copied, setCopied] = useState(false);

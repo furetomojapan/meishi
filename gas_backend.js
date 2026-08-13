@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.12
+ * デジタル名刺 - Google Apps Script バックエンド v4.13
+ *   - v4.13: rowToPublicUser()のフル表示に自分のtagPublicIdを追加 — 本人が「対面用URL」
+ *     「タグ仲間用URL」を相手目線でプレビューできるボタンを名刺画面に追加するため
  *   - v4.12: ユーザー削除時にregistrationsシート（自己登録の24h重複防止記録）も掃除 —
  *     削除したユーザーと同じメールアドレスで24時間再登録できなかった問題を修正
  *   - v4.11: 管理者パスワードにブルートフォース対策を追加 — PIN認証と同様、5回連続失敗で
@@ -35,7 +37,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.12"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.13"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -523,7 +525,11 @@ function rowToPublicUser(row, t) {
     hasPinSet:   !!(row[6]),
     // ＋Gは購入で永続（PRO期限とは独立）。お試し中も有効
     plusG:       onTrial ? true : (row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1"),
-    publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : ""
+    publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "",
+    // v4.13: 本人が「タグ仲間用URL」をプレビューできるよう、フル表示時は自分のtagPublicIdも返す。
+    //   タグビュー（getUserPublicのtagId分岐）でもこの値は返るが、そこでの値は常に
+    //   アクセスに使ったtagIdそのもの＝訪問者が既に知っているIDと同じなので新たな漏えいはない
+    tagPublicId: t.colTagPublicId >= 0 ? String(row[t.colTagPublicId] || "") : ""
   };
 }
 

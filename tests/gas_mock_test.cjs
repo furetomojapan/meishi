@@ -135,6 +135,7 @@ const taroPub = String(taroRow()[8]), taroTag = String(taroRow()[11]);
 r = GET({ action: "get_user", id: taroPub });
 t("フル: 電話そのまま", r.user.profile.phone === "090-1111-2222");
 t("フル: 内部名", r.name === "taro");
+t("フル: 自分のtagPublicIdが取得できる（タグ仲間用URLプレビューに使用）", r.user.tagPublicId === taroTag);
 r = GET({ action: "get_user", id: taroTag });
 t("タグビュー: 電話差し替え", r.user.profile.phone === "03-9999-0000");
 t("タグビュー: 内部名秘匿", r.name === taroTag);
