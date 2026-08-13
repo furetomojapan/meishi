@@ -274,5 +274,15 @@ t("リセット後: 初回設定が可能", POST({ action: "set_initial_pin", na
 t("未知アクション", POST({ action: "nope" }).code === "UNKNOWN_ACTION");
 t("ユーザー削除", POST({ action: "admin_delete_user", adminPass: AP, name: "hana" }).success === true && !sheets.users.rows.find(x => x[0] === "hana"));
 
+// ── ユーザー削除後、端末記憶（セッション）が残らないこと（再現バグ: タグ保存で「ユーザーが見つかりません」） ──
+POST({ action: "admin_create_user", adminPass: AP, name: "ghost" });
+r = POST({ action: "set_initial_pin", name: "ghost", pin: "555555" });
+const ghostToken = r.token;
+t("削除前: トークン有効", POST({ action: "get_my_tags", name: "ghost", token: ghostToken }).success === true);
+t("ユーザー削除2", POST({ action: "admin_delete_user", adminPass: AP, name: "ghost" }).success === true);
+t("削除後: 端末記憶も無効", POST({ action: "get_my_tags", name: "ghost", token: ghostToken }).code === "SESSION_INVALID");
+t("削除後: タグ保存はセッション無効で拒否される（見つかりませんエラーではなく）",
+  POST({ action: "save_tags", name: "ghost", token: ghostToken, tags: ["x"] }).code === "SESSION_INVALID");
+
 console.log(`\n結果: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

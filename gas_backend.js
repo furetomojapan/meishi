@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.7
+ * デジタル名刺 - Google Apps Script バックエンド v4.9
+ *   - v4.9: admin_delete_user で端末記憶（セッション）も削除 — 削除済みユーザーの残存セッションが
+ *     「タグを保存」等の書き込み操作で「ユーザーが見つかりません」エラーを起こすバグを修正
  *   - v4.7: 独自背景画像を専用列（frontImage/backImage）に分離 — 画像ごとに5万文字を確保し高画質化
  *   - v4.6: 新規登録者に7日間PRO+＋G無料トライアル（trialEnd列・期限後は非表示でデータ保持）
  *   - v4.5: テーマカラー（カード画面全体）— FREEのPRO限定色をサーバー側で矯正
@@ -25,7 +27,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.7"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.9"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -666,6 +668,8 @@ function adminTogglePlusG(name) {
 function deleteUser(name) {
   const f = findUserRow(name);
   if (f) { f.t.sheet.deleteRow(f.idx); invalidateUsersCache(); }
+  deleteSessionsFor(name); // ★ 削除済みユーザーの端末記憶（セッション）が残ると
+                            //   「見つかりません」エラーの温床になるため、他のPIN無効化系と同様に必ず掃除する
 }
 
 function userExists(name) { return !!name && !!findUserRow(name); }

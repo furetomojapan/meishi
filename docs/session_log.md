@@ -1793,3 +1793,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 評価で挙げた未対応：信頼要素（実例/利用者の声＝実データ無で見送り）、Tailwind CDN→ビルド組み込み（設定変更=要承認のため保留）
 - 検証：vite build成功（328 modules、welcome.html生成）、NFC0・かざすだけ5・`.js .reveal`3・blur-2xl4・div 81/81整合。※dist直書きはサンドボックス権限不可のため/tmp出力で確認（Actionsビルドは問題なし想定）
 - 未push（要commit/push：ユーザー承認後にデプロイ）
+
+### バグ修正: タグ保存で「ユーザーが見つかりません」エラー 2026-08-13
+- 報告：利用者が自分のカード編集画面（通常URL・PINログイン）で「タグを保存」を押すとエラー
+- 調査（systematic-debugging）：`checkPin`/`save_tags`は同じ`findUserRow(name)`を使うため、ログイン成功後の同一セッション内でタグ保存だけ失敗するのは名前不一致では説明できない。`get_my_tags`等の`auth:"session"`ルートは`validateSession`（セッション表のみ確認）が通れば中身を返し、`findUserRow`結果がnullでも既定値([]/0)で`success:true`を返す実装だったため、**ユーザー削除後もセッション（30日端末記憶）が残っていれば「ログイン成功したように見える」**ことが判明
+- 根本原因：`admin_delete_user`→`deleteUser()`が、同種の他アクション（`admin_set_pin`/`admin_reset_pin`）と違い`deleteSessionsFor(name)`を呼んでおらず、削除済みユーザーの端末記憶トークンが最大30日間有効なまま残存。その状態で書き込み系（`save_tags`等）を呼ぶと、セッション認証は通るが`setUserTags`内の`findUserRow`がnullとなり「ユーザーが見つかりません」で失敗
+- 再現：`tests/gas_mock_test.cjs`にモックテストで再現・確認（削除前は成功、削除後は`get_my_tags`がsuccess:trueを返すのに`save_tags`だけNOT_FOUNDで失敗）
+- 修正：`deleteUser()`に`deleteSessionsFor(name)`を追加（1箇所・最小修正）。BACKEND_VERSIONを v4.7→v4.9 に更新（ヘッダーコメントの`v4.8`未反映分の整理はスコープ外・据え置き）
+- テスト：`node tests/gas_mock_test.cjs` 102 pass / 0 fail（新規2件追加、修正前は2件fail確認済み→修正後green）
+- 未push（要ユーザー承認：gas_backend.js変更はpush後にGitHub Actionsで自動デプロイされる。README.mdのGASバージョン表記もv4.9に更新済み）
