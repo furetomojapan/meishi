@@ -2002,3 +2002,10 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.27→v5.28、README更新
 - 未push
+
+### 機能追加: ホーム画面アイコンのラベル名を表示名に 2026-08-14
+- 報告：manifest撤去後、iPhoneでその人のカードURLへのホーム画面アイコンが正しく作れるようになった。次はアイコン下のラベル名も名前から出したい
+- 修正：`index.html`に`<meta name="apple-mobile-web-app-title" content="NEXUA">`を追加（静的デフォルト）。`App.jsx`の`updateOGP()`で、カード表示のたびにこのメタタグの`content`をその人の表示名に更新するよう追加
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.28→v5.29、README更新
+- 未push
