@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.29"; // ホーム画面アイコンのラベル名を人ごとの表示名にする
+      export const APP_VERSION = "v5.30"; // ホーム画面追加の名前欄に内部IDが出るバグを修正
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

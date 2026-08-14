@@ -171,9 +171,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           Object.keys(currentUrlsData || {}).filter(n => n.length > 0);
 
         // OGPメタタグを動的に更新
+        const OGP_NAME_FALLBACK = "NEXUA"; // ★ v5.30: displayName未確定/未設定時、内部ID/hashの生値を絶対に出さない
         const updateOGP = (name, data) => {
           if (!name) return;
-          const displayName = data.displayName || name;
+          const displayName = data.displayName || OGP_NAME_FALLBACK;
           const imgUrl = `${getSiteBase()}image1_${name}.png`; // フェーズ4: 画像はpublic/配下からPagesで配信
           const pageUrl = `${getSiteBase()}#${data?.publicId || name}`;
           const setMeta = (sel, attr, content) => {
@@ -194,13 +195,13 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           const customImg = data?.profile?.frontImageUrl;
           const iconUrl = (customImg && /^(https:\/\/|data:image\/)/.test(customImg))
             ? customImg
-            : generateIconDataUri(displayName || name);
+            : generateIconDataUri(displayName);
           let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
           if (!touchIcon) { touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; document.head.appendChild(touchIcon); }
           touchIcon.setAttribute('href', iconUrl);
           // v5.29: ホーム画面アイコンのラベル名（iOSの「ホーム画面に追加」ダイアログの初期名・
           //   追加後にアイコン下に出る文字）を、その人の表示名にする
-          setMeta('meta[name="apple-mobile-web-app-title"]', 'content', displayName || name);
+          setMeta('meta[name="apple-mobile-web-app-title"]', 'content', displayName);
         };
 
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）

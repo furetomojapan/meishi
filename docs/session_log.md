@@ -2009,3 +2009,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.28→v5.29、README更新
 - 未push
+
+### バグ修正: ホーム画面追加の名前欄に内部IDが出る問題を修正 2026-08-14
+- 報告：表示名を入力済みのアカウントでも、iPhoneの「ホーム画面に追加」ダイアログの名前欄に内部ID（zzのpublicIdまたは内部name）が出る
+- 調査：`App.jsx`の`updateOGP()`内`const displayName = data.displayName || name;`が原因。`name`（第1引数）はURLハッシュの生値（内部ID）。2つの経路でここに落ちる：①マウント直後、`fetchUser`のネットワーク応答が届く前は`urlsData`にまだ実データが無く`data.displayName`が空文字→一瞬だけ内部IDにフォールバック（その間に共有シートを開かれると見えてしまう） ②サーバー側で表示名が未設定のユーザーは恒久的に内部IDのまま
+- 修正：フォールバック先を`name`（内部ID）から`index.html`の静的デフォルトと同じ汎用値「NEXUA」に統一（`OGP_NAME_FALLBACK`定数）。`generateIconDataUri(displayName || name)`・`apple-mobile-web-app-title`の`displayName || name`も、`displayName`が常にtruthyになったため冗長な`|| name`を削除し生値混入経路を完全に塞いだ。実データ到着後は既存のuseEffectがそのまま再発火し正しい表示名に自動上書きされる仕組みは維持
+- `pageUrl`/`imgUrl`（OGP用）のname直接フォールバックは対象外とした（ホーム画面追加の名前欄に無関係、現在アクセス中のURLそのものを反映しているだけで新たな漏洩ではないため）
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.29→v5.30、README更新
+- 未push
