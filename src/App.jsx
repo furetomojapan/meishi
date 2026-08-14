@@ -199,9 +199,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
           if (!touchIcon) { touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; document.head.appendChild(touchIcon); }
           touchIcon.setAttribute('href', iconUrl);
-          // v5.29: ホーム画面アイコンのラベル名（iOSの「ホーム画面に追加」ダイアログの初期名・
-          //   追加後にアイコン下に出る文字）を、その人の表示名にする
-          setMeta('meta[name="apple-mobile-web-app-title"]', 'content', displayName);
+          // v5.31: apple-mobile-web-app-titleのJS更新は撤去（iOSが反映しないため）。
+          //   document.titleへの一本化のみで「ホーム画面に追加」の名前欄の個別化を試みる
         };
 
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）

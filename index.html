@@ -11,8 +11,9 @@
     <link rel="apple-touch-icon" href="favicon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <!-- v5.29: ホーム画面アイコンのラベル名（個別カード閲覧時にJSで人の表示名へ上書き） -->
-    <meta name="apple-mobile-web-app-title" content="NEXUA" />
+    <!-- v5.31: apple-mobile-web-app-titleは撤去。iOSはこのmetaを初期HTMLからしか読まず、
+         JSでのcontent書き換えを「ホーム画面に追加」ダイアログに反映しないため、動的に正しく
+         更新されるdocument.titleのみに一本化する -->
     <!-- OGP (個別カード閲覧時はJSで動的に上書き) -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="NEXUA（ネクア）" />

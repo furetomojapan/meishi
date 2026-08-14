@@ -2018,3 +2018,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.29→v5.30、README更新
 - 未push
+
+### 実験: apple-mobile-web-app-titleを撤去、document.titleに一本化 2026-08-14
+- 報告：前回修正（フォールバック値をNEXUAに変更）をデプロイ後も、実機で名前欄が常に「NEXUA」（フォールバック値そのもの）になる。表示名は入力済み・保存済み
+- 分析：v5.29（フォールバック=内部ID）で「ID」、v5.30（フォールバック=NEXUA）で「NEXUA」と、フォールバック定数を変えるたびに表示もそれと完全に1対1で変わっている。これは確率的なタイミング問題ではなく、iOSが`apple-mobile-web-app-title`メタタグへのJSでの動的な`content`書き換えを一度も反映せず、常にフォールバック分岐の結果だけを見ている可能性が高いと判断（今セッションで既に確認済みのWeb App Manifest撤去の一件と同じ系統の問題と推定）
+- 対応：`apple-mobile-web-app-title`メタタグを`index.html`・`updateOGP()`の両方から完全に撤去し、同じ関数内で動的に正しく更新され続けている`document.title`のみに一本化。これが解決するかは実機でしか検証できない仮説であり、ダメなら「名前欄の個別化は諦める」か「ユーザーごとに静的HTMLを事前生成する大掛かりな対応」のいずれかを改めて相談する前提
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。`apple-mobile-web-app-title`への実参照が完全に無いことをgrepで確認済み
+- APP_VERSION v5.30→v5.31、README更新
+- 未push
