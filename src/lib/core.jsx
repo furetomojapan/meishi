@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.31"; // apple-mobile-web-app-titleを撤去、document.titleに一本化
+      export const APP_VERSION = "v5.32"; // updateOGPは実データが見つかるまで呼ばないよう厳格化
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

@@ -284,7 +284,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
         }, []);
 
         useEffect(() => {
-          if (variablePart) { const pd = getPersonData(urlsData, variablePart); updateOGP(variablePart, pd); }
+          // v5.32: urlsData[variablePart]が実際に見つかるまではupdateOGPを呼ばない。
+          //   カード表示（表示名・写真）と同じデータ有無条件にすることで、「カードが画面に
+          //   表示されてから共有すれば必ず正しい名前になる」を保証する
+          if (variablePart && urlsData[variablePart]) { const pd = getPersonData(urlsData, variablePart); updateOGP(variablePart, pd); }
         }, [variablePart, urlsData]);
 
         // 管理画面: 編集対象ユーザーが変わったらタグの未保存状態をリセット

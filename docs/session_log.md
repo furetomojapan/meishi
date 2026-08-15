@@ -2026,3 +2026,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。`apple-mobile-web-app-title`への実参照が完全に無いことをgrepで確認済み
 - APP_VERSION v5.30→v5.31、README更新
 - 未push
+
+### 進展: document.titleは動的更新を正しく反映することを確認、残るはタイミング問題に特定 2026-08-15
+- 報告：前回修正（apple-mobile-web-app-title撤去）後、実機で名前欄が「NEXUA - デジタル名刺」になった
+- 分析：これは`updateOGP`のテンプレート`${displayName} - デジタル名刺`にフォールバック値`OGP_NAME_FALLBACK="NEXUA"`が入った文字列そのもの。静的デフォルトの`NEXUA（ネクア）`ではなくこの形が出ていることから、**iOSがdocument.titleへの動的更新を正しく読んでいる**ことが初めて確認できた（manifestやapple-mobile-web-app-titleメタタグは一切JS更新を反映しなかったのとは対照的）。問題は「読む仕組み」ではなく「データがまだ届く前の一瞬に間違った値をセットしてしまう」という純粋なタイミングに絞られた
+- 原因：`useEffect(() => { if (variablePart) {...updateOGP(...)} }, [variablePart, urlsData])`が、`urlsData`に実データが無くても（`variablePart`さえ真値なら）`updateOGP`を呼んでしまい、フォールバック値がdocument.titleにセットされる一瞬が生じていた
+- 修正：呼び出し条件を`variablePart && urlsData[variablePart]`に厳格化。実データが見つかるまでは`document.title`等を一切変更しない。名刺カード自体の表示（表示名・写真）も同じデータ有無条件に依存しているため、「カードが画面に表示されてから共有すれば必ず正しい名前になる」という保証が成立するようになった
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。実機確認は次回のユーザーテスト待ち
+- APP_VERSION v5.31→v5.32、README更新
+- 未push
