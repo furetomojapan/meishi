@@ -2047,3 +2047,10 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。機能ロジックの変更は無いため実機再確認は不要
 - APP_VERSION v5.32→v5.33、README更新
 - 未push
+
+### 文言修正: ホーム画面追加の案内を「名刺の名前に書き換え」に 2026-08-15
+- 指摘：「自分の名前に書き換えて」だと、訪問者が他人の名刺を受け取って追加する場合に紛らわしい。「名刺の名前」の方が正確
+- 修正：`misc.jsx`の`AddToHomeBtn`案内文③を「自分の名前」→「名刺の名前」に変更
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.33→v5.34、README更新
+- 未push
