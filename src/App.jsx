@@ -187,11 +187,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           setMeta('meta[property="og:image"]', 'content', imgUrl);
           setMeta('meta[property="og:url"]', 'content', pageUrl);
           setMeta('meta[name="twitter:image"]', 'content', imgUrl);
-          // v5.26: ホーム画面追加時のアイコンを人ごとに変える（独自背景画像があればそれを、
-          //   なければ名前の頭文字＋名前から決まる色の自動生成アイコンを使う）。同じ人を
-          //   複数保存しても見分けがつくように。apple-touch-iconのみ更新（iOS向け）—
-          //   通常のiconも変えるとブラウザタブのファビコンまで変わってしまうため対象外。
-          //   ※ AndroidのPWAマニフェストはアイコンが固定のため、個別化は主にiOS向けの対応
+          // ホーム画面追加時のアイコンを人ごとに変える（独自背景画像があればそれを、なければ
+          // 名前の頭文字＋名前から決まる色の自動生成アイコン）。apple-touch-iconのみ更新
+          // （通常のiconも変えるとブラウザタブのファビコンまで変わるため対象外）
           const customImg = data?.profile?.frontImageUrl;
           const iconUrl = (customImg && /^(https:\/\/|data:image\/)/.test(customImg))
             ? customImg
@@ -199,8 +197,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
           if (!touchIcon) { touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; document.head.appendChild(touchIcon); }
           touchIcon.setAttribute('href', iconUrl);
-          // v5.31: apple-mobile-web-app-titleのJS更新は撤去（iOSが反映しないため）。
-          //   document.titleへの一本化のみで「ホーム画面に追加」の名前欄の個別化を試みる
         };
 
         // ★ v5.9: 単一ユーザー取得（get_all廃止 — 全件吸い出し対策）
