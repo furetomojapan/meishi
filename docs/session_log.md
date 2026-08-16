@@ -2054,3 +2054,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.33→v5.34、README更新
 - 未push
+
+### 機能追加: ホーム画面追加の案内をAndroid/iOSで分岐 2026-08-16
+- 背景：`manifest.json`撤去後、`beforeinstallprompt`がAndroid/Chromeでも発火しない可能性が高く、その場合iOS Safari向け（共有ボタン→ホーム画面に追加）の案内がAndroidにもそのまま出てしまう。AndroidのChromeは「共有ボタン」ではなく右上⋮（3点メニュー）から追加する操作系のため、手順が実UIと食い違う
+- 対応：`misc.jsx`に`isAndroidUA()`（`navigator.userAgent`で`/Android/i`判定）を追加。`AddToHomeBtn`のフォールバック案内を、Android向け（⋮メニュー→ホーム画面に追加/アプリをインストール）とiOS向け（既存の共有ボタン手順）に分岐
+- 備考：Androidは`document.title`を追加操作時点でそのまま読むため、iOSと違い名前欄の手動書き換えは基本不要な想定だが未検証のため、案内文③は「名前欄が名刺の名前と違う場合は書き換えて」という保険的な文言に留めた
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。実機（Android）での確認は未実施
+- APP_VERSION v5.34→v5.35、README更新
+- 未push

@@ -41,6 +41,9 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
       }
 
       /* ── ホーム画面に追加ボタン（v5.26・オーナー/来訪者どちらにも表示） ── */
+      // v5.35: beforeinstallpromptが発火しない場合の案内を、Android/iOSでUIが違う（メニュー操作が別物）ため分岐
+      const isAndroidUA = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
       export function AddToHomeBtn() {
         const [installPrompt, setInstallPrompt] = useState(null);
         const [showHelp, setShowHelp] = useState(false);
@@ -55,9 +58,10 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
             try { await installPrompt.userChoice; } catch {}
             setInstallPrompt(null);
           } else {
-            setShowHelp(true); // Android以外（主にiOS Safari）はJSから直接追加できないため手順を案内
+            setShowHelp(true); // beforeinstallprompt未発火の端末（Android含む）はJSから直接追加できないため手順を案内
           }
         };
+        const isAndroid = isAndroidUA();
         return (
           <>
             <button onClick={handleClick}
@@ -72,11 +76,19 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
                   style={{left:'50%', top:'50%', transform:'translate(-50%,-50%)', width:'260px'}}>
                   <button onClick={() => setShowHelp(false)} className="absolute top-3 right-4 text-neutral-300 hover:text-black text-base font-bold">✕</button>
                   <p className="text-xs font-bold text-center mb-3">ホーム画面に追加</p>
-                  <p className="text-[11px] text-neutral-600 leading-relaxed">
-                    ①画面下部（または上部）の<b>共有ボタン</b>（四角に↑のアイコン）をタップ<br/><br/>
-                    ②「<b>ホーム画面に追加</b>」を選択<br/><br/>
-                    ③名前欄が「NEXUA - デジタル名刺」等になっていたら、<b>名刺の名前に書き換えて</b>から「追加」をタップ
-                  </p>
+                  {isAndroid ? (
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      ①画面右上の<b>⋮（縦3点メニュー）</b>をタップ<br/><br/>
+                      ②「<b>ホーム画面に追加</b>」または「<b>アプリをインストール</b>」を選択<br/><br/>
+                      ③名前欄が名刺の名前と違う場合は、<b>名刺の名前に書き換えて</b>から「追加」をタップ
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      ①画面下部（または上部）の<b>共有ボタン</b>（四角に↑のアイコン）をタップ<br/><br/>
+                      ②「<b>ホーム画面に追加</b>」を選択<br/><br/>
+                      ③名前欄が「NEXUA - デジタル名刺」等になっていたら、<b>名刺の名前に書き換えて</b>から「追加」をタップ
+                    </p>
+                  )}
                 </div>
               </>
             )}
