@@ -42,7 +42,9 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
 
       /* ── ホーム画面に追加ボタン（v5.26・オーナー/来訪者どちらにも表示） ── */
       // v5.35: beforeinstallpromptが発火しない場合の案内を、Android/iOSでUIが違う（メニュー操作が別物）ため分岐
+      // v5.36: 「ホーム画面」はスマホの概念でPCには馴染まないため、PCではボタン自体を非表示に
       const isAndroidUA = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+      const isMobileUA = () => typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       export function AddToHomeBtn() {
         const [installPrompt, setInstallPrompt] = useState(null);
@@ -52,6 +54,7 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
           window.addEventListener('beforeinstallprompt', handler);
           return () => window.removeEventListener('beforeinstallprompt', handler);
         }, []);
+        if (!isMobileUA()) return null; // PCでは「ホーム画面に追加」に相当する操作が無い/意味が薄いため非表示
         const handleClick = async () => {
           if (installPrompt) {
             installPrompt.prompt();

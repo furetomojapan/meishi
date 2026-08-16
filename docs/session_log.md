@@ -2062,3 +2062,10 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）。実機（Android）での確認は未実施
 - APP_VERSION v5.34→v5.35、README更新
 - 未push
+
+### 機能追加: ホーム画面追加ボタンをPCでは非表示に 2026-08-16
+- 背景：「ホーム画面」はスマホの概念で、PC（Chrome/Edge/Safari/Firefox）には対応する操作が無い、または全く違う操作系（アドレスバーのインストールアイコン、⋮メニュー、Dockに追加等）になる。manifest.json撤去後は`beforeinstallprompt`もほぼ発火しないため、PCで押すとiOS向けの案内がそのまま誤表示されていた
+- 対応：`misc.jsx`に`isMobileUA()`（`navigator.userAgent`で`/Android|iPhone|iPad|iPod/i`判定）を追加。`AddToHomeBtn`はモバイル端末以外では`null`を返し、ボタン自体を非表示にした
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.35→v5.36、README更新
+- 未push
