@@ -83,13 +83,13 @@ import { FONT_OPTIONS, FONT_SIZES, copyText } from "../lib/core";
                     <p className="text-[11px] text-neutral-600 leading-relaxed">
                       ①画面右上の<b>⋮（縦3点メニュー）</b>をタップ<br/><br/>
                       ②「<b>ホーム画面に追加</b>」または「<b>アプリをインストール</b>」を選択<br/><br/>
-                      ③名前欄が名刺の名前と違う場合は、<b>名刺の名前に書き換えて</b>から「追加」をタップ
+                      ③「NEXUA」を<b>名刺の名前に書き換えて</b>から「追加」をタップ
                     </p>
                   ) : (
                     <p className="text-[11px] text-neutral-600 leading-relaxed">
                       ①画面下部（または上部）の<b>共有ボタン</b>（四角に↑のアイコン）をタップ<br/><br/>
                       ②「<b>ホーム画面に追加</b>」を選択<br/><br/>
-                      ③名前欄が「NEXUA - デジタル名刺」等になっていたら、<b>名刺の名前に書き換えて</b>から「追加」をタップ
+                      ③「NEXUA」を<b>名刺の名前に書き換えて</b>から「追加」をタップ
                     </p>
                   )}
                 </div>

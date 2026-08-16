@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.36"; // ホーム画面追加ボタンをPCでは非表示に
+      export const APP_VERSION = "v5.37"; // ホーム画面追加の案内文言を「NEXUAを名刺の名前に書き換え」の直接指示に統一
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

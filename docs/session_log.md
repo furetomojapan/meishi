@@ -2069,3 +2069,10 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.35→v5.36、README更新
 - 未push
+
+### 文言修正: ホーム画面追加の案内を条件文から直接指示に 2026-08-16
+- 報告：実機確認の結果、iPhone・Androidともに名前欄は必ず「NEXUA」になることが判明（条件付き分岐は不要と確定）
+- 修正：`misc.jsx`の`AddToHomeBtn`案内文③を、iOS/Android両方とも「名前欄が〜の場合は」という条件文から、「『NEXUA』を名刺の名前に書き換えてから「追加」をタップ」という直接指示に統一
+- 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
+- APP_VERSION v5.36→v5.37、README更新
+- 未push
