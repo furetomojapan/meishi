@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, STRIPE_LINKS, PRICE_LABELS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, plusGDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, STRIPE_LINKS, PRICE_LABELS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -356,6 +356,12 @@ import { TagFields, ProfileTextFields } from "./components/forms";
               if (!r4.success) ok = false;
             }
 
+            const gDays = plusGDaysLeft(pd);
+            if (gDays > 0) {
+              const r4g = await gasPost({ action: "admin_set_plusg", adminPass: adminPassLocal, name: id, days: gDays });
+              if (!r4g.success) ok = false;
+            }
+
             const srcTags = adminAllTags[sourceName] || [];
             if (srcTags.length > 0) {
               const r5 = await gasPost({ action: "admin_save_tags", adminPass: adminPassLocal, name: id, tags: srcTags });
@@ -427,6 +433,15 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           try {
             const r = await gasPost({ action:"admin_set_pro", adminPass:adminPassLocal, name, days });
             if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), proEnd:r.proEnd||0}; return n; });
+            showToast(r.success ? "saved" : "error");
+          } catch { showToast("error"); }
+        };
+        /* ── ＋G年額サブスクの期間設定（v5.38: days>0=今からN日 / 0=失効）── */
+        const setPlusG = async (name, days) => {
+          showToast("saving", 10000);
+          try {
+            const r = await gasPost({ action:"admin_set_plusg", adminPass:adminPassLocal, name, days });
+            if (r.success) setUrlsData(prev => { const n={...prev}; n[name]={...(n[name]||{}), plusGEnd:r.plusGEnd||0}; return n; });
             showToast(r.success ? "saved" : "error");
           } catch { showToast("error"); }
         };
@@ -951,6 +966,26 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       }}
                                         className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${pdl > 0 ? 'bg-amber-500 border-amber-500 text-black hover:bg-amber-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-amber-400 hover:text-amber-400'}`}>
                                         {pdl > 0 ? `PRO${pdl}日` : 'PRO期間'}
+                                      </button>
+                                    ); })()}
+                                    {/* v5.38: ＋G年額サブスクの期間設定（1年・終了）。手動permanentは+Gトグルで別管理 */}
+                                    {(() => { const gdl = plusGDaysLeft(pd); return (
+                                      <button onClick={async () => {
+                                        const days = await appPrompt({
+                                          message: `「${pd.displayName || name}」の＋G年額サブスク有効期限を設定します。\n現在: ${gdl > 0 ? `残り約${gdl}日` : 'なし'}\n（「今日からその日数」に上書き。0で失効。PROは別管理）`,
+                                          presets: [
+                                            { label: "1年", value: 365 },
+                                            { label: "失効(0)", value: 0, danger: true },
+                                          ],
+                                          inputLabel: "日数",
+                                          unit: "日",
+                                          default: gdl > 0 ? String(gdl) : "365",
+                                        });
+                                        if (days === null) return;
+                                        setPlusG(name, days);
+                                      }}
+                                        className={`px-3 rounded-2xl border text-[9px] font-bold tracking-wider whitespace-nowrap transition-all ${gdl > 0 ? 'bg-red-500 border-red-500 text-white hover:bg-red-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600 hover:border-red-400 hover:text-red-400'}`}>
+                                        {gdl > 0 ? `+G${gdl}日` : '+G期間'}
                                       </button>
                                     ); })()}
                                     <button

@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.14
+ * デジタル名刺 - Google Apps Script バックエンド v4.15
+ *   - v4.15: ＋Gを「買い切り永続」から「年額サブスク（plusGEnd列で期限管理・自動失効）」に変更。
+ *     plusG列（真偽値）は手動permanent用として残置。admin_set_plusgハンドラ追加
  *   - v4.14: verify_pin/set_initial_pinでensureTagPublicId()を呼び、古いアカウントで
  *     タグ仲間用IDが未発行のままログイン時に自動発行されるように修正（v4.13で追加した
  *     タグ仲間用プレビューボタンが、古いアカウントでは出ないバグへの対策）
@@ -40,7 +42,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.14"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.15"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -336,6 +338,7 @@ const ROUTES = {
   }},
 
   admin_toggle_plan:  { auth: "admin", write: true, handler: (p) => ({ success: true, plan: adminTogglePlan(p.name) }) },
+  // v5.38: 手動permanentのON/OFF切り替え（plusGEndによる期間管理とは別枠。テスト付与等の用途）
   admin_toggle_plusg: { auth: "admin", write: true, handler: (p) => ({ success: true, plusG: adminTogglePlusG(p.name) }) },
 
   // v4.6: トライアル付与/延長（days>0）・終了（days=0）
@@ -353,6 +356,14 @@ const ROUTES = {
     if (!setProEnd(p.name, end))
       return { success: false, error: "ユーザーが見つからないか、proEnd列がありません（initSheets()を実行してください）", code: "NOT_FOUND" };
     return { success: true, proEnd: end };
+  }},
+  // v5.38: ＋G年額サブスクの有効期限を設定（days>0=今からN日, 0=失効）。PROとは独立
+  admin_set_plusg: { auth: "admin", write: true, handler: (p) => {
+    const days = Number(p.days) || 0;
+    const end  = days > 0 ? Date.now() + days * 24 * 60 * 60 * 1000 : 0;
+    if (!setPlusGEnd(p.name, end))
+      return { success: false, error: "ユーザーが見つからないか、plusGEnd列がありません（initSheets()を実行してください）", code: "NOT_FOUND" };
+    return { success: true, plusGEnd: end };
   }},
   admin_delete_user:  { auth: "admin", write: true, handler: (p) => { deleteUser(p.name); return { success: true }; } },
 
@@ -384,11 +395,11 @@ function initSheets() {
   let us = ss.getSheetByName(SHEET_USERS);
   if (!us) {
     us = ss.insertSheet(SHEET_USERS);
-    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd"]);
-    us.getRange(1,1,1,16).setFontWeight("bold");
+    us.appendRow(["name","displayName","licenseKey","links","plan","profile","pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd","plusGEnd"]);
+    us.getRange(1,1,1,17).setFontWeight("bold");
   } else {
     let header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
-    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd"].forEach(col => {
+    ["pin","plusG","publicId","tags","tagsUpdatedAt","tagPublicId","trialEnd","frontImage","backImage","proEnd","plusGEnd"].forEach(col => {
       header = us.getRange(1, 1, 1, us.getLastColumn()).getValues()[0];
       if (!header.includes(col)) us.getRange(1, header.length + 1).setValue(col);
     });
@@ -444,7 +455,8 @@ function getUsersTable() {
     colTrialEnd:    header.indexOf("trialEnd"),   // v4.6
     colFrontImage:  header.indexOf("frontImage"), // v4.7
     colBackImage:   header.indexOf("backImage"),  // v4.7
-    colProEnd:      header.indexOf("proEnd")      // v4.8: 有料PROの有効期限（自動失効）
+    colProEnd:      header.indexOf("proEnd"),     // v4.8: 有料PROの有効期限（自動失効）
+    colPlusGEnd:    header.indexOf("plusGEnd")    // v5.38: ＋G年額サブスクの有効期限（自動失効）
   };
   return _cache.usersTable;
 }
@@ -496,6 +508,27 @@ function setProEnd(name, ms) {
   return true;
 }
 
+// ── ＋Gの年額サブスク有効期限（v5.38）──────────────────────────────
+// plusGEnd(ms) を過ぎると実効＋Gが外れる。0/空=未設定。PRO期限とは独立。
+// plusG列（真偽値）は手動permanent用として残置（設定するとplusGEndに関わらず常に有効）
+function rowPlusGEndMs(row, t) {
+  if (t.colPlusGEnd < 0) return 0;
+  const v = row[t.colPlusGEnd];
+  if (!v) return 0;
+  const ms = v instanceof Date ? v.getTime() : new Date(String(v)).getTime();
+  return isNaN(ms) ? 0 : ms;
+}
+
+function setPlusGEnd(name, ms) {
+  const t = getUsersTable();
+  if (t.colPlusGEnd < 0) return false; // 列がない（initSheets未実行）
+  const f = findUserRow(name);
+  if (!f) return false;
+  t.sheet.getRange(f.idx, t.colPlusGEnd + 1).setValue(ms ? new Date(ms).toISOString() : "");
+  invalidateUsersCache();
+  return true;
+}
+
 // v4.7: 専用列の画像をprofileに注入（列が空なら旧形式=profile内埋め込みをそのまま使用）
 function injectImages(profile, row, t) {
   const fi = t.colFrontImage >= 0 ? String(row[t.colFrontImage] || "") : "";
@@ -515,9 +548,14 @@ function rowToPublicUser(row, t) {
   const onTrial  = trialEnd > Date.now();
   const proEnd   = rowProEndMs(row, t);
   const proPaid  = proEnd > Date.now();           // v4.8: 有料PRO期間内
+  const plusGEnd  = rowPlusGEndMs(row, t);
+  const plusGPaid = plusGEnd > Date.now();        // v5.38: ＋G年額サブスク期間内
+  const plusGManual = row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1"; // 手動permanent
   // 実効PRO = お試し中 / 有料期間内 / 手動permanent(plan="pro")
   const isProEff = onTrial || proPaid || row[4] === "pro";
   const plan     = isProEff ? "pro" : "free";
+  // 実効＋G = お試し中 / 年額サブスク期間内 / 手動permanent
+  const isPlusGEff = onTrial || plusGPaid || plusGManual;
   let links = parseJson(row[3], []);
   if (!isProEff && links.length > FREE_LINK_LIMIT) links = links.slice(0, FREE_LINK_LIMIT);
   return {
@@ -526,10 +564,10 @@ function rowToPublicUser(row, t) {
     plan,
     trialEnd:    onTrial ? trialEnd : 0,
     proEnd:      proPaid ? proEnd : 0,            // v4.8: 有効期限（期間内のみ返す）
+    plusGEnd:    plusGPaid ? plusGEnd : 0,         // v5.38: ＋G年額サブスク有効期限（期間内のみ返す）
     profile:     clampThemeColor(injectImages(parseJson(row[5], null), row, t), isProEff),
     hasPinSet:   !!(row[6]),
-    // ＋Gは購入で永続（PRO期限とは独立）。お試し中も有効
-    plusG:       onTrial ? true : (row[7] === true || row[7] === "TRUE" || row[7] === 1 || row[7] === "1"),
+    plusG:       isPlusGEff,
     publicId:    t.colPublicId >= 0 ? String(row[t.colPublicId] || "") : "",
     // v4.13: 本人が「タグ仲間用URL」をプレビューできるよう、フル表示時は自分のtagPublicIdも返す。
     //   タグビュー（getUserPublicのtagId分岐）でもこの値は返るが、そこでの値は常に
@@ -583,6 +621,7 @@ function getAllUsersAdmin() {
     u.profile  = injectImages(parseJson(row[5], null), row, t); // v4.7: 画像列も注入
     u.trialEnd = rowTrialEndMs(row, t);
     u.proEnd   = rowProEndMs(row, t);   // v4.8: 有料PRO有効期限（生値）
+    u.plusGEnd = rowPlusGEndMs(row, t); // v5.38: ＋G年額サブスク有効期限（生値）
     u.licenseKey = row[2] || "";
     result[row[0]] = u;
   }

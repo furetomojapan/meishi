@@ -2089,5 +2089,18 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
   - `welcome.html`: プラン比較表に「月額料金」行（FREE ¥0 / PRO ¥580〜）と、期間別価格4枠（1/3/6/12ヶ月）・＋G年額注記を追加
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）、`npm run build` 成功
 - APP_VERSION v5.37→v5.38
-- **未実装（次の課題）**：＋Gの年額サブスク化に伴うGAS側の失効判定（`plusGEnd`列の追加、期限切れ時のフラグ自動解除）。現状は一度有効化すると更新が止まっても永続的に使えてしまう
+- **未実装だった課題を本セッション後半で解消**：＋Gの年額サブスク失効判定を実装（下記参照）
+- 未push
+
+### ＋G年額サブスクの期限管理を実装 2026-08-20(2)
+- 依頼：「まだユーザーはいないので、プラスGも書き換えてください」＝＋Gの「買い切り永続」設計を、実際にStripeで課金する「年額サブスク」に合わせて期限管理を実装してほしいという指示
+- 設計：`proEnd`（有料PRO期限）と同じパターンを踏襲。既存の`plusG`列（真偽値）は「手動permanent」用として残し、新規`plusGEnd`列（期限）を追加して二重構造に統一
+  - GAS: `initSheets()`のヘッダー・ensure列に`plusGEnd`追加／`getUsersTable().colPlusGEnd`／`rowPlusGEndMs`・`setPlusGEnd`関数／`rowToPublicUser()`の実効判定を`onTrial || plusGEnd期間内 || plusG手動permanent`に変更／`admin_set_plusg`ハンドラ新規追加（days>0=付与・0=失効）／`getAllUsersAdmin()`に生値`plusGEnd`を追加
+  - 既存の`admin_toggle_plusg`（真偽値トグル）は「手動permanent」の切り替え用として維持（テスト付与等の用途、期間管理とは別枠）
+  - フロント: `core.jsx`に`plusGDaysLeft()`追加、`getPersonData()`に`plusGEnd`を追加、`isPlusG`のコメントを実装に合わせて修正
+  - `App.jsx`: `setPlusG()`関数追加、管理画面に「＋G期間」ボタン追加（プリセット「1年」「失効(0)」）、名刺コピー機能で`plusGEnd`も複製対象に追加
+- テスト：`admin_set_plusg`の付与・期限切れ後の失効・終了(0)・認証必須を追加（`gas_mock_test.cjs`）
+- 検証：`node tests/gas_mock_test.cjs` 117 pass（+7件）、`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`npm run build` 成功
+- BACKEND_VERSION v4.14→v4.15、APP_VERSION引き続きv5.38
+- **デプロイ後の注意**：`plusGEnd`は新規シート列のため、本番反映後に**Apps Scriptエディタで`initSheets()`を1回手動実行**が必要（README記載の既存ルール通り）
 - 未push

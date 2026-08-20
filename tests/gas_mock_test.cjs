@@ -231,10 +231,23 @@ t("PRO期限後: 実効free", GET({ action: "get_user", id: regId }).user.plan =
 t("admin_set_pro終了(0)", POST({ action: "admin_set_pro", adminPass: AP, name: regId, days: 0 }).success === true
   && GET({ action: "get_user", id: regId }).user.plan === "free");
 t("admin_set_pro認証必須", POST({ action: "admin_set_pro", name: regId, days: 30 }).success === false);
-// ＋Gは購入で永続（PRO期限と独立）: plusGフラグONなら実効freeでもplusG有効
+// ＋Gは手動permanentなら実効freeでもplusG有効（PRO期限と独立）
 POST({ action: "admin_toggle_plusg", adminPass: AP, name: regId });
-t("＋G独立: freeでもplusG有効", (() => { const u = GET({ action: "get_user", id: regId }).user; return u.plan === "free" && u.plusG === true; })());
+t("＋G手動permanent: freeでもplusG有効", (() => { const u = GET({ action: "get_user", id: regId }).user; return u.plan === "free" && u.plusG === true; })());
 POST({ action: "admin_toggle_plusg", adminPass: AP, name: regId }); // 元に戻す
+
+// ── ＋G年額サブスク期限（v5.38: plusGEnd・自動失効・PRO独立）──
+const plusGCol = sheets.users.rows[0].indexOf("plusGEnd");
+t("plusGEnd列あり", plusGCol >= 0);
+r = POST({ action: "admin_set_plusg", adminPass: AP, name: regId, days: 365 });
+t("admin_set_plusg付与", r.success === true && r.plusGEnd > Date.now());
+t("付与後: plusG有効+plusGEnd返却", (() => { const u = GET({ action: "get_user", id: regId }).user; return u.plusG === true && u.plusGEnd > Date.now(); })());
+t("付与中もPROは無関係にfree", GET({ action: "get_user", id: regId }).user.plan === "free");
+regRow()[plusGCol] = new Date(Date.now() - 1000).toISOString(); // 期限切れに
+t("＋G期限後: plusG無効", GET({ action: "get_user", id: regId }).user.plusG === false);
+t("admin_set_plusg終了(0)", POST({ action: "admin_set_plusg", adminPass: AP, name: regId, days: 0 }).success === true
+  && GET({ action: "get_user", id: regId }).user.plusG === false);
+t("admin_set_plusg認証必須", POST({ action: "admin_set_plusg", name: regId, days: 365 }).success === false);
 
 // ── 独自背景画像（v4.7: 専用列に分離・高画質化）──
 const imgCols = { f: sheets.users.rows[0].indexOf("frontImage"), b: sheets.users.rows[0].indexOf("backImage") };

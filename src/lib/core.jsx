@@ -37,14 +37,14 @@
       export const getPersonData = (urlsData, name) => {
         const raw = urlsData[name];
         if (!raw) return { displayName: "", plan: "free", links: [], profile: normalizeProfile(null) };
-        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, proEnd: raw.proEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", tagPublicId: raw.tagPublicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
+        return { displayName: raw.displayName || "", plan: raw.plan || "free", plusG: raw.plusG || false, trialEnd: raw.trialEnd || 0, proEnd: raw.proEnd || 0, plusGEnd: raw.plusGEnd || 0, links: (raw.links || []).map(normalizeEntry).filter(e => e.url), profile: normalizeProfile(raw.profile), pin: raw.pin || "", publicId: raw.publicId || "", tagPublicId: raw.tagPublicId || "", hasPinSet: raw.hasPinSet, _tagView: raw._tagView || false };
       };
 
       /* ── プラン判定 ── */
       export const isPro = (personData) => personData?.plan === "pro";
       // v4.8: ＋GはPRO状態とは独立（PROが切れても背景画像は使える）
-      // ⚠️ v5.38時点で ＋G は Stripe上「年額¥500サブスク」だが、このフラグは真偽値のみで期限管理が未実装。
-      //    失効判定（plusGEnd列など）を実装するまでは、一度trueにすると更新が止まっても永続扱いのまま。
+      // v5.38: サーバー側で実効判定済み（お試し中 / plusGEnd年額期間内 / 手動permanent）の値が入るので、
+      //   ここは受け取った値をそのまま見ればよい（期限判定はサーバー側 rowToPublicUser が担う）
       export const isPlusG = (personData) => personData?.plusG === true;
       // v5.17: PRO+＋Gトライアル — サーバーが期限内のみ trialEnd(ms) を返す（planはpro扱いで返る）
       export const trialDaysLeft = (personData) => {
@@ -61,6 +61,11 @@
       // v4.8: 有料PROの残り日数（proEnd）。期限制PROの表示に使用
       export const proDaysLeft = (personData) => {
         const end = personData?.proEnd || 0;
+        return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
+      };
+      // v5.38: ＋G年額サブスクの残り日数（plusGEnd）。期限制＋Gの表示に使用
+      export const plusGDaysLeft = (personData) => {
+        const end = personData?.plusGEnd || 0;
         return end > Date.now() ? Math.max(1, Math.ceil((end - Date.now()) / 86400000)) : 0;
       };
       export const FREE_LINK_LIMIT = 1;
