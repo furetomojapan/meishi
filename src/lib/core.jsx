@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.37"; // ホーム画面追加の案内文言を「NEXUAを名刺の名前に書き換え」の直接指示に統一
+      export const APP_VERSION = "v5.38"; // PRO/＋G価格確定・Stripe決済リンク反映・購入モーダルと料金表に価格表示追加
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -42,7 +42,9 @@
 
       /* ── プラン判定 ── */
       export const isPro = (personData) => personData?.plan === "pro";
-      // v4.8: ＋Gは買い切りで永続。PRO状態とは独立（PROが切れても背景画像は使える）
+      // v4.8: ＋GはPRO状態とは独立（PROが切れても背景画像は使える）
+      // ⚠️ v5.38時点で ＋G は Stripe上「年額¥500サブスク」だが、このフラグは真偽値のみで期限管理が未実装。
+      //    失効判定（plusGEnd列など）を実装するまでは、一度trueにすると更新が止まっても永続扱いのまま。
       export const isPlusG = (personData) => personData?.plusG === true;
       // v5.17: PRO+＋Gトライアル — サーバーが期限内のみ trialEnd(ms) を返す（planはpro扱いで返る）
       export const trialDaysLeft = (personData) => {
@@ -86,13 +88,21 @@
       };
       // ★ STORESの商品公開URL（申し込みボタン用）
       export const STORES_URL = "https://w0uojgyhnhslanlhxcdn.stores.jp/";
-      // v4.8: 購入ページ用のSquare決済リンク（確定したらURLを差し込む。空ならそのプランは「準備中」表示）
-      export const SQUARE_LINKS = {
-        pro1m:  "", // PRO 1ヶ月
-        pro3m:  "", // PRO 3ヶ月
-        pro6m:  "", // PRO 6ヶ月
-        pro12m: "", // PRO 1年
-        plusg:  "", // ＋G（独自背景画像）買い切り
+      // v5.38: 購入ページ用のStripe決済リンク（2026-08-20 価格確定・Squareから移行）
+      export const STRIPE_LINKS = {
+        pro1m:  "https://buy.stripe.com/bJeeVc7oI6OEcx6fbcdby05", // PRO 1ヶ月 ¥580
+        pro3m:  "https://buy.stripe.com/bJedR8eRa4Gw8gQ6EGdby06", // PRO 3ヶ月 ¥1,580
+        pro6m:  "https://buy.stripe.com/14A3cu8sM1ukgNmaUWdby07", // PRO 6ヶ月 ¥2,980
+        pro12m: "https://buy.stripe.com/4gM3cucJ26OE2WwbZ0dby08", // PRO 1年 ¥4,980
+        plusg:  "https://buy.stripe.com/3cIeVc10ka0Qbt2e78dby09", // ＋G（独自背景画像）年額¥500・サブスク
+      };
+      // v5.38: PRO/＋Gの価格表示用（購入モーダルに使用）
+      export const PRICE_LABELS = {
+        pro1m:  "¥580",
+        pro3m:  "¥1,580（月¥527）",
+        pro6m:  "¥2,980（月¥497）",
+        pro12m: "¥4,980（月¥415）",
+        plusg:  "¥500/年",
       };
       export const TINT_OPTIONS = [
         { label:"なし",     bg:"#e0e0e0", value:"",                        textIcon:"✕" },

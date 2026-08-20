@@ -2076,3 +2076,18 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`npx eslint "src/**/*.jsx"` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）
 - APP_VERSION v5.36→v5.37、README更新
 - 未push
+
+### 課金体系 Phase 2: PRO/＋G価格確定・Stripe決済リンク反映 2026-08-20
+- 決定：価格調査（`docs/pricing_research_2026-08-20.md`）を経てユーザー承認。方針＝物理カードは他社最安値帯を維持し薄利、儲けの主体はPROプラン（月額サブスク）
+  - PRO: 1ヶ月¥580 / 3ヶ月¥1,580(月¥527) / 6ヶ月¥2,980(月¥497) / 12ヶ月¥4,980(月¥415)
+  - ＋G（独自背景画像）: ¥500/年の**年額サブスク**（従来設計は「買い切り永続」だったが方針転換）
+  - 決済プロバイダー：SquareからStripeへ移行（Payment Links）
+- 実装：
+  - `core.jsx`: `SQUARE_LINKS` → `STRIPE_LINKS`にリネーム、5つのStripe決済リンクURLを設定。`PRICE_LABELS`（表示用価格文字列）を新規追加
+  - `core.jsx`: `isPlusG`のコメントを修正し、「年額サブスクだが期限管理は未実装（フラグは真偽値のみ、一度trueにすると更新停止後も永続扱いのまま）」という技術的負債を明記
+  - `App.jsx`: 購入モーダルの決済リンクをSTRIPE_LINKS参照に切替、各プランに価格ラベルを表示。＋G表記を「買い切り・永続」→「独自背景画像・年額サブスク」に修正
+  - `welcome.html`: プラン比較表に「月額料金」行（FREE ¥0 / PRO ¥580〜）と、期間別価格4枠（1/3/6/12ヶ月）・＋G年額注記を追加
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`node tests/gas_mock_test.cjs` 110 pass（バックエンド無変更）、`npm run build` 成功
+- APP_VERSION v5.37→v5.38
+- **未実装（次の課題）**：＋Gの年額サブスク化に伴うGAS側の失効判定（`plusGEnd`列の追加、期限切れ時のフラグ自動解除）。現状は一度有効化すると更新が止まっても永続的に使えてしまう
+- 未push

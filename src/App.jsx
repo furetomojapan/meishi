@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, SQUARE_LINKS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, STRIPE_LINKS, PRICE_LABELS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -1459,7 +1459,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </div>
                         )}
 
-                        {/* v4.8: 購入ページ（Squareリンク一覧） */}
+                        {/* v5.38: 購入ページ（Stripeリンク一覧・価格表示付き） */}
                         {showPurchase && (() => { const myId = pd?.publicId || variablePart; const plans = [["pro1m","PRO 1ヶ月"],["pro3m","PRO 3ヶ月"],["pro6m","PRO 6ヶ月"],["pro12m","PRO 1年"]]; return (
                           <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPurchase(false)}>
                             <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 overflow-y-auto shadow-2xl" style={{maxHeight:`calc(85vh / ${UI_ZOOMS[uiZoomIdx]})`}} onClick={e => e.stopPropagation()}>
@@ -1480,11 +1480,11 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 </div>
                               </div>
                               <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest pt-1">② PRO（期間制）を選ぶ</p>
-                              {plans.map(([k,label]) => SQUARE_LINKS[k] ? (
-                                <a key={k} href={SQUARE_LINKS[k]} target="_blank" rel="noopener noreferrer"
+                              {plans.map(([k,label]) => STRIPE_LINKS[k] ? (
+                                <a key={k} href={STRIPE_LINKS[k]} target="_blank" rel="noopener noreferrer"
                                   className="flex items-center justify-between px-4 py-3 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 transition-colors">
                                   <span className="text-xs font-bold text-neutral-800">{label}</span>
-                                  <span className="text-[10px] font-bold text-amber-600">購入 →</span>
+                                  <span className="text-[10px] font-bold text-amber-600">{PRICE_LABELS[k]} 購入 →</span>
                                 </a>
                               ) : (
                                 <div key={k} className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 opacity-60">
@@ -1492,20 +1492,20 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <span className="text-[10px] text-neutral-400">準備中</span>
                                 </div>
                               ))}
-                              <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest pt-1">＋G（買い切り・永続）</p>
-                              {SQUARE_LINKS.plusg ? (
-                                <a href={SQUARE_LINKS.plusg} target="_blank" rel="noopener noreferrer"
+                              <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest pt-1">＋G（独自背景画像・年額サブスク）</p>
+                              {STRIPE_LINKS.plusg ? (
+                                <a href={STRIPE_LINKS.plusg} target="_blank" rel="noopener noreferrer"
                                   className="flex items-center justify-between px-4 py-3 rounded-xl border border-sky-200 bg-sky-50/70 hover:bg-sky-100 transition-colors">
-                                  <span className="text-xs font-bold text-neutral-800">＋G 独自背景画像（買い切り）</span>
-                                  <span className="text-[10px] font-bold text-sky-600">購入 →</span>
+                                  <span className="text-xs font-bold text-neutral-800">＋G 独自背景画像</span>
+                                  <span className="text-[10px] font-bold text-sky-600">{PRICE_LABELS.plusg} 購入 →</span>
                                 </a>
                               ) : (
                                 <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 opacity-60">
-                                  <span className="text-xs font-bold text-neutral-500">＋G 独自背景画像（買い切り）</span>
+                                  <span className="text-xs font-bold text-neutral-500">＋G 独自背景画像</span>
                                   <span className="text-[10px] text-neutral-400">準備中</span>
                                 </div>
                               )}
-                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 購入後、入金確認しだい有効化します（数営業日内）。PROは期間制、＋Gは一度の購入でずっと使えます。IDの入力間違いにご注意ください。</p>
+                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 購入後、入金確認しだい有効化します（数営業日内）。PROは期間制、＋Gは年額の自動更新です。IDの入力間違いにご注意ください。</p>
                               <div className="border-t border-neutral-100 pt-3 mt-1">
                                 <p className="text-[10px] text-neutral-400 mb-2 text-center">知り合いにもすすめる</p>
                                 <MakeOwnCTA />
