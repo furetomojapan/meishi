@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.41"; // ☆購入☆ボタンをカード画面から名刺編集PIN変更下に移設・help.htmlの決済ボタンに説明文追加
+      export const APP_VERSION = "v5.42"; // 購入ボタンを青色・「プランを購入」表記に変更
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

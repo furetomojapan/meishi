@@ -1736,8 +1736,8 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                 {/* v5.41: 購入導線（カード画面から移設） */}
                                 <div className="border-t border-neutral-100 pt-3">
                                   <button onClick={() => setShowPurchase(true)}
-                                    className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white bg-black hover:bg-neutral-800 active:scale-95 transition-all rounded-full px-4 py-2.5">
-                                    ☆購入☆
+                                    className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white bg-sky-500 hover:bg-sky-400 active:scale-95 transition-all rounded-full px-4 py-2.5">
+                                    プランを購入
                                   </button>
                                 </div>
                                 {/* v4.8: 「作りたい」勧誘CTA（ヘッダーから移設） */}

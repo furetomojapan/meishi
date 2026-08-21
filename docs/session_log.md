@@ -2132,4 +2132,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 追加指摘：「タップすると決済ページが開くという前提が分かりづらい」→ `help.html`の3つの決済ボタン群（PROプラン料金・＋G・PINリセット）それぞれの説明文に「下のボタンをタップすると、決済ページ（Stripe）が別タブで開きます」を追記
 - 検証：`npx eslint src/App.jsx` 0エラー、`npm run build` 成功
 - APP_VERSION v5.40→v5.41
+- push・デプロイ完了（GitHub Actions success確認済み）
+
+### 購入ボタンの見た目調整 2026-08-21(3)
+- 依頼：「購入ボタンは青色にして。文字は『プランを購入』にして」
+- 実装：名刺編集パネルの購入ボタン（`bg-black`・「☆購入☆」）を`bg-sky-500 hover:bg-sky-400`・「プランを購入」に変更
+- 検証：`npx eslint src/App.jsx` 0エラー、`npm run build` 成功
+- APP_VERSION v5.41→v5.42
 - 未push
