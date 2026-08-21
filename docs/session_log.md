@@ -2123,4 +2123,13 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - `core.jsx`から未使用になった`STORES_URL`エクスポートを削除（App.jsx・flipcard.jsx双方から参照ゼロを確認済み）
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx src/components/flipcard.jsx` 0エラー、`npm run build` 成功
 - APP_VERSION v5.39→v5.40
+- push・デプロイ完了（GitHub Actions success確認済み）
+
+### ☆購入☆ボタンの移設・help.htmlの決済ボタンに説明文追加 2026-08-21(2)
+- 依頼：「購入ボタンは現在の位置はなくして、名刺を編集のPIN変更の下とhelpページのPROプラン料金は？と＋Gの中に入れて下さい」
+- 確認の結果：help.html側は既に各プラン・＋Gのdetails内にStripe決済ボタンが入っており（前セッションで実装済み）、追加のボタンは不要と判断。App.jsx側のボタン移設のみ実施
+- 実装：カード画面（「名刺を編集」「タグ仲間」ボタンと横並び）にあった「☆購入☆」ボタンを削除し、名刺編集パネルの「PIN変更」セクションの直後（「知り合いにもすすめる」CTAの前）に移設
+- 追加指摘：「タップすると決済ページが開くという前提が分かりづらい」→ `help.html`の3つの決済ボタン群（PROプラン料金・＋G・PINリセット）それぞれの説明文に「下のボタンをタップすると、決済ページ（Stripe）が別タブで開きます」を追記
+- 検証：`npx eslint src/App.jsx` 0エラー、`npm run build` 成功
+- APP_VERSION v5.40→v5.41
 - 未push

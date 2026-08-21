@@ -1456,10 +1456,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                             {cardTagBusy ? "読み込み中…" : "タグ仲間"}
                           </button>
-                          <button onClick={() => setShowPurchase(true)}
-                            className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black hover:bg-neutral-800 active:scale-95 transition-all rounded-full px-4 py-2">
-                            ☆購入☆
-                          </button>
                         </div>
                         )}
 
@@ -1736,6 +1732,13 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                       className="px-4 py-2 bg-neutral-800 text-white rounded-xl text-[10px] font-bold hover:bg-black transition-all disabled:opacity-30">変更</button>
                                   </div>
                                   {pinChangeMsg && <p className="text-[10px] text-green-500 mt-1">{pinChangeMsg}</p>}
+                                </div>
+                                {/* v5.41: 購入導線（カード画面から移設） */}
+                                <div className="border-t border-neutral-100 pt-3">
+                                  <button onClick={() => setShowPurchase(true)}
+                                    className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white bg-black hover:bg-neutral-800 active:scale-95 transition-all rounded-full px-4 py-2.5">
+                                    ☆購入☆
+                                  </button>
                                 </div>
                                 {/* v4.8: 「作りたい」勧誘CTA（ヘッダーから移設） */}
                                 <div className="border-t border-neutral-100 pt-3">
