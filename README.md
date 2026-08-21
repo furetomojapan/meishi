@@ -6,7 +6,7 @@
 スマホで見せる・送れるデジタル名刺。GitHub Pages（静的フロント）+ Google Apps Script（API）+ Googleスプレッドシート（データ）で動作。
 
 - 本番サイト: https://nexua.tech/
-- 現行バージョン: フロント v5.43 / GAS v4.18
+- 現行バージョン: フロント v5.43 / GAS v4.19
 
 ## 構成（フェーズ4: Viteビルド）
 
@@ -51,6 +51,7 @@ Pages の Source は「GitHub Actions」（リポジトリ Settings → Pages）
 - 認証: リポジトリSecret `CLASPRC_JSON`（furetomojapanアカウントのOAuthトークン。無効化は https://myaccount.google.com/permissions ）
 - マニフェスト: `gas/appsscript.json`（公開設定を含むため変更注意）
 - **シート列が増える変更のみ**、Apps Script エディタで `initSheets()` を1回手動実行が必要
+- ⚠️ **Apps Scriptエディタでコードを直接編集・保存しないこと**。エディタのタブが古い内容を表示したまま保存すると、CIがpushした最新コードを古い内容で上書きしてしまう事故が起きる（2026-08-21に実際に発生）。関数の手動実行が必要な場合は、必ず先にタブを開き直して最新コードが表示されていることを確認し、実行だけ行う（編集はリポジトリ側で行いpushする）
 - **Stripe連携（v4.16〜）**: Apps Scriptエディタの「プロジェクトの設定」→「スクリプトプロパティ」に `STRIPE_API_KEY`（制限付きキー・Events読取＋Customers読み書き権限）を設定。StripeダッシュボードのWebhookエンドポイントは `{GAS_URL}?stripe_webhook=1`、監視イベントは `checkout.session.completed` と `customer.subscription.deleted`
 
 ### ロールバック

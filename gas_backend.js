@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.18
+ * デジタル名刺 - Google Apps Script バックエンド v4.19
+ *   - v4.19: エディタ手動編集による上書き事故からの復元 + OAuthスコープ承認用の
+ *     grantExternalRequestScope()を追加（エディタから1回実行して権限を許可する）
  *   - v4.18: Stripe Webhook動作確認用の一時診断エンドポイント(?action=stripe_debug)を追加。
  *     処理の各分岐でスクリプトプロパティに直近の状態を記録（実行数UIが見づらいため）。確認後は削除予定
  *   - v4.17: Stripe Webhookの応答をHtmlService経由に変更（GAS Web Appが返す302リダイレクトを
@@ -50,7 +52,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.18"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.19"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -1256,6 +1258,18 @@ const STRIPE_PLUSG_AMOUNTS = [500];                    // ＋Gの金額(JPY・�
 
 function getStripeApiKey() {
   return PropertiesService.getScriptProperties().getProperty('STRIPE_API_KEY') || '';
+}
+
+// v4.19: OAuthスコープ(script.external_request)の承認をエディタから1回行うための関数。
+//   Web App経由の実行では承認ダイアログを出せない仕様のため、エディタで手動実行して
+//   「許可」する必要がある。承認が済んだら本番Webhookも即座に動く（再デプロイ不要）。
+//   ※承認完了後はこの関数を削除してよい
+function grantExternalRequestScope() {
+  const res = UrlFetchApp.fetch('https://api.stripe.com/v1/events', {
+    headers: { Authorization: 'Bearer ' + getStripeApiKey() },
+    muteHttpExceptions: true
+  });
+  Logger.log('Stripe API応答コード: ' + res.getResponseCode() + '（200なら鍵も権限もOK / 401なら権限はOKだが鍵が不正）');
 }
 
 function stripeApiGet(path) {

@@ -2176,5 +2176,12 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - テスト：`tests/gas_mock_test.cjs`に`HtmlService`のモックを追加。133 pass（既存件数のまま、応答方式の変更のみでロジック変更なし）
 - 検証：`npm run build` 成功
 - BACKEND_VERSION v4.16→v4.17
-- **未検証**：実際にStripeからの再配信で302が解消されるかは、pushしてデプロイした後、Stripeダッシュボードの「再送」ボタンで確認する必要がある（次回セッションで実施）
+- push・デプロイ完了。再送で302は解消し200 OKになった
+
+### Webhook 200 OK後も反映されない → 権限未承認 + エディタ上書き事故の発覚 2026-08-21(6)
+- 302解消後も`plan: "free"`のまま。診断エンドポイント`?action=stripe_debug`（v4.18で追加）で確認したところ、`UrlFetchApp.fetch`の**OAuthスコープ(script.external_request)未承認**エラーと判明
+- Google公式仕様：Web App経由の実行では新スコープの承認ダイアログを出せない。エディタから手動実行して承認する必要がある（CI/CDでは代替不可）
+- 承認用関数をエディタに手書き追加してもらったところ`getStripeApiKey is not defined`という矛盾したエラー → サブエージェント調査＋実機確認の結果、**エディタのタブが古いコード（Stripe実装前）を表示したまま保存され、CIがpushした最新コードが古い内容で上書きされていた**ことが判明（エディタ表示は1242行、正は1438行）。デプロイ済みWeb App（バージョン固定）は無事だったが、HEADが壊れた
+- 対処（v4.19）：ローカルの正しいコードに`grantExternalRequestScope()`（承認ダイアログを出すための関数、承認後は削除可）を追加してCIで再push＝HEAD復元。READMEに「エディタで直接編集・保存禁止」の警告を追記
+- 残作業：ユーザーがエディタ（開き直した最新タブ）から`grantExternalRequestScope`を実行して権限を承認 → Stripeから再送 → 反映確認
 - 未push
