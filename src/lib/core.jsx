@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.38"; // PRO/＋G価格確定・Stripe決済リンク反映・購入モーダルと料金表に価格表示追加
+      export const APP_VERSION = "v5.39"; // PROアップグレード導線をSTORESから購入モーダルへ統一・PINリセットをStripe化・ヘルプページ新設
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -100,6 +100,7 @@
         pro6m:  "https://buy.stripe.com/14A3cu8sM1ukgNmaUWdby07", // PRO 6ヶ月 ¥2,980
         pro12m: "https://buy.stripe.com/4gM3cucJ26OE2WwbZ0dby08", // PRO 1年 ¥4,980
         plusg:  "https://buy.stripe.com/3cIeVc10ka0Qbt2e78dby09", // ＋G（独自背景画像）年額¥500・サブスク
+        pinreset: "https://buy.stripe.com/6oUdR87oI6OEdBa9QSdby0a", // v5.39: PINリセット申込（有料・STORESから移行）
       };
       // v5.38: PRO/＋Gの価格表示用（購入モーダルに使用）
       export const PRICE_LABELS = {

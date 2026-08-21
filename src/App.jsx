@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, plusGDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STORES_URL, STRIPE_LINKS, PRICE_LABELS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
+import { APP_VERSION, GH_REPO, GAS_URL, getSiteBase, normalizeProfile, getPersonData, isPro, isPlusG, isEffectivePro, isEffectivePlusG, trialDaysLeft, proDaysLeft, plusGDaysLeft, FREE_LINK_LIMIT, PRO_LINK_LIMIT, TAG_FRIENDS_FREE, TAG_FRIENDS_PRO, FREE_TAG_LIMIT, PRO_TAG_LIMIT, TAG_MAX_LEN, shuffleArr, normalizeTag, STRIPE_LINKS, PRICE_LABELS, normalizeEntry, SNS_LIST, getCardTheme, generateIconDataUri } from "./lib/core";
 import { appConfirm, appAlert, appPrompt, DialogHost } from "./lib/dialog";
 import { BgPicker, TintPicker, ThemePicker, TextColorPicker, AlignPicker, SizePicker, FontPicker, SNSLabelPicker } from "./components/pickers";
 import { FlipCard, Toast } from "./components/flipcard";
@@ -23,7 +23,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
           </span>
         );
       }
-      function PlanBox({ kind = "pro", dark = false, label, upgrade = false, className = "", children }) {
+      function PlanBox({ kind = "pro", dark = false, label, upgrade = false, onUpgrade, className = "", children }) {
         const isG = kind === "plusg";
         const labelCls = isG ? (dark ? "text-sky-300" : "text-sky-600") : (dark ? "text-amber-300" : "text-amber-600");
         return (
@@ -32,10 +32,10 @@ import { TagFields, ProfileTextFields } from "./components/forms";
             {label && <p className={`text-[9px] font-bold uppercase tracking-widest px-3 mb-1.5 ${labelCls}`}>{label}</p>}
             {children}
             {upgrade && (
-              <a href={STORES_URL} target="_blank" rel="noopener noreferrer"
+              <button type="button" onClick={onUpgrade}
                 className={`mt-3 mb-3 mx-3 flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold tracking-wide active:scale-95 transition-all ${isG ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-amber-500 text-white hover:bg-amber-400'}`}>
                 {isG ? '＋Gにアップグレード →' : 'PROにアップグレード →'}
-              </a>
+              </button>
             )}
           </div>
         );
@@ -1364,7 +1364,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   {pinBusy ? "確認中…" : "確認"}
                                 </button>
                                 <p className="text-[9px] text-neutral-400 text-center mt-2">
-                                  PINを忘れた場合は <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-black">STORES</a> から「PINリセット」をお申し込みください（有料）
+                                  PINを忘れた場合は <a href={STRIPE_LINKS.pinreset} target="_blank" rel="noopener noreferrer" className="underline hover:text-black">「PINリセット」</a>をお申し込みください（有料）
                                 </p>
                                 <button onClick={() => setShowPinModal(false)} disabled={pinBusy}
                                   className="w-full mt-2 py-2 text-[10px] text-neutral-400 hover:text-black transition-colors disabled:opacity-30">
@@ -1675,7 +1675,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <div className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2.5 rounded-xl border border-amber-200">
                                     <p className="font-bold mb-0.5">⏳ PRO+＋Gお試しは残り{d}日です</p>
                                     <p className="text-amber-600">期限後はFREEになりますが、設定内容は保存され、PROにすると再び有効になります。
-                                      <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline font-bold ml-0.5">PROにする →</a></p>
+                                      <button type="button" onClick={() => setShowPurchase(true)} className="underline font-bold ml-0.5">PROにする →</button></p>
                                   </div>
                                 ) : null; })()}
                                 {/* v5.20: お試し終了後（FREEだが特典データを保持中）の安心リキャップ */}
@@ -1688,7 +1688,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     <div className="text-[10px] bg-sky-50 text-sky-700 px-3 py-2.5 rounded-xl border border-sky-200">
                                       <p className="font-bold mb-0.5">💾 お試し中の設定は保存されています</p>
                                       <p className="text-sky-600">{items.join("・")}は現在おやすみ中ですが、消えていません。PROにすると、そのまま再び有効になります。
-                                        <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="underline font-bold ml-0.5">PROにする →</a></p>
+                                        <button type="button" onClick={() => setShowPurchase(true)} className="underline font-bold ml-0.5">PROにする →</button></p>
                                     </div>
                                   );
                                 })()}
@@ -1798,7 +1798,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                             <div className="absolute inset-0 z-10 rounded-xl bg-blue-900/75 flex flex-col items-center justify-center gap-1 pointer-events-none">
                                               <span className="text-[11px] font-bold text-white tracking-wide">✦ +Gプラン限定</span>
                                               <span className="text-[9px] text-blue-200">背景画像をアップロードできます</span>
-                                              <a href={STORES_URL} target="_blank" rel="noopener noreferrer" className="pointer-events-auto mt-1 px-3 py-1 bg-sky-500 text-white rounded-full text-[9px] font-bold hover:bg-sky-400 active:scale-95 transition-all">＋Gにする →</a>
+                                              <button type="button" onClick={() => setShowPurchase(true)} className="pointer-events-auto mt-1 px-3 py-1 bg-sky-500 text-white rounded-full text-[9px] font-bold hover:bg-sky-400 active:scale-95 transition-all">＋Gにする →</button>
                                             </div>
                                           )}
                                           <div>
@@ -1866,7 +1866,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">カラー（オーバーレイ）</p>
                                     <TintPicker selected={userEditProfile.tint} onSelect={tint => setUserEditProfile(p => ({...p,tint}))} />
                                   </div>
-                                  <PlanBox kind="pro" label="文字スタイル（フォント・サイズ・色・位置）" upgrade={!pro} className="px-3 pb-1">
+                                  <PlanBox kind="pro" label="文字スタイル（フォント・サイズ・色・位置）" upgrade={!pro} onUpgrade={() => setShowPurchase(true)} className="px-3 pb-1">
                                   <div className="border-b border-neutral-100 pb-3">
                                     <p className="text-[9px] text-neutral-600 font-semibold uppercase tracking-widest mb-2">デフォルト文字色</p>
                                     <TextColorPicker disabled={!pro} selected={userEditProfile.textColor||"#ffffff"} onSelect={textColor => setUserEditProfile(p => ({...p,textColor}))} />

@@ -2103,4 +2103,16 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：`node tests/gas_mock_test.cjs` 117 pass（+7件）、`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`npm run build` 成功
 - BACKEND_VERSION v4.14→v4.15、APP_VERSION引き続きv5.38
 - **デプロイ後の注意**：`plusGEnd`は新規シート列のため、本番反映後に**Apps Scriptエディタで`initSheets()`を1回手動実行**が必要（README記載の既存ルール通り）
+- push・デプロイ・initSheets()実行まで完了（本番URL https://nexua.tech/welcome.html で価格表示を実測確認済み）
+
+### 残存STORESリンクの洗い出しとStripe化・ヘルプページ新設 2026-08-20(3)
+- 指摘：「リンクがSTORESのままです」。grepで洗い出したところ、購入モーダル以外に5箇所`STORES_URL`への直リンクが残存していた
+- 修正（PROアップグレード導線4箇所を購入モーダルに統一）：
+  - `PlanBox`コンポーネントに`onUpgrade`コールバックprop追加、`<a href={STORES_URL}>`→`<button onClick={onUpgrade}>`
+  - お試し期限間近バナー・お試し終了後リキャップ・独自背景画像ロックの「PROにする/＋Gにする」を`setShowPurchase(true)`に変更
+- PINリセット申込（有料サポート、プラン購入とは別枠）：`STRIPE_LINKS.pinreset`を新規追加しStripeリンク化。リンクテキストを「STORES」→「『PINリセット』」に変更
+- **未対応のまま保留**：`flipcard.jsx`のFREEプランウォーターマーク帯（来訪者にも表示される導線）は、まだ`STORES_URL`直リンクのまま。購入モーダルを開くと来訪者にもオーナーの決済用IDが見えてしまうため、対応方針を保留中（ユーザー確認待ち）
+- 新規：`public/help.html`（ヘルプ・よくある質問ページ、Eightのヘルプページ相当を参考に依頼）。カテゴリ分け（はじめかた/プラン・料金/PINについて/その他）のアコーディオンFAQ。プラン・料金セクションとPINリセットにStripeリンクを設置。welcome.html・card.htmlのフッターから導線を追加
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`npm run build` 成功（`dist/help.html`が静的ファイルとして出力されることを確認）
+- APP_VERSION v5.38→v5.39
 - 未push
