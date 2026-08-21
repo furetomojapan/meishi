@@ -53,6 +53,7 @@ const sandbox = {
   })},
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
   ContentService: { createTextOutput: (t) => ({ _t: t, setMimeType() { return this; } }), MimeType: { JSON: 1 } },
+  HtmlService: { createHtmlOutput: (t) => ({ _t: t }) },
   MailApp: { sendEmail: () => {} },
   PropertiesService: { getScriptProperties: () => ({
     getProperty: k => scriptProps[k] ?? null,

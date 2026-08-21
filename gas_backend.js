@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.16
+ * デジタル名刺 - Google Apps Script バックエンド v4.17
+ *   - v4.17: Stripe Webhookの応答をHtmlService経由に変更（GAS Web Appが返す302リダイレクトを
+ *     回避するため）。本番テストでStripe側の配信が302 ERRとして失敗していたことが判明し対処
  *   - v4.16: Stripe Webhook連携を追加。サブスク契約(checkout.session.completed)/解約
  *     (customer.subscription.deleted)を受けて plan/plusG列（手動permanentと同じ列）を
  *     自動でON/OFF。署名ヘッダーが使えないためイベントIDをStripe API照会で真正性確認。
@@ -46,7 +48,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.16"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.17"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -143,8 +145,9 @@ function doPost(e) {
   catch { return jsonResponse({ error: "invalid JSON", code: "BAD_REQUEST" }); }
 
   // v5.42: Stripe Webhook（URLクエリ ?stripe_webhook=1 で判別。ROUTESとは別処理・action不要）
+  // v5.43: 302リダイレクト回避のためwebhookResponse（HtmlService）で返す
   if (e.parameter && e.parameter.stripe_webhook) {
-    return jsonResponse(handleStripeWebhook(p));
+    return webhookResponse(handleStripeWebhook(p));
   }
 
   const route = ROUTES[p.action];
@@ -1045,6 +1048,15 @@ function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// v5.43: Stripe等の外部サービスからのWebhook専用レスポンス。
+// GAS Web AppはContentServiceで返すと必ず302リダイレクトを1回挟む仕様があり、
+// サーバー間通信のWebhook配信システムはリダイレクトを追わず「失敗」扱いにすることが多い。
+// HtmlServiceで返すとこの302を回避できることが知られているため、Webhook応答限定で使用。
+// 通常のフロント向けAPI(jsonResponse)はブラウザのfetchが自動でリダイレクトを追うため変更不要。
+function webhookResponse(obj) {
+  return HtmlService.createHtmlOutput(JSON.stringify(obj));
 }
 
 function normalizeEmail(email) {

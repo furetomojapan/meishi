@@ -2164,4 +2164,17 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - **デプロイ後にユーザー側で必要な作業**（コードのpushだけでは有効化されない）：
   1. Apps Scriptエディタ「プロジェクトの設定」→「スクリプトプロパティ」に`STRIPE_API_KEY`（制限付き・Events読取＋Customers読み書き権限）を設定
   2. Stripeダッシュボードで本番用Webhookエンドポイントを登録：URL `{GAS_URL}?stripe_webhook=1`、イベント`checkout.session.completed`と`customer.subscription.deleted`
+- push・デプロイ完了（GitHub Actions success確認済み）
+
+### Stripe Webhook 実地テスト → 302エラー発見・修正 2026-08-21(5)
+- ユーザーがSTRIPE_API_KEY（制限付きキー、Customers書き込み+Events読み取り）を発行しスクリプトプロパティに設定、StripeダッシュボードでWebhookエンドポイント（`{GAS_URL}?stripe_webhook=1`、2イベント）を登録
+- サンドボックスでのテストを試みたが、**本番用APIキーではサンドボックスのイベントをStripe API照会で検証できない**ことが判明（本番/サンドボックスはAPIキーも完全に別物）。ユーザー判断で本番のPRO 1ヶ月リンク（¥580）を使った実地テストに切り替え
+- 実地テスト：ユーザーが実際に¥580決済 → NEXUA管理画面・GAS公開API(`get_user`)双方で確認したところ`plan: "free"`のまま反映されず
+- 原因調査：StripeダッシュボードのWebhookエンドポイント詳細「イベントの配信」で、GASのURLへの配信が**`302 ERR`**になっていることを発見
+- 原因特定：Google Apps Script Web Appは`ContentService`でレスポンスを返す際に必ず1回302リダイレクトを挟む既知の仕様があり、Stripeのようなサーバー間Webhook配信システムはリダイレクトを自動で追わず失敗扱いにする（コミュニティで既知の問題、`ContentService`→`HtmlService`への切替が定番の回避策）
+- 修正：`webhookResponse()`関数を新規追加（`HtmlService.createHtmlOutput()`で返す）。Stripe Webhook応答のみこれに切替、既存の全API（`jsonResponse`/`ContentService`）はフロントのfetchが自動でリダイレクトを追うため変更不要と判断しそのまま維持
+- テスト：`tests/gas_mock_test.cjs`に`HtmlService`のモックを追加。133 pass（既存件数のまま、応答方式の変更のみでロジック変更なし）
+- 検証：`npm run build` 成功
+- BACKEND_VERSION v4.16→v4.17
+- **未検証**：実際にStripeからの再配信で302が解消されるかは、pushしてデプロイした後、Stripeダッシュボードの「再送」ボタンで確認する必要がある（次回セッションで実施）
 - 未push
