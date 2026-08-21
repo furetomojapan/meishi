@@ -2111,8 +2111,16 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
   - `PlanBox`コンポーネントに`onUpgrade`コールバックprop追加、`<a href={STORES_URL}>`→`<button onClick={onUpgrade}>`
   - お試し期限間近バナー・お試し終了後リキャップ・独自背景画像ロックの「PROにする/＋Gにする」を`setShowPurchase(true)`に変更
 - PINリセット申込（有料サポート、プラン購入とは別枠）：`STRIPE_LINKS.pinreset`を新規追加しStripeリンク化。リンクテキストを「STORES」→「『PINリセット』」に変更
-- **未対応のまま保留**：`flipcard.jsx`のFREEプランウォーターマーク帯（来訪者にも表示される導線）は、まだ`STORES_URL`直リンクのまま。購入モーダルを開くと来訪者にもオーナーの決済用IDが見えてしまうため、対応方針を保留中（ユーザー確認待ち）
+- 保留していた`flipcard.jsx`のFREEプランウォーターマーク帯は「help.htmlのプラン・料金セクションに飛ばす」で決定（下記セッションで対応）
 - 新規：`public/help.html`（ヘルプ・よくある質問ページ、Eightのヘルプページ相当を参考に依頼）。カテゴリ分け（はじめかた/プラン・料金/PINについて/その他）のアコーディオンFAQ。プラン・料金セクションとPINリセットにStripeリンクを設置。welcome.html・card.htmlのフッターから導線を追加
 - 検証：`npx eslint src/App.jsx src/lib/core.jsx` 0エラー、`npm run build` 成功（`dist/help.html`が静的ファイルとして出力されることを確認）
 - APP_VERSION v5.38→v5.39
+- push・デプロイ完了（GitHub Actions success確認済み）
+
+### FREEプランウォーターマークの行き先をhelp.html#plansに決定 2026-08-21
+- 保留していた`flipcard.jsx`のFREEプランウォーターマーク帯の行き先を「help.htmlのプラン・料金セクション」に決定
+- 実装：`help.html`のプラン・料金`<section>`に`id="plans"`を追加、「PROプランの料金は？」を`open`属性でデフォルト展開に（リンクで来た時に即座に価格が見えるように）。`flipcard.jsx`のリンク先を`STORES_URL`→`help.html#plans`に変更
+- `core.jsx`から未使用になった`STORES_URL`エクスポートを削除（App.jsx・flipcard.jsx双方から参照ゼロを確認済み）
+- 検証：`npx eslint src/App.jsx src/lib/core.jsx src/components/flipcard.jsx` 0エラー、`npm run build` 成功
+- APP_VERSION v5.39→v5.40
 - 未push

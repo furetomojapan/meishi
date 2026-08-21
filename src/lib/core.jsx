@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.39"; // PROアップグレード導線をSTORESから購入モーダルへ統一・PINリセットをStripe化・ヘルプページ新設
+      export const APP_VERSION = "v5.40"; // FREEプランウォーターマークの行き先をhelp.html#plansに変更・STORES_URL完全撤去
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";
@@ -91,8 +91,7 @@
         try { s = s.normalize("NFKC"); } catch {}
         return s.trim().toLowerCase().replace(/\s+/g, " ");
       };
-      // ★ STORESの商品公開URL（申し込みボタン用）
-      export const STORES_URL = "https://w0uojgyhnhslanlhxcdn.stores.jp/";
+      // v5.39: STORES_URLは全用途をStripe決済リンク／help.htmlへの導線に置き換えたため削除
       // v5.38: 購入ページ用のStripe決済リンク（2026-08-20 価格確定・Squareから移行）
       export const STRIPE_LINKS = {
         pro1m:  "https://buy.stripe.com/bJeeVc7oI6OEcx6fbcdby05", // PRO 1ヶ月 ¥580

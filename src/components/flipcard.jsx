@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import React from "react";
-import { GH_REPO, getSiteBase, FREE_LINK_LIMIT, STORES_URL } from "../lib/core";
+import { GH_REPO, getSiteBase, FREE_LINK_LIMIT } from "../lib/core";
 import { QRButton, ShareBtn, PreviewBtn, AddToHomeBtn, FreeCardFace } from "./misc";
 import { URLRow } from "./pickers";
 
@@ -93,7 +93,7 @@ import { URLRow } from "./pickers";
               </div>
               {/* 無料プランのウォーターマーク（右端縦ストリップ・タップでアクティベーション） */}
               {!pro && (
-                <a href={typeof STORES_URL !== 'undefined' ? STORES_URL : '#'}
+                <a href="help.html#plans"
                   target="_blank" rel="noopener noreferrer"
                   style={{position:'absolute',top:0,right:0,bottom:0,width:'26px',zIndex:10,background:'rgba(0,0,0,0.65)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',borderRadius:'0 12px 12px 0',textDecoration:'none'}}
                   title="Proプランにする">
