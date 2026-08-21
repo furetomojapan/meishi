@@ -1,5 +1,7 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.17
+ * デジタル名刺 - Google Apps Script バックエンド v4.18
+ *   - v4.18: Stripe Webhook動作確認用の一時診断エンドポイント(?action=stripe_debug)を追加。
+ *     処理の各分岐でスクリプトプロパティに直近の状態を記録（実行数UIが見づらいため）。確認後は削除予定
  *   - v4.17: Stripe Webhookの応答をHtmlService経由に変更（GAS Web Appが返す302リダイレクトを
  *     回避するため）。本番テストでStripe側の配信が302 ERRとして失敗していたことが判明し対処
  *   - v4.16: Stripe Webhook連携を追加。サブスク契約(checkout.session.completed)/解約
@@ -48,7 +50,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.17"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.18"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -121,6 +123,10 @@ function doGet(e) {
     const action = e.parameter.action || "get_user";
     if (action === "version") {
       result = { version: BACKEND_VERSION }; // デプロイ確認用
+    } else if (action === "stripe_debug") {
+      // v5.44: Stripe Webhook動作確認用の一時診断エンドポイント（確認が終わったら削除する）
+      const raw = PropertiesService.getScriptProperties().getProperty('STRIPE_DEBUG_LAST');
+      result = { debug: raw ? JSON.parse(raw) : null };
     } else if (action === "get_user") {
       const id = String(e.parameter.id || "").trim();
       if (!id) {
@@ -1314,24 +1320,26 @@ function amountToKind(amount) {
 
 function handleCheckoutCompleted(session) {
   if (session.mode !== 'subscription' || session.payment_status !== 'paid') {
+    setStripeDebug({ step: 'checkout_skipped_not_subscription', mode: session.mode, payment_status: session.payment_status });
     Logger.log('stripe: checkout.session.completed 対象外 (mode=' + session.mode + ', payment_status=' + session.payment_status + ')');
     return;
   }
   const fields = session.custom_fields || [];
   const idField = fields.filter(f => f.key === 'id')[0];
   const publicId = (idField && idField.text && idField.text.value) ? String(idField.text.value).trim() : '';
-  if (!publicId) { Logger.log('stripe: publicId未入力 session=' + session.id); return; }
+  if (!publicId) { setStripeDebug({ step: 'checkout_no_publicid', sessionId: session.id, customFields: fields }); Logger.log('stripe: publicId未入力 session=' + session.id); return; }
 
   const kind = amountToKind(session.amount_total);
-  if (!kind) { Logger.log('stripe: 未知の金額 ' + session.amount_total + ' session=' + session.id); return; }
+  if (!kind) { setStripeDebug({ step: 'checkout_unknown_amount', amount: session.amount_total, sessionId: session.id }); Logger.log('stripe: 未知の金額 ' + session.amount_total + ' session=' + session.id); return; }
 
   // 顧客情報にpublicIdを保存（解約時の紐付け用。kindはsubscription側の金額から都度判定するため保存不要）
   if (session.customer) {
     try { stripeApiPost('customers/' + session.customer, { 'metadata[publicId]': publicId }); }
-    catch (err) { Logger.log('stripe: customer metadata更新失敗: ' + err.message); }
+    catch (err) { setStripeDebug({ step: 'checkout_customer_metadata_failed', publicId, error: err.message }); Logger.log('stripe: customer metadata更新失敗: ' + err.message); }
   }
 
   const ok = setUserPlanByPublicId(publicId, kind, true);
+  setStripeDebug({ step: ok ? 'checkout_activated' : 'checkout_user_not_found', publicId, kind, sessionId: session.id });
   Logger.log(ok
     ? 'stripe: ' + kind + '有効化 publicId=' + publicId + ' session=' + session.id
     : 'stripe: publicIdに一致するユーザーなし ' + publicId + ' session=' + session.id);
@@ -1361,24 +1369,35 @@ function handleSubscriptionDeleted(subscription) {
     : 'stripe: publicIdに一致するユーザーなし ' + publicId + ' subscription=' + subscription.id);
 }
 
+// v5.44: 実行数画面のUIが操作しづらいため、直近の処理結果をスクリプトプロパティに残し
+//   ?action=stripe_debug（doGet）で確認できるようにする一時的な診断用の仕組み
+function setStripeDebug(info) {
+  try {
+    PropertiesService.getScriptProperties().setProperty(
+      'STRIPE_DEBUG_LAST',
+      JSON.stringify(Object.assign({ at: new Date().toISOString() }, info))
+    );
+  } catch (e) { /* 記録失敗は無視（デバッグ用のため本処理は止めない） */ }
+}
+
 // Webhook本体: 冪等化 → Stripe APIで実在確認 → ロックして反映
 function handleStripeWebhook(raw) {
   const eventId = raw && raw.id;
-  if (!eventId) return { success: false, error: 'no event id' };
+  if (!eventId) { setStripeDebug({ step: 'no_event_id' }); return { success: false, error: 'no event id' }; }
 
   const cache = CacheService.getScriptCache();
   const dedupeKey = 'stripe_evt_' + eventId;
-  if (cache.get(dedupeKey)) return { success: true, skipped: 'duplicate' };
+  if (cache.get(dedupeKey)) { setStripeDebug({ step: 'duplicate', eventId }); return { success: true, skipped: 'duplicate' }; }
 
   let event;
   try { event = stripeApiGet('events/' + eventId); }
-  catch (err) { return { success: false, error: 'verification failed: ' + err.message }; }
-  if (!event || event.id !== eventId) return { success: false, error: 'event verification mismatch' };
+  catch (err) { setStripeDebug({ step: 'verify_failed', eventId, error: err.message }); return { success: false, error: 'verification failed: ' + err.message }; }
+  if (!event || event.id !== eventId) { setStripeDebug({ step: 'verify_mismatch', eventId }); return { success: false, error: 'event verification mismatch' }; }
 
   cache.put(dedupeKey, '1', 21600); // 6時間（CacheServiceの最大保持時間）
 
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(20 * 1000)) return { success: false, error: 'busy' };
+  if (!lock.tryLock(20 * 1000)) { setStripeDebug({ step: 'busy', eventId }); return { success: false, error: 'busy' }; }
   try {
     if (event.type === 'checkout.session.completed') {
       handleCheckoutCompleted(event.data.object);
@@ -1387,7 +1406,9 @@ function handleStripeWebhook(raw) {
     } else {
       Logger.log('stripe: 未対応イベント種別 ' + event.type);
     }
+    setStripeDebug({ step: 'done', eventId, type: event.type });
   } catch (err) {
+    setStripeDebug({ step: 'process_error', eventId, type: event.type, error: err.message, stack: String(err.stack || '') });
     Logger.log('stripe webhook処理エラー: ' + err.message);
     return { success: false, error: err.message };
   } finally {
