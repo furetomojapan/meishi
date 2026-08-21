@@ -1,6 +1,6 @@
 
 
-      export const APP_VERSION = "v5.44"; // 顧客セルフ解約（Stripeカスタマーポータル）の案内をhelp.htmlと購入モーダルに追加
+      export const APP_VERSION = "v5.45"; // 名刺ブックマークアプリへの保存ボタンを追加
       export const GH_REPO = "furetomojapan/meishi"; // 画像ホスティング（読み取り専用）にのみ使用
       // ★ Google Apps Script Web App URL（デプロイ後に差し替える）
       export const GAS_URL = "https://script.google.com/macros/s/AKfycbx07AF_mr_J1zVlkNbQ5FcEFDRJNwkhcAUGG71elltc3iusAKUuBvRBWcnriHcZ4NT2/exec";

@@ -2206,3 +2206,11 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 検証：eslint 0エラー、`npm run build`成功、GASテスト133 pass（バックエンド無変更）
 - APP_VERSION v5.43→v5.44
 - 未push
+
+### 名刺ブックマークアプリへの保存ボタン追加 2026-08-21(9)
+- 背景：別プロジェクト「名刺ブックマークアプリ」（`/Users/blackcoffee/WEB/XYZ/meishi-bookmark/`、公開済み）と連携するタスク（同プロジェクトのSDDタスク9）
+- 実装（v5.45）：`src/components/flipcard.jsx`のFlipCardに、名刺ブックマークアプリ（`https://laxuz999.github.io/meishi-bookmark/`）への「この名刺を保存」リンクを追加。配置は既存の「ホーム画面に追加」ボタンと同じ行（本人・来訪者どちらにも表示）
+  - リンクURLは`?url=`（既存の`siteUrl`＝publicId優先の共有URLをそのまま流用）、`&name=`（`personData.displayName`）、`&tags=`を付与
+  - `personData.tags`は`getPersonData()`（`src/lib/core.jsx`）が返すオブジェクトに存在しないことをコード確認済み（タグはApp.jsx側で別途API取得・別ステートで管理されており、FlipCardのpersonDataには含まれない）。ブリーフの指示通り、無理に他コンポーネントから取得する改修はせず`tags=`は常に空文字列
+- 検証：`npx eslint src/components/flipcard.jsx` 0エラー、`npm run build`成功
+- APP_VERSION v5.44→v5.45
