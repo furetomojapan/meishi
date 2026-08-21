@@ -6,7 +6,7 @@
 スマホで見せる・送れるデジタル名刺。GitHub Pages（静的フロント）+ Google Apps Script（API）+ Googleスプレッドシート（データ）で動作。
 
 - 本番サイト: https://nexua.tech/
-- 現行バージョン: フロント v5.43 / GAS v4.20
+- 現行バージョン: フロント v5.44 / GAS v4.20
 
 ## 構成（フェーズ4: Viteビルド）
 

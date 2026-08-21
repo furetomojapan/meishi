@@ -1536,7 +1536,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <span className="text-[10px] text-neutral-400">準備中</span>
                                 </div>
                               )}
-                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 決済完了後、自動的に反映されます。解約するとその時点で自動的にFREEに戻ります。IDの入力間違いにご注意ください。</p>
+                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 決済完了後、自動的に反映されます。IDの入力間違いにご注意ください。解約は<a href="help.html" target="_blank" rel="noopener noreferrer" className="underline">ヘルプページ</a>からいつでも可能です（期間終了までは使えます）。</p>
                               <div className="border-t border-neutral-100 pt-3 mt-1">
                                 <p className="text-[10px] text-neutral-400 mb-2 text-center">知り合いにもすすめる</p>
                                 <MakeOwnCTA />
