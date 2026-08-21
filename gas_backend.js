@@ -1,5 +1,9 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.15
+ * デジタル名刺 - Google Apps Script バックエンド v4.16
+ *   - v4.16: Stripe Webhook連携を追加。サブスク契約(checkout.session.completed)/解約
+ *     (customer.subscription.deleted)を受けて plan/plusG列（手動permanentと同じ列）を
+ *     自動でON/OFF。署名ヘッダーが使えないためイベントIDをStripe API照会で真正性確認。
+ *     STRIPE_API_KEY（制限付き・Events読取+Customers読み書き）をスクリプトプロパティに設定要
  *   - v4.15: ＋Gを「買い切り永続」から「年額サブスク（plusGEnd列で期限管理・自動失効）」に変更。
  *     plusG列（真偽値）は手動permanent用として残置。admin_set_plusgハンドラ追加
  *   - v4.14: verify_pin/set_initial_pinでensureTagPublicId()を呼び、古いアカウントで
@@ -42,7 +46,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.15"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.16"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -137,6 +141,11 @@ function doPost(e) {
   let p;
   try { p = JSON.parse(e.postData.contents); }
   catch { return jsonResponse({ error: "invalid JSON", code: "BAD_REQUEST" }); }
+
+  // v5.42: Stripe Webhook（URLクエリ ?stripe_webhook=1 で判別。ROUTESとは別処理・action不要）
+  if (e.parameter && e.parameter.stripe_webhook) {
+    return jsonResponse(handleStripeWebhook(p));
+  }
 
   const route = ROUTES[p.action];
   if (!route) return jsonResponse({ error: "unknown action", code: "UNKNOWN_ACTION" });
@@ -1215,6 +1224,164 @@ function getMyTagCounts(name) {
   const counts = {};
   myActive.forEach(tag => { counts[tag] = findUsersByTag(tag, name).length; });
   return counts;
+}
+
+// ── Stripe連携（v5.42: サブスク契約/解約のWebhookで自動反映）───────
+// 設計: 期間を計算せず「契約中かどうか」だけを見る。
+//   契約成立(checkout.session.completed) → plan="pro" または plusG=true に直書き（手動permanentと同じ列）
+//   解約(customer.subscription.deleted)  → plan="free" または plusG=false に戻す
+//   カスタムフィールドkey="id"（ユーザーのpublicId）で対象ユーザーを特定。
+//   Stripeの署名ヘッダーはGASのdoPostでは読めないため、受信イベントIDをStripe APIに
+//   問い合わせて実在確認する方式で真正性を担保する（受信ペイロードそのものは信用しない）。
+const STRIPE_PRO_AMOUNTS   = [580, 1580, 2980, 4980]; // PRO各プランの金額(JPY・税込)
+const STRIPE_PLUSG_AMOUNTS = [500];                    // ＋Gの金額(JPY・税込)
+
+function getStripeApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('STRIPE_API_KEY') || '';
+}
+
+function stripeApiGet(path) {
+  const key = getStripeApiKey();
+  if (!key) throw new Error('STRIPE_API_KEY未設定（スクリプトプロパティを確認してください）');
+  const res = UrlFetchApp.fetch('https://api.stripe.com/v1/' + path, {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + key },
+    muteHttpExceptions: true
+  });
+  const body = JSON.parse(res.getContentText());
+  if (res.getResponseCode() >= 300) throw new Error('Stripe API error: ' + (body.error && body.error.message || res.getContentText()));
+  return body;
+}
+
+function stripeApiPost(path, formParams) {
+  const key = getStripeApiKey();
+  if (!key) throw new Error('STRIPE_API_KEY未設定（スクリプトプロパティを確認してください）');
+  const payload = Object.keys(formParams).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(formParams[k])).join('&');
+  const res = UrlFetchApp.fetch('https://api.stripe.com/v1/' + path, {
+    method: 'post',
+    headers: { Authorization: 'Bearer ' + key },
+    contentType: 'application/x-www-form-urlencoded',
+    payload,
+    muteHttpExceptions: true
+  });
+  const body = JSON.parse(res.getContentText());
+  if (res.getResponseCode() >= 300) throw new Error('Stripe API error: ' + (body.error && body.error.message || res.getContentText()));
+  return body;
+}
+
+// publicId列でユーザー行を検索（name列検索のfindUserRowとは別軸）
+function findUserRowByPublicId(publicId) {
+  const t = getUsersTable();
+  if (t.colPublicId < 0) return null;
+  for (let i = 1; i < t.rows.length; i++) {
+    const row = t.rows[i];
+    if (row[0] && String(row[t.colPublicId] || '') === publicId) return { idx: i + 1, row, t };
+  }
+  return null;
+}
+
+// kind: 'pro' → plan列(5列目)を pro/free に。 'plusg' → plusG列(8列目)を true/false に。
+// 既存の「手動permanent」の仕組みをそのまま流用（admin_toggle_plan/admin_toggle_plusgと同じ列）
+function setUserPlanByPublicId(publicId, kind, active) {
+  const f = findUserRowByPublicId(publicId);
+  if (!f) return false;
+  if (kind === 'pro') {
+    f.t.sheet.getRange(f.idx, 5).setValue(active ? 'pro' : 'free');
+  } else {
+    f.t.sheet.getRange(f.idx, 8).setValue(active);
+  }
+  invalidateUsersCache();
+  return true;
+}
+
+function amountToKind(amount) {
+  if (STRIPE_PRO_AMOUNTS.indexOf(amount) >= 0) return 'pro';
+  if (STRIPE_PLUSG_AMOUNTS.indexOf(amount) >= 0) return 'plusg';
+  return null;
+}
+
+function handleCheckoutCompleted(session) {
+  if (session.mode !== 'subscription' || session.payment_status !== 'paid') {
+    Logger.log('stripe: checkout.session.completed 対象外 (mode=' + session.mode + ', payment_status=' + session.payment_status + ')');
+    return;
+  }
+  const fields = session.custom_fields || [];
+  const idField = fields.filter(f => f.key === 'id')[0];
+  const publicId = (idField && idField.text && idField.text.value) ? String(idField.text.value).trim() : '';
+  if (!publicId) { Logger.log('stripe: publicId未入力 session=' + session.id); return; }
+
+  const kind = amountToKind(session.amount_total);
+  if (!kind) { Logger.log('stripe: 未知の金額 ' + session.amount_total + ' session=' + session.id); return; }
+
+  // 顧客情報にpublicIdを保存（解約時の紐付け用。kindはsubscription側の金額から都度判定するため保存不要）
+  if (session.customer) {
+    try { stripeApiPost('customers/' + session.customer, { 'metadata[publicId]': publicId }); }
+    catch (err) { Logger.log('stripe: customer metadata更新失敗: ' + err.message); }
+  }
+
+  const ok = setUserPlanByPublicId(publicId, kind, true);
+  Logger.log(ok
+    ? 'stripe: ' + kind + '有効化 publicId=' + publicId + ' session=' + session.id
+    : 'stripe: publicIdに一致するユーザーなし ' + publicId + ' session=' + session.id);
+}
+
+function handleSubscriptionDeleted(subscription) {
+  const customerId = subscription.customer;
+  if (!customerId) return;
+
+  // 解約されたプラン種別は、サブスク自体の金額（現行APIはitems、旧APIはplan）から判定
+  const item = subscription.items && subscription.items.data && subscription.items.data[0];
+  const amount = (item && item.price && item.price.unit_amount)
+    || (subscription.plan && subscription.plan.amount)
+    || null;
+  const kind = amount !== null ? amountToKind(amount) : null;
+  if (!kind) { Logger.log('stripe: 解約 金額からkind判定不可 subscription=' + subscription.id); return; }
+
+  let customer;
+  try { customer = stripeApiGet('customers/' + customerId); }
+  catch (err) { Logger.log('stripe: customer取得失敗: ' + err.message); return; }
+  const publicId = customer.metadata && customer.metadata.publicId;
+  if (!publicId) { Logger.log('stripe: customerにpublicId未設定 ' + customerId); return; }
+
+  const ok = setUserPlanByPublicId(publicId, kind, false);
+  Logger.log(ok
+    ? 'stripe: ' + kind + '解約反映 publicId=' + publicId + ' subscription=' + subscription.id
+    : 'stripe: publicIdに一致するユーザーなし ' + publicId + ' subscription=' + subscription.id);
+}
+
+// Webhook本体: 冪等化 → Stripe APIで実在確認 → ロックして反映
+function handleStripeWebhook(raw) {
+  const eventId = raw && raw.id;
+  if (!eventId) return { success: false, error: 'no event id' };
+
+  const cache = CacheService.getScriptCache();
+  const dedupeKey = 'stripe_evt_' + eventId;
+  if (cache.get(dedupeKey)) return { success: true, skipped: 'duplicate' };
+
+  let event;
+  try { event = stripeApiGet('events/' + eventId); }
+  catch (err) { return { success: false, error: 'verification failed: ' + err.message }; }
+  if (!event || event.id !== eventId) return { success: false, error: 'event verification mismatch' };
+
+  cache.put(dedupeKey, '1', 21600); // 6時間（CacheServiceの最大保持時間）
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20 * 1000)) return { success: false, error: 'busy' };
+  try {
+    if (event.type === 'checkout.session.completed') {
+      handleCheckoutCompleted(event.data.object);
+    } else if (event.type === 'customer.subscription.deleted') {
+      handleSubscriptionDeleted(event.data.object);
+    } else {
+      Logger.log('stripe: 未対応イベント種別 ' + event.type);
+    }
+  } catch (err) {
+    Logger.log('stripe webhook処理エラー: ' + err.message);
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+  return { success: true };
 }
 
 // 同じタグを持つユーザー一覧（displayName + タグ用限定ID のみ）

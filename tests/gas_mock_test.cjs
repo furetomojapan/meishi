@@ -31,6 +31,9 @@ class Sheet {
 
 const sheets = {};
 const cacheStore = {};
+const scriptProps = {};
+// Stripe APIのモック: key = "GET events/evt_x" 等 → レスポンスbody。stripeMock.callsに呼び出し履歴を記録
+const stripeMock = { responses: {}, calls: [] };
 const sandbox = {
   console,
   SpreadsheetApp: { getActiveSpreadsheet: () => ({
@@ -51,6 +54,20 @@ const sandbox = {
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
   ContentService: { createTextOutput: (t) => ({ _t: t, setMimeType() { return this; } }), MimeType: { JSON: 1 } },
   MailApp: { sendEmail: () => {} },
+  PropertiesService: { getScriptProperties: () => ({
+    getProperty: k => scriptProps[k] ?? null,
+    setProperty: (k, v) => { scriptProps[k] = v; }
+  })},
+  UrlFetchApp: { fetch: (url, options) => {
+    const method = ((options && options.method) || "get").toLowerCase();
+    const path = String(url).replace("https://api.stripe.com/v1/", "");
+    const key = method + " " + path;
+    stripeMock.calls.push({ key, options });
+    const mocked = stripeMock.responses[key];
+    if (!mocked) return { getContentText: () => JSON.stringify({ error: { message: "mock not found: " + key } }), getResponseCode: () => 404 };
+    return { getContentText: () => JSON.stringify(mocked), getResponseCode: () => 200 };
+  }},
+  Logger: { log: () => {} },
   Date, JSON, Object, Array, String, Number, Math, parseInt, RegExp, Set, Error
 };
 vm.createContext(sandbox);
@@ -58,6 +75,7 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "gas_backend.js"), "u
 
 const POST = (payload) => JSON.parse(vm.runInContext("doPost", sandbox)({ postData: { contents: JSON.stringify(payload) } })._t);
 const GET  = (params)  => JSON.parse(vm.runInContext("doGet",  sandbox)({ parameter: params })._t);
+const STRIPE_POST = (payload) => JSON.parse(vm.runInContext("doPost", sandbox)({ postData: { contents: JSON.stringify(payload) }, parameter: { stripe_webhook: "1" } })._t);
 
 let pass = 0, fail = 0;
 const t = (name, cond) => { if (cond) pass++; else { fail++; console.log("FAIL:", name); } };
@@ -318,6 +336,94 @@ oldRow()[tagCol] = ""; // 古いアカウント＝未発行状態を再現
 t("未発行状態を再現できた", !oldRow()[tagCol]);
 t("ログイン成功", POST({ action: "verify_pin", name: "oldacct", pin: "444444" }).success === true);
 t("ログイン時にtagPublicIdが自動発行される", /^zt\d{9}$/.test(String(oldRow()[tagCol])));
+
+// ── Stripe Webhook連携（v5.42: サブスク契約/解約の自動反映）──
+POST({ action: "admin_create_user", adminPass: AP, name: "stripeuser" });
+const stripeRow = () => sheets.users.rows.find(x => x[0] === "stripeuser");
+const stripePublicId = String(stripeRow()[8]);
+
+// APIキー未設定だとエラー
+r = STRIPE_POST({ id: "evt_1", type: "checkout.session.completed", data: { object: {} } });
+t("STRIPE_API_KEY未設定はエラー", r.success === false);
+
+scriptProps.STRIPE_API_KEY = "sk_test_dummy";
+
+// 正常系: PRO 3ヶ月(1580円)契約 → plan=pro に
+stripeMock.responses["get events/evt_pro1"] = {
+  id: "evt_pro1", type: "checkout.session.completed",
+  data: { object: {
+    id: "cs_1", mode: "subscription", payment_status: "paid", amount_total: 1580,
+    customer: "cus_1",
+    custom_fields: [{ key: "id", text: { value: stripePublicId } }]
+  }}
+};
+stripeMock.responses["post customers/cus_1"] = { id: "cus_1", metadata: { publicId: stripePublicId } };
+r = STRIPE_POST({ id: "evt_pro1", type: "checkout.session.completed", data: { object: { id: "cs_1" } } });
+t("Webhook: PRO契約成功", r.success === true);
+t("Webhook後: plan=pro", stripeRow()[4] === "pro");
+t("Webhook: customer metadata更新を呼んでいる", stripeMock.calls.some(c => c.key === "post customers/cus_1"));
+
+// 冪等化: 同じイベントIDを再送すると skipped
+r = STRIPE_POST({ id: "evt_pro1", type: "checkout.session.completed", data: { object: { id: "cs_1" } } });
+t("Webhook: 重複イベントはskip", r.success === true && r.skipped === "duplicate");
+
+// 解約 → plan=free に戻る
+stripeMock.responses["get events/evt_cancel1"] = {
+  id: "evt_cancel1", type: "customer.subscription.deleted",
+  data: { object: { id: "sub_1", customer: "cus_1", items: { data: [{ price: { unit_amount: 1580 } }] } } }
+};
+stripeMock.responses["get customers/cus_1"] = { id: "cus_1", metadata: { publicId: stripePublicId } };
+r = STRIPE_POST({ id: "evt_cancel1", type: "customer.subscription.deleted", data: { object: {} } });
+t("Webhook: 解約成功", r.success === true);
+t("Webhook後: plan=free", stripeRow()[4] === "free");
+
+// ＋G契約(500円) → plusG=true に
+stripeMock.responses["get events/evt_plusg1"] = {
+  id: "evt_plusg1", type: "checkout.session.completed",
+  data: { object: {
+    id: "cs_2", mode: "subscription", payment_status: "paid", amount_total: 500,
+    customer: "cus_2",
+    custom_fields: [{ key: "id", text: { value: stripePublicId } }]
+  }}
+};
+stripeMock.responses["post customers/cus_2"] = { id: "cus_2", metadata: { publicId: stripePublicId } };
+r = STRIPE_POST({ id: "evt_plusg1", type: "checkout.session.completed", data: { object: {} } });
+t("Webhook: ＋G契約成功", r.success === true);
+t("Webhook後: plusG=true", stripeRow()[7] === true);
+
+// ＋G解約 → plusG=false（PROのplan列には影響しないことも確認）
+stripeRow()[4] = "pro"; // PRO契約中の状態を再現してから＋Gだけ解約する
+stripeMock.responses["get events/evt_plusg_cancel"] = {
+  id: "evt_plusg_cancel", type: "customer.subscription.deleted",
+  data: { object: { id: "sub_2", customer: "cus_2", items: { data: [{ price: { unit_amount: 500 } }] } } }
+};
+stripeMock.responses["get customers/cus_2"] = { id: "cus_2", metadata: { publicId: stripePublicId } };
+r = STRIPE_POST({ id: "evt_plusg_cancel", type: "customer.subscription.deleted", data: { object: {} } });
+t("Webhook: ＋G解約成功", r.success === true);
+t("Webhook後: plusG=false", stripeRow()[7] === false);
+t("＋G解約はPROに影響しない", stripeRow()[4] === "pro");
+stripeRow()[4] = "free"; // 後続テストに影響しないよう戻す
+
+// 異常系: publicId未入力・未知の金額は無視されつつも200を返す
+stripeMock.responses["get events/evt_noid"] = {
+  id: "evt_noid", type: "checkout.session.completed",
+  data: { object: { id: "cs_3", mode: "subscription", payment_status: "paid", amount_total: 1580, customer: "cus_3", custom_fields: [] } }
+};
+r = STRIPE_POST({ id: "evt_noid", type: "checkout.session.completed", data: { object: {} } });
+t("Webhook: publicId未入力でもエラーにならない", r.success === true);
+
+stripeMock.responses["get events/evt_badamount"] = {
+  id: "evt_badamount", type: "checkout.session.completed",
+  data: { object: { id: "cs_4", mode: "subscription", payment_status: "paid", amount_total: 999999, customer: "cus_4", custom_fields: [{ key: "id", text: { value: stripePublicId } }] } }
+};
+r = STRIPE_POST({ id: "evt_badamount", type: "checkout.session.completed", data: { object: {} } });
+t("Webhook: 未知の金額でもエラーにならない", r.success === true);
+t("未知の金額はplanを変更しない", stripeRow()[4] === "free");
+
+// 異常系: イベント検証失敗（Stripe API側のidが一致しない＝なりすまし疑い）
+stripeMock.responses["get events/evt_forged"] = { id: "evt_different", type: "checkout.session.completed", data: { object: {} } };
+r = STRIPE_POST({ id: "evt_forged", type: "checkout.session.completed", data: { object: {} } });
+t("Webhook: イベントID不一致は拒否", r.success === false);
 
 // ── 管理者パスワードのブルートフォース対策（★このブロックはファイル最後に置くこと。
 //    ロックには有効期限があるが、このモックのCacheServiceはTTLを実装していないため

@@ -2139,4 +2139,29 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 実装：名刺編集パネルの購入ボタン（`bg-black`・「☆購入☆」）を`bg-sky-500 hover:bg-sky-400`・「プランを購入」に変更
 - 検証：`npx eslint src/App.jsx` 0エラー、`npm run build` 成功
 - APP_VERSION v5.41→v5.42
+- push・デプロイ完了（GitHub Actions success確認済み）
+- ユーザー指示：今後このプロジェクトはコミット後に確認なく常にpush（memory `feedback_nexua_always_push` に記録済み）
+
+### 課金体系 Phase 2: Stripe Webhookによる自動反映 2026-08-21(4)
+- 質問：「Stripeでユーザー ID入力をして購入すると、ちゃんと反映されるような仕組みになってるんでしょうか？」
+- 回答：当時は未反映（Phase 1のまま、手動で管理画面から反映する運用）。ユーザーはカスタムフィールドに「ユーザーID」を既に設定済みと判明 → 自動反映（Phase 2）を実装する流れに
+- 調査：サンドボックスでテスト決済を行い、`checkout.session.completed`イベントの実データを確認。カスタムフィールドのkeyは`"id"`。本番の5リンク（PRO 1/3/6/12ヶ月・＋G）は全て**サブスクリプション型**（買い切りではなく自動継続課金）と判明
+- 設計方針（ユーザー承認済み）：期間を計算する方式ではなく「Stripe側で契約中かどうか」だけを見るシンプルな状態同期方式を採用
+  - 契約成立(`checkout.session.completed`) → 既存の「手動permanent」列（`plan`列="pro" or `plusG`列=true）を直接ON。v4.15で作った期間制(`proEnd`/`plusGEnd`)とは別経路で、判定ロジック(`isProEff`/`isPlusGEff`)には両方とも織り込み済みのためそのまま共存可能
+  - 解約(`customer.subscription.deleted`) → 同じ列をOFFに戻す
+  - カスタムフィールド`key="id"`の値＝publicIdで対象ユーザーを特定。プラン種別（PRO/＋G）は金額（580/1580/2980/4980→PRO, 500→＋G）で判定
+  - 真正性検証：GASの`doPost`はHTTPヘッダーを読めずStripeの署名検証が使えないため、**受信イベントIDをStripe APIに問い合わせて実在確認する方式**を採用（ユーザーが「Stripe APIで確認する方式」を選択、URL埋め込みトークン方式は不採用）
+  - 冪等化：処理済みイベントIDをCacheServiceに6時間保持し重複処理を防止
+  - Customer解約時のユーザー特定用に、契約時にStripe Customerのmetadataに`publicId`を保存（`kind`は保存せず、解約時にサブスク自体の金額から都度判定 — 複数プラン同時契約時の上書き事故を避けるため）
+- 実装（GAS）：
+  - `doPost`冒頭に`?stripe_webhook=1`判定を追加、既存の`action`ベースルーティングとは完全に別処理
+  - `handleStripeWebhook`/`handleCheckoutCompleted`/`handleSubscriptionDeleted`/`stripeApiGet`/`stripeApiPost`/`findUserRowByPublicId`/`setUserPlanByPublicId`/`amountToKind`を新規追加
+  - `STRIPE_API_KEY`は`PropertiesService`（スクリプトプロパティ）から取得。リポジトリに一切含めない
+- 実装（フロント）：購入モーダル・名刺編集パネル・`help.html`の案内文を「入金確認後、数営業日内に反映」→「決済完了後、自動的に反映／解約で自動的にFREEに戻る」に更新
+- テスト：`tests/gas_mock_test.cjs`に`UrlFetchApp`/`PropertiesService`/`Logger`のモックと`STRIPE_POST`ヘルパーを追加。正常系（PRO契約/解約・＋G契約/解約・冪等化）と異常系（APIキー未設定・publicId未入力・未知の金額・イベントID不一致＝なりすまし疑い）を網羅。133 pass（+16件）
+- 検証：`node tests/gas_mock_test.cjs` 133 pass、`npx eslint src/App.jsx` 0エラー、`npm run build` 成功
+- BACKEND_VERSION v4.15→v4.16、APP_VERSION v5.42→v5.43
+- **デプロイ後にユーザー側で必要な作業**（コードのpushだけでは有効化されない）：
+  1. Apps Scriptエディタ「プロジェクトの設定」→「スクリプトプロパティ」に`STRIPE_API_KEY`（制限付き・Events読取＋Customers読み書き権限）を設定
+  2. Stripeダッシュボードで本番用Webhookエンドポイントを登録：URL `{GAS_URL}?stripe_webhook=1`、イベント`checkout.session.completed`と`customer.subscription.deleted`
 - 未push

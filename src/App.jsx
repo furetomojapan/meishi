@@ -1536,7 +1536,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                   <span className="text-[10px] text-neutral-400">準備中</span>
                                 </div>
                               )}
-                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 購入後、入金確認しだい有効化します（数営業日内）。PROは期間制、＋Gは年額の自動更新です。IDの入力間違いにご注意ください。</p>
+                              <p className="text-[9px] text-neutral-400 leading-relaxed pt-1">③ 決済完了後、自動的に反映されます。解約するとその時点で自動的にFREEに戻ります。IDの入力間違いにご注意ください。</p>
                               <div className="border-t border-neutral-100 pt-3 mt-1">
                                 <p className="text-[10px] text-neutral-400 mb-2 text-center">知り合いにもすすめる</p>
                                 <MakeOwnCTA />
@@ -1702,7 +1702,7 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                                         {idCopied ? '✓ コピー済' : 'コピー'}
                                       </button>
                                     </div>
-                                    <p className="text-[9px] text-sky-600/80 mt-1.5">決済ページのID欄に、このIDをそのまま貼り付けてください。入金確認後、このIDの名刺をPROに切り替えます。</p>
+                                    <p className="text-[9px] text-sky-600/80 mt-1.5">決済ページのID欄に、このIDをそのまま貼り付けてください。決済完了後、自動的にこのIDの名刺がPROに切り替わります。</p>
                                   </div>
                                 ); })()}
                                 <p className="text-[10px] text-neutral-400">空白文字（スペース・改行）も認識します</p>
