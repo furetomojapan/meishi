@@ -1,5 +1,9 @@
 /**
- * デジタル名刺 - Google Apps Script バックエンド v4.19
+ * デジタル名刺 - Google Apps Script バックエンド v4.20
+ *   - v4.20: Stripe Webhook本番テスト完了（契約→PRO自動化・解約→FREE自動復帰を実証）。
+ *     一時診断エンドポイント(?action=stripe_debug)を削除、grantExternalRequestScopeを
+ *     checkStripeConnection（疎通確認用として常設）に改名。STRIPE_DEBUG_LAST記録は
+ *     トラブルシュート用に維持（スクリプトプロパティ画面で閲覧）
  *   - v4.19: エディタ手動編集による上書き事故からの復元 + OAuthスコープ承認用の
  *     grantExternalRequestScope()を追加（エディタから1回実行して権限を許可する）
  *   - v4.18: Stripe Webhook動作確認用の一時診断エンドポイント(?action=stripe_debug)を追加。
@@ -52,7 +56,7 @@
  */
 
 // ── 定数 ──────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v4.19"; // ★ ?action=version で本番のバージョンを確認できる
+const BACKEND_VERSION = "v4.20"; // ★ ?action=version で本番のバージョンを確認できる
 const SHEET_USERS         = "users";
 const SHEET_CONFIG        = "config";
 const SHEET_LICENSE       = "licenses";
@@ -125,10 +129,6 @@ function doGet(e) {
     const action = e.parameter.action || "get_user";
     if (action === "version") {
       result = { version: BACKEND_VERSION }; // デプロイ確認用
-    } else if (action === "stripe_debug") {
-      // v5.44: Stripe Webhook動作確認用の一時診断エンドポイント（確認が終わったら削除する）
-      const raw = PropertiesService.getScriptProperties().getProperty('STRIPE_DEBUG_LAST');
-      result = { debug: raw ? JSON.parse(raw) : null };
     } else if (action === "get_user") {
       const id = String(e.parameter.id || "").trim();
       if (!id) {
@@ -1260,11 +1260,11 @@ function getStripeApiKey() {
   return PropertiesService.getScriptProperties().getProperty('STRIPE_API_KEY') || '';
 }
 
-// v4.19: OAuthスコープ(script.external_request)の承認をエディタから1回行うための関数。
-//   Web App経由の実行では承認ダイアログを出せない仕様のため、エディタで手動実行して
-//   「許可」する必要がある。承認が済んだら本番Webhookも即座に動く（再デプロイ不要）。
-//   ※承認完了後はこの関数を削除してよい
-function grantExternalRequestScope() {
+// Stripe連携の疎通確認用（エディタから手動実行）。
+//   用途1: script.external_request スコープの初回承認（Web App経由では承認ダイアログを
+//          出せない仕様のため、コード変更で新スコープが必要になったらエディタから実行する）
+//   用途2: STRIPE_API_KEY の有効性チェック（200=鍵も権限もOK / 401=権限OKだが鍵が不正）
+function checkStripeConnection() {
   const res = UrlFetchApp.fetch('https://api.stripe.com/v1/events', {
     headers: { Authorization: 'Bearer ' + getStripeApiKey() },
     muteHttpExceptions: true
@@ -1383,8 +1383,10 @@ function handleSubscriptionDeleted(subscription) {
     : 'stripe: publicIdに一致するユーザーなし ' + publicId + ' subscription=' + subscription.id);
 }
 
-// v5.44: 実行数画面のUIが操作しづらいため、直近の処理結果をスクリプトプロパティに残し
-//   ?action=stripe_debug（doGet）で確認できるようにする一時的な診断用の仕組み
+// Stripe Webhookの直近の処理結果をスクリプトプロパティ STRIPE_DEBUG_LAST に記録する。
+// 「入金したのに反映されない」等の問い合わせ時、Apps Scriptエディタの
+// プロジェクトの設定→スクリプトプロパティでこの値を見れば、最後にどの分岐で
+// 止まったか（ID入力ミス=checkout_user_not_found 等）が分かる。
 function setStripeDebug(info) {
   try {
     PropertiesService.getScriptProperties().setProperty(

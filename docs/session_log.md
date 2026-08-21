@@ -2184,4 +2184,15 @@ FREEユーザーにもピッカーが見えることで「PROにアップグレ�
 - 承認用関数をエディタに手書き追加してもらったところ`getStripeApiKey is not defined`という矛盾したエラー → サブエージェント調査＋実機確認の結果、**エディタのタブが古いコード（Stripe実装前）を表示したまま保存され、CIがpushした最新コードが古い内容で上書きされていた**ことが判明（エディタ表示は1242行、正は1438行）。デプロイ済みWeb App（バージョン固定）は無事だったが、HEADが壊れた
 - 対処（v4.19）：ローカルの正しいコードに`grantExternalRequestScope()`（承認ダイアログを出すための関数、承認後は削除可）を追加してCIで再push＝HEAD復元。READMEに「エディタで直接編集・保存禁止」の警告を追記
 - 残作業：ユーザーがエディタ（開き直した最新タブ）から`grantExternalRequestScope`を実行して権限を承認 → Stripeから再送 → 反映確認
+- push・デプロイ完了
+
+### Stripe Webhook 本番E2Eテスト成功・クリーンアップ 2026-08-21(7)
+- 権限承認：エディタから`grantExternalRequestScope`実行→OAuth承認ダイアログ→許可。初回は401（APIキーのコピーが不完全＝先頭欠け）→ Stripe側でキーをローテーションして貼り直し→**200 OK**
+  - なお作業中にAPIキーがチャットに貼られたため、ローテーションは漏洩対策も兼ねた（旧キー無効化済み）
+- 本番E2Eテスト（実費¥580→返金済み）：
+  - 決済（Apple Pay）→ Stripe再送 → `step: "done"` → **`plan: "pro"`に自動反映を確認** ✅
+  - Stripe顧客メタデータに`publicId`が自動保存されたことも画面で確認 ✅
+  - サブスク即時キャンセル＋全額返金 → **`plan: "free"`に自動復帰を確認** ✅
+- クリーンアップ（v4.20）：一時診断エンドポイント`?action=stripe_debug`を削除（無認証でpublicId等が見えるため）。`STRIPE_DEBUG_LAST`のスクリプトプロパティ記録自体は運用トラブルシュート用（ID入力ミス=checkout_user_not_found等の切り分け）に常設維持。`grantExternalRequestScope`→`checkStripeConnection`に改名して疎通確認用として常設
+- **これで課金体系Phase 2（自動反映）が完成**。運用上の既知の弱点（会話で説明済み・未対応）：①ID入力ミス時に通知が飛ばない（STRIPE_DEBUG_LASTを手動確認するしかない）②同一人物の複数プラン同時契約時の解約判定 ③処理失敗時のアラートなし ④二重購入の防止なし
 - 未push
