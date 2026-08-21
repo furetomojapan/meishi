@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import React from "react";
 import { GH_REPO, getSiteBase, FREE_LINK_LIMIT } from "../lib/core";
-import { QRButton, ShareBtn, PreviewBtn, AddToHomeBtn, FreeCardFace } from "./misc";
+import { QRButton, ShareBtn, PreviewBtn, FreeCardFace } from "./misc";
 import { URLRow } from "./pickers";
 
       export function FlipCard({ variablePart, personData, pro, owner = false }) {
@@ -135,10 +135,9 @@ import { URLRow } from "./pickers";
             </div>
             )}
 
-            {/* v5.26: ホーム画面に追加（本人・来訪者どちらにも表示） */}
-            {/* v5.45: 名刺ブックマークアプリへの保存リンク（本人・来訪者どちらにも表示） */}
+            {/* v5.45: NEXUA名刺ポケットへの保存リンク（本人・来訪者どちらにも表示）
+                v5.46: 個別のホーム画面追加(AddToHomeBtn)はNEXUA名刺ポケットに一元化されたため撤去 */}
             <div className="mt-4 flex justify-center gap-3 flex-wrap">
-              <AddToHomeBtn />
               <a
                 href={`https://laxuz999.github.io/meishi-bookmark/?url=${encodeURIComponent(siteUrl)}&name=${encodeURIComponent(personData.displayName || 'NEXUA名刺')}&tags=${encodeURIComponent((personData.tags || []).join(','))}`}
                 target="_blank" rel="noopener noreferrer"
