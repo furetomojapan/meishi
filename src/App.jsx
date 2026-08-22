@@ -1573,8 +1573,9 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </div>
                         )}
 
-                        {/* v5.22: 閲覧者→見込み客 向けCTA（カード下部）／v5.23: 編集できる本人(PIN認証済 or 端末記憶あり)には非表示 */}
-                        {!(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart)))) && (
+                        {/* v5.22: 閲覧者→見込み客 向けCTA（カード下部）／v5.23: 編集できる本人(PIN認証済 or 端末記憶あり)には非表示
+                            v5.47: タグ仲間ビューには出さない条件(v4.15由来)を統合し、重複していたボタンなしバナーを削除 */}
+                        {!pd._tagView && !(pinAuthToken || (variablePart && localStorage.getItem(tokenKey(variablePart)))) && (
                         <div className="mt-8 mb-2 mx-auto max-w-sm text-center">
                           <div className="rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur px-5 py-5 shadow-sm">
                             <p className="text-[12px] font-bold text-neutral-800 mb-1">あなたも、NEXUA（ネクア）で名刺を。</p>
@@ -1585,15 +1586,6 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                             </a>
                           </div>
                         </div>
-                        )}
-
-                        {/* v4.15: 来訪者向けCTA。タグ仲間ビューには出さない（対面用のみ） */}
-                        {!pd._tagView && !ownerView && (
-                          <a href="welcome.html" target="_blank" rel="noopener noreferrer"
-                            className="block mt-10 mb-2 mx-auto max-w-xs text-center px-5 py-4 rounded-2xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 transition-colors">
-                            <p className="text-[11px] font-semibold text-neutral-700">あなたも、NEXUA（ネクア）で名刺を。</p>
-                            <p className="text-[10px] text-neutral-500 mt-1 leading-relaxed">人と情報を、あなたのためにつなぐ。<br/>メールだけ・1分で無料登録。</p>
-                          </a>
                         )}
 
                         {/* v4.8: フッターのオーナー再入口（来訪者ビューのみ・端末記憶が切れたとき用）
