@@ -1472,6 +1472,21 @@ import { TagFields, ProfileTextFields } from "./components/forms";
                           </button>
                         </div>
                         )}
+
+                        {/* v5.48: 本人ビューにも紹介用バナーを表示（プライバシーリンクの下） */}
+                        {ownerView && (
+                        <div className="mt-6 mb-2 mx-auto max-w-sm text-center">
+                          <div className="rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur px-5 py-5 shadow-sm">
+                            <p className="text-[12px] font-bold text-neutral-800 mb-1">あなたも、NEXUA（ネクア）で名刺を。</p>
+                            <p className="text-[10px] text-neutral-500 mb-3">人と情報を、あなたのためにつなぐ。メールだけ・1分で無料登録。</p>
+                            <a href="welcome.html" target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-5 py-2.5 rounded-full text-[11px] font-bold text-white bg-gradient-to-r from-rose-400 to-orange-400 hover:from-rose-500 hover:to-orange-500 active:scale-95 transition-all shadow-md">
+                              無料で名刺をつくる →
+                            </a>
+                          </div>
+                        </div>
+                        )}
+
                         {showPrivacy && (
                           <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-5" onClick={() => setShowPrivacy(false)}>
                             <div className="w-full max-w-md bg-white rounded-2xl p-6 space-y-3 overflow-y-auto shadow-2xl" style={{maxHeight:`calc(80vh / ${UI_ZOOMS[uiZoomIdx]})`}} onClick={e => e.stopPropagation()}>
